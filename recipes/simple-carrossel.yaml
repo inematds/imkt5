@@ -1,15 +1,18 @@
 name: simple-carrossel
-version: 1
-# Exemplo de receita pequena: gerar 5 imagens coesas + monta carrossel.
-# Útil quando o usuário pede algo composto mas leve.
+version: 2
+# Exemplo de receita pequena: gerar imagens coesas + monta carrossel.
+# parallel: 2 é realista pra dev local com 1 GPU.
 
 stages:
   - id: images
     requires: image.generation
-    parallel: 5
+    parallel: 2
     payload_from:
-      prompts: $.input.prompts
-      style: $.input.style
+      prompt: $.input.prompt   # mesmo prompt nas N imagens
+      model: $.input.model
+      width: 512
+      height: 512
+      steps: 15
     approval: {mode: none}
 
   - id: carrossel

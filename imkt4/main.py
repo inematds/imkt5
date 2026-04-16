@@ -1,0 +1,239 @@
+"""imkt4 main — bootstrap completo do Gateway.
+
+Carrega config, registry, recipes; monta dispatcher + runner + FastAPI;
+sobe uvicorn.
+
+Uso:
+
+    python -m imkt4.main
+    # ou
+    .venv/bin/python -m imkt4.main
+
+Variáveis de ambiente principais (lidas do .env automaticamente se
+python-dotenv estiver disponível):
+
+    GATEWAY_HOST=0.0.0.0
+    GATEWAY_PORT=8080
+"""
+
+from __future__ import annotations
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+from typing import Any
+
+import uvicorn
+
+from imkt4.capabilities.registry import CapabilityRegistry
+from imkt4.gateway.api import create_app
+from imkt4.gateway.http_dispatcher import HttpDispatcher
+from imkt4.recipes.approvals import CompositeApprovalGate
+from imkt4.recipes.loader import load_recipes_from_dir
+from imkt4.recipes.runner import RecipeRunner
+from imkt4.tools.run_recipe import StaticRecipeCatalog
+from imkt4.types.approvals import ApprovalDecision
+
+
+# ── carrega .env manualmente (sem dependência) ────────────────────────
+def _load_env(path: str | Path = ".env") -> None:
+    p = Path(path)
+    if not p.exists():
+        return
+    for line in p.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        os.environ.setdefault(k.strip(), v.strip())
+
+
+# ── tenant context provider — stub (Postgres real depois) ─────────────
+class StubTenantContext:
+    """Provedor de contexto do tenant. Stub — em prod, lê de Postgres."""
+
+    def __init__(self) -> None:
+        self._data: dict[str, dict[str, Any]] = {
+            "demo": {
+                "tenant_id": "demo",
+                "name": "Demo Tenant",
+                "profile": {
+                    "visual_style": "minimalist",
+                    "voice_id": "default",
+                    "prompts": {
+                        "cortes": "Identifique tópicos coesos de 30-180s",
+                    },
+                },
+                "source_bindings": [],
+                "publish_bindings": [],
+            },
+        }
+
+    async def snapshot(self, tenant_id: str) -> dict[str, Any]:
+        return self._data.get(tenant_id, {"tenant_id": tenant_id})
+
+    def upsert(self, tenant_id: str, data: dict[str, Any]) -> None:
+        self._data[tenant_id] = data
+
+
+# ── approval gates — stubs em dev ─────────────────────────────────────
+class _StubUserGate:
+    """Em dev, auto-aprova após log. Em prod, manda mensagem no canal."""
+
+    def __init__(self, runner: RecipeRunner) -> None:
+        self._runner = runner
+
+    async def ask(
+        self, *, tenant_id, user_id, origin_channel, origin_external_id,
+        run_id, stage_id, question,
+    ) -> None:
+        print(f"[approval-user] {tenant_id}/{user_id} stage={stage_id} q={question}")
+        # Em dev, auto-aprova após 100ms (simula resposta humana)
+        await asyncio.sleep(0.1)
+        await self._runner.on_approval_decided(
+            run_id, stage_id, ApprovalDecision.APPROVED
+        )
+
+
+class _StubReviewerGate:
+    def __init__(self, runner: RecipeRunner) -> None:
+        self._runner = runner
+
+    async def ask(self, *, tenant_id, reviewer_role, run_id, stage_id, question) -> None:
+        print(f"[approval-reviewer] role={reviewer_role} stage={stage_id}")
+        await asyncio.sleep(0.1)
+        await self._runner.on_approval_decided(
+            run_id, stage_id, ApprovalDecision.APPROVED
+        )
+
+
+class _AutoReviewGate:
+    """Despacha review pra worker auto-reviewer real (via dispatcher)."""
+
+    def __init__(self, dispatcher: HttpDispatcher, registry: CapabilityRegistry) -> None:
+        self._dispatcher = dispatcher
+        self._registry = registry
+        self._results: dict[str, asyncio.Future] = {}
+
+    async def evaluate(
+        self, *, tenant_id, run_id, stage_id, artifacts, criteria,
+    ) -> ApprovalDecision:
+        # Usa o auto-reviewer worker registrado.
+        from imkt4.types.jobs import Job
+        import uuid
+        from imkt4.capabilities.matcher import select_worker
+
+        job = Job(
+            job_id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
+            user_id="auto",
+            required_capability="review.auto",
+            payload={"criteria": list(criteria), "artifacts": artifacts},
+            origin_channel="recipe",
+            origin_channel_external_id=run_id,
+        )
+
+        # Chama o worker direto via http (sync esperando)
+        worker = select_worker(self._registry, "review.auto")
+        await self._registry.acquire(worker.name)
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=180.0) as client:
+                r = await client.post(
+                    f"{worker.endpoint.rstrip('/')}/execute",
+                    json={
+                        "job_id": job.job_id,
+                        "tenant_id": tenant_id,
+                        "user_id": "auto",
+                        "required_capability": "review.auto",
+                        "payload": job.payload,
+                    },
+                )
+                r.raise_for_status()
+                output = r.json().get("output", {})
+        finally:
+            await self._registry.release(worker.name)
+
+        decision_str = output.get("decision", "uncertain")
+        try:
+            return ApprovalDecision(decision_str)
+        except ValueError:
+            return ApprovalDecision.UNCERTAIN
+
+
+# ── main ──────────────────────────────────────────────────────────────
+def main() -> None:
+    _load_env()
+
+    workers_yaml = os.environ.get("IMKT4_WORKERS_YAML", "config/workers.yaml")
+    recipes_dir = os.environ.get("IMKT4_RECIPES_DIR", "recipes")
+
+    if not Path(workers_yaml).exists():
+        print(f"erro: {workers_yaml} não encontrado", file=sys.stderr)
+        sys.exit(1)
+
+    registry = CapabilityRegistry.from_yaml(workers_yaml)
+    recipes = load_recipes_from_dir(recipes_dir) if Path(recipes_dir).exists() else {}
+    catalog = StaticRecipeCatalog(recipes)
+
+    dispatcher = HttpDispatcher(registry=registry)
+
+    # Approval gate composto — montado depois que runner existe (callback ref)
+    runner_ref = {"runner": None}
+
+    async def _on_decided(run_id, stage_id, decision):
+        if runner_ref["runner"]:
+            await runner_ref["runner"].on_approval_decided(
+                run_id, stage_id, decision
+            )
+
+    auto_gate = _AutoReviewGate(dispatcher, registry)
+    approval_gate = CompositeApprovalGate(
+        on_decided=_on_decided,
+        auto_gate=auto_gate,
+    )
+    runner = RecipeRunner(dispatcher=dispatcher, approval_gate=approval_gate)
+    runner_ref["runner"] = runner
+    approval_gate._user_gate = _StubUserGate(runner)
+    approval_gate._reviewer_gate = _StubReviewerGate(runner)
+
+    # ligação dispatcher → runner (callback de fim de job)
+    dispatcher.set_on_finish(
+        lambda jid, ok, out, err:
+        runner.on_job_finished(jid, success=ok, output=out, error=err)
+    )
+
+    tenant_ctx = StubTenantContext()
+    app = create_app(
+        registry=registry,
+        runner=runner,
+        catalog=catalog,
+        dispatcher=dispatcher,
+        tenant_ctx_provider=tenant_ctx,
+    )
+
+    # boot: starta dispatcher + health refresh inicial
+    @app.on_event("startup")
+    async def _startup() -> None:
+        await dispatcher.start()
+        # refresh health uma vez no boot (não bloqueante depois)
+        try:
+            await asyncio.wait_for(registry.refresh_health(), timeout=10.0)
+        except asyncio.TimeoutError:
+            print("[boot] health-check inicial timeout; seguindo")
+
+    @app.on_event("shutdown")
+    async def _shutdown() -> None:
+        await dispatcher.stop()
+
+    host = os.environ.get("GATEWAY_HOST", "0.0.0.0")
+    port = int(os.environ.get("GATEWAY_PORT", "8080"))
+    print(f"\n  imkt4 gateway → http://{host}:{port}")
+    print(f"  workers:   {len(registry.all_workers())}  ({workers_yaml})")
+    print(f"  recipes:   {len(recipes)}  ({recipes_dir})\n")
+    uvicorn.run(app, host=host, port=port, log_level="info")
+
+
+if __name__ == "__main__":
+    main()

@@ -48,18 +48,7 @@ class BaseWorker(ABC):
 
     # ── HTTP server ───────────────────────────────────────────────────
     def create_app(self) -> Any:
-        from fastapi import FastAPI, HTTPException
-        from pydantic import BaseModel
-
-        class JobPayload(BaseModel):
-            job_id: str
-            tenant_id: str
-            user_id: str
-            worker_type: str | None = None
-            required_capability: str | None = None
-            payload: dict[str, Any] = {}
-            origin_channel: str = ""
-            origin_channel_external_id: str = ""
+        from fastapi import Body, FastAPI, HTTPException
 
         app = FastAPI(title=self.name or "imkt4 worker")
 
@@ -72,16 +61,16 @@ class BaseWorker(ABC):
             }
 
         @app.post("/execute")
-        async def execute(req: JobPayload) -> dict[str, Any]:
+        async def execute(req: dict[str, Any] = Body(...)) -> dict[str, Any]:
             job = Job(
-                job_id=req.job_id,
-                tenant_id=req.tenant_id,
-                user_id=req.user_id,
-                worker_type=req.worker_type,
-                required_capability=req.required_capability,
-                payload=req.payload,
-                origin_channel=req.origin_channel,
-                origin_channel_external_id=req.origin_channel_external_id,
+                job_id=req["job_id"],
+                tenant_id=req["tenant_id"],
+                user_id=req["user_id"],
+                worker_type=req.get("worker_type"),
+                required_capability=req.get("required_capability"),
+                payload=req.get("payload", {}),
+                origin_channel=req.get("origin_channel", ""),
+                origin_channel_external_id=req.get("origin_channel_external_id", ""),
             )
             try:
                 output = await self.handle(job)

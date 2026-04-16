@@ -89,4 +89,4 @@ class InemaimgAdapter(BaseWorker):
 
 
 if __name__ == "__main__":
-    InemaimgAdapter().run(port=8010)
+    InemaimgAdapter().run(port=int(os.environ.get("IMKT4_INEMAIMG_ADAPTER_PORT", "8020")))

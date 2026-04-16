@@ -179,4 +179,4 @@ class InemavoxAdapter(BaseWorker):
 
 
 if __name__ == "__main__":
-    InemavoxAdapter().run(port=8011)
+    InemavoxAdapter().run(port=int(os.environ.get("IMKT4_INEMAVOX_ADAPTER_PORT", "8021")))

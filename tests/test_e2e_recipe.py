@@ -199,16 +199,16 @@ async def test_simple_carrossel():
     run, payloads = await _run_recipe_to_completion(
         "recipes/simple-carrossel.yaml",
         input={
-            "prompts": ["p1", "p2", "p3", "p4", "p5"],
-            "style": "flat",
+            "prompt": "minimalist coffee shop",
+            "model": "flux2-klein",
             "title": "Meu Carrossel",
         },
         tenant_ctx={},
     )
     assert run.is_finished()
     assert not run.has_failed()
-    # images parallel: 5
-    assert len(payloads["images"]) == 5
+    # images parallel: 2 (default realista pra 1 GPU)
+    assert len(payloads["images"]) == 2
 
 
 # design.carousel handler → retorna carrossel pronto
