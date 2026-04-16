@@ -19,13 +19,16 @@ workers:
     timeout_seconds: 120
     max_concurrent: 2
 
+  # inemaimg serializa internamente (asyncio.Lock na GPU). max_concurrent: 1.
+  # Para paralelismo real, registrar múltiplas instâncias em portas/máquinas
+  # distintas (ex.: inemaimg-gpu0, inemaimg-gpu1) — o matcher distribui.
   - name: inemaimg
     capabilities: [image.generation, design.static_ad, design.carousel]
     endpoint: http://localhost:8010
     local: true
     priority: 90
     timeout_seconds: 180
-    max_concurrent: 4
+    max_concurrent: 1
 
   - name: kie
     capabilities: [image.generation]
@@ -49,11 +52,15 @@ workers:
     priority: 100
     max_concurrent: 2
 
+  # inemavox tem fila interna mas processa 1 por vez (1 _worker_task no asyncio.Queue).
+  # Mesmo padrão: para paralelismo, escalar instâncias.
   - name: inemavox
-    capabilities: [audio.tts, audio.dubbing]
+    capabilities: [audio.tts, audio.dubbing, audio.transcribe]
     endpoint: http://localhost:8011
     local: true
     priority: 90
+    timeout_seconds: 600
+    max_concurrent: 1
 
   - name: elevenlabs
     capabilities: [audio.tts]
