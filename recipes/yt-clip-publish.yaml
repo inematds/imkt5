@@ -1,0 +1,39 @@
+name: yt-clip-publish
+version: 3
+# Substitui os 10 clones yt-pub-lives*. Origem e destino ambos
+# parametrizáveis — varredura nas tabelas source_bindings e
+# publish_bindings do tenant.
+
+stages:
+
+  # Ingest: um job por origem registrada (fan-out sobre sources)
+  - id: ingest
+    requires: video.source_ingest
+    fanout_over: $.tenant.source_bindings
+    payload_from:
+      source: $.tenant.source_bindings
+    approval: {mode: none}
+
+  # Clip: processa novas lives encontradas no ingest
+  - id: clip
+    requires: video.clip_extraction
+    needs: [ingest]
+    payload_from:
+      lives: $.stages.ingest.output.outputs[*].new_lives
+      prompt: $.tenant.profile.prompts.cortes
+    approval:
+      mode: auto_reviewer
+      criteria:
+        - "clips duram entre 30s e 180s"
+        - "cada clip tem início e fim coerentes (não corta fala ao meio)"
+      escalation: on_uncertain
+
+  # Publish: fan-out sobre destinos (pode ser 1, 10, N)
+  - id: publish
+    requires: video.publish
+    fanout_over: $.tenant.publish_bindings
+    needs: [clip]
+    payload_from:
+      clip_path: $.stages.clip.output.clip_path
+      destination: $.tenant.publish_bindings
+    approval: {mode: none}

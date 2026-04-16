@@ -1,0 +1,21 @@
+name: simple-carrossel
+version: 1
+# Exemplo de receita pequena: gerar 5 imagens coesas + monta carrossel.
+# Útil quando o usuário pede algo composto mas leve.
+
+stages:
+  - id: images
+    requires: image.generation
+    parallel: 5
+    payload_from:
+      prompts: $.input.prompts
+      style: $.input.style
+    approval: {mode: none}
+
+  - id: carrossel
+    requires: design.carousel
+    needs: [images]
+    payload_from:
+      images: $.stages.images.output.outputs[*].image_url
+      title: $.input.title
+    approval: {mode: none}

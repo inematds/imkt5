@@ -1,0 +1,249 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1619.0472499999998 1736.348" width="1619.0472499999998" height="1736.348" style="--bg:#1a1b26;--fg:#a9b1d6;--line:#3d59a1;--accent:#7aa2f7;--muted:#565f89;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="Canais" data-label="🗨️  CANAIS DE ENTRADA">
+  <rect x="506.0703333333334" y="207.8" width="382.05699999999996" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="506.0703333333334" y="207.8" width="382.05699999999996" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="518.0703333333333" y="221.8" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">🗨️  CANAIS DE ENTRADA</text>
+</g>
+<g class="subgraph" data-id="GW" data-label="🧠  GATEWAY CONVERSACIONAL">
+  <rect x="685.8708333333333" y="364.70000000000005" width="214.271" height="387.348" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="685.8708333333333" y="364.70000000000005" width="214.271" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="697.8708333333333" y="378.70000000000005" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">🧠  GATEWAY CONVERSACIONAL</text>
+</g>
+<g class="subgraph" data-id="DISP" data-label="🔀  DISPATCH">
+  <rect x="803.6993833333333" y="880.348" width="328.409" height="113.80000000000001" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="803.6993833333333" y="880.348" width="328.409" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="815.6993833333333" y="894.348" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">🔀  DISPATCH</text>
+</g>
+<g class="subgraph" data-id="CAP" data-label="🧩  CAPABILITY REGISTRY">
+  <rect x="805.8334666666667" y="1048.1480000000001" width="174.726" height="181.4" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="805.8334666666667" y="1048.1480000000001" width="174.726" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="817.8334666666667" y="1062.1480000000001" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">🧩  CAPABILITY REGISTRY</text>
+</g>
+<g class="subgraph" data-id="LOCAL" data-label="🏠  WORKERS LOCAIS   (prioridade alta)">
+  <rect x="100.10825" y="1321.848" width="878.674" height="113.80000000000001" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="100.10825" y="1321.848" width="878.674" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="112.10825" y="1335.848" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">🏠  WORKERS LOCAIS   (prioridade alta)</text>
+</g>
+<g class="subgraph" data-id="REMOTE" data-label="☁️  WORKERS REMOTOS   (fallback)">
+  <rect x="1006.78225" y="1338.7479999999998" width="554.265" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="1006.78225" y="1338.7479999999998" width="554.265" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="1018.78225" y="1352.7479999999998" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">☁️  WORKERS REMOTOS   (fallback)</text>
+</g>
+<g class="subgraph" data-id="STORE" data-label="💾  STORAGE">
+  <rect x="536.6864666666665" y="1489.648" width="537.963" height="180.7" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="536.6864666666665" y="1489.648" width="537.963" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="548.6864666666665" y="1503.648" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">💾  STORAGE</text>
+</g>
+<g class="subgraph" data-id="DEL" data-label="📤  DELIVERY">
+  <rect x="459.6989333333333" y="40" width="456.898" height="113.80000000000001" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="459.6989333333333" y="40" width="456.898" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="471.6989333333333" y="54" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">📤  DELIVERY</text>
+</g>
+<polyline class="edge" data-from="CAP" data-to="LOCAL" data-style="thick" data-arrow-start="false" data-arrow-end="true" data-label="1º tenta local" points="864.0754666666667,1229.548 864.0754666666667,1241.548 539.44525,1241.548 539.44525,1321.848" fill="none" stroke="var(--_line)" stroke-width="2" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CAP" data-to="REMOTE" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-label="2º fallback" points="922.3174666666667,1229.548 922.3174666666667,1258.4479999999999 1283.91475,1258.4479999999999 1283.91475,1338.7479999999998" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TG" data-to="Resolve" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="571.2033333333334,288.70000000000005 571.2033333333334,348.70000000000005 785.8308333333333,348.70000000000005 785.8308333333333,408.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="WA" data-to="Resolve" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="699.3218333333334,288.70000000000005 699.3218333333334,348.70000000000005 785.8308333333333,348.70000000000005 785.8308333333333,408.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="WEB" data-to="Resolve" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="825.2173333333334,288.70000000000005 825.2173333333334,348.70000000000005 785.8308333333333,348.70000000000005 785.8308333333333,408.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Agent" data-to="MEM" data-style="solid" data-arrow-start="true" data-arrow-end="true" points="785.8308333333333,564.3000000000001 785.8308333333333,588.3000000000001 611.8229666666665,588.3000000000001 611.8229666666665,1572.4646666666667" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+<polyline class="edge" data-from="Classifier" data-to="Quick" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="simples" points="801.6431666666666,715.4233333333333 801.6431666666667,794.0480000000001 884.7638833333334,794.0480000000001 884.7638833333333,924.348" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Classifier" data-to="RR" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="composto" points="842.8924999999999,715.4233333333334 842.8925,782.0480000000001 996.7611333333334,782.0480000000001 996.7611333333334,862.3480000000001 1046.9683833333333,862.3480000000001 1046.9683833333333,924.348" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Quick" data-to="CAP" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="884.7638833333333,978.1479999999999 884.7638833333333,1036.1480000000001 864.0754666666667,1036.1480000000001 864.0754666666667,1048.1480000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="RR" data-to="CAP" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1023.9217166666667,978.1479999999999 1023.9217166666667,1036.1480000000001 922.3174666666667,1036.1480000000001 922.3174666666667,1048.1480000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="RR" data-to="PG" data-style="solid" data-arrow-start="true" data-arrow-end="true" points="1070.01505,978.1479999999999 1070.01505,1246.4479999999999 1571.0472499999998,1246.4479999999999 1571.0472499999998,1471.648 999.5129666666666,1471.648 999.5129666666666,1572.4646666666667" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+<polyline class="edge" data-from="LOCAL" data-to="S3" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="392.9995833333333,1435.648 392.9995833333333,1459.648 732.2087999999999,1459.648 732.2087999999999,1572.4646666666667" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="REMOTE" data-to="S3" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1191.5372499999999,1435.648 1191.5372499999999,1447.648 815.3609666666666,1447.648 815.3609666666666,1545.648 765.4581333333332,1545.648 765.4581333333332,1572.4646666666667" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="LOCAL" data-to="RD" data-style="solid" data-arrow-start="true" data-arrow-end="true" points="685.8909166666666,1435.648 685.8909166666666,1447.648 805.3609666666665,1447.648 805.3609666666665,1557.648 855.2638,1557.648 855.2638,1572.4646666666667" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+<polyline class="edge" data-from="REMOTE" data-to="RD" data-style="solid" data-arrow-start="true" data-arrow-end="true" points="1376.29225,1435.648 1376.29225,1459.648 883.8201333333332,1459.648 883.8201333333332,1572.4646666666667" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+<polyline class="edge" data-from="S3" data-to="DEL" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="748.8334666666665,1640.2646666666667 748.8334666666665,1688.348 40.039999999999964,1688.348 40.039999999999964,189.79999999999995 551.0785333333331,189.79999999999995 551.0785333333331,153.79999999999995" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DEL" data-to="TG" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="642.4581333333333,153.8 642.4581333333333,189.8 571.2033333333334,189.8 571.2033333333334,251.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DEL" data-to="WA" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="733.8377333333333,153.8 733.8377333333333,189.8 699.3218333333333,189.8 699.3218333333333,251.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DEL" data-to="WEB" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="825.2173333333333,153.8 825.2173333333333,251.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Resolve" data-to="Agent" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="785.8308333333333,462.50000000000006 785.8308333333333,510.50000000000006" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Agent" data-to="Classifier" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="785.8308333333333,564.3000000000001 785.8308333333333,588.3000000000001 822.2678333333333,588.3000000000001 822.2678333333333,612.3000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="CAP" data-to="LOCAL" data-label="1º tenta local">
+  <rect x="501.9452500000001" y="1248.548" width="74.674" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="539.2822500000001" y="1263.698" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">1º tenta local</text>
+</g>
+<g class="edge-label" data-from="CAP" data-to="REMOTE" data-label="2º fallback">
+  <rect x="1249.41475" y="1265.4479999999999" width="68.14" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1283.4847499999998" y="1280.598" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">2º fallback</text>
+</g>
+<g class="edge-label" data-from="Classifier" data-to="Quick" data-label="simples">
+  <rect x="857.7638833333333" y="801.048" width="53.29" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="884.4088833333333" y="816.198" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">simples</text>
+</g>
+<g class="edge-label" data-from="Classifier" data-to="RR" data-label="composto">
+  <rect x="965.2611333333333" y="801.048" width="62.794000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="996.6581333333334" y="816.198" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">composto</text>
+</g>
+<g class="node" data-id="TG" data-label="Telegram" data-shape="rectangle">
+  <rect x="522.0703333333333" y="251.8" width="98.26599999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="571.2033333333334" y="270.25" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Telegram</text>
+</g>
+<g class="node" data-id="WA" data-label="WhatsApp" data-shape="rectangle">
+  <rect x="648.3363333333334" y="251.8" width="101.971" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="699.3218333333334" y="270.25" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">WhatsApp</text>
+</g>
+<g class="node" data-id="WEB" data-label="Web App" data-shape="rectangle">
+  <rect x="778.3073333333334" y="251.8" width="93.82" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="825.2173333333334" y="270.25" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Web App</text>
+</g>
+<g class="node" data-id="Resolve" data-label="Tenant Resolver
+tg/wa/web → user_id" data-shape="rectangle">
+  <rect x="707.0578333333333" y="408.70000000000005" width="157.546" height="53.800000000000004" rx="0" ry="0" fill="#2d3d5a" stroke="#7d9dd3" stroke-width="0.75" />
+  <text x="785.8308333333333" y="435.6" text-anchor="middle" font-size="13" font-weight="500" fill="#e8edf5"><tspan x="785.8308333333333" dy="-3.9000000000000012">Tenant Resolver</tspan><tspan x="785.8308333333333" dy="16.900000000000002">tg/wa/web → user_id</tspan></text>
+</g>
+<g class="node" data-id="Agent" data-label="Agent Loop
+LLM + memória FTS5" data-shape="rectangle">
+  <rect x="701.8708333333333" y="510.50000000000006" width="167.92" height="53.800000000000004" rx="0" ry="0" fill="#2d3d5a" stroke="#7d9dd3" stroke-width="0.75" />
+  <text x="785.8308333333333" y="537.4000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#e8edf5"><tspan x="785.8308333333333" dy="-3.9000000000000012">Agent Loop</tspan><tspan x="785.8308333333333" dy="16.900000000000002">LLM + memória FTS5</tspan></text>
+</g>
+<g class="node" data-id="Classifier" data-label="Intenção?" data-shape="diamond">
+  <polygon points="822.2678333333333,612.3000000000001 884.1418333333334,674.1740000000001 822.2678333333333,736.0480000000001 760.3938333333333,674.1740000000001" fill="#2d3d5a" stroke="#7d9dd3" stroke-width="0.75" />
+  <text x="822.2678333333333" y="674.1740000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#e8edf5" dy="4.55">Intenção?</text>
+</g>
+<g class="node" data-id="Quick" data-label="Quick Dispatch
+1 pedido → 1 job" data-shape="rectangle">
+  <rect x="819.6993833333333" y="924.348" width="130.12900000000002" height="53.800000000000004" rx="0" ry="0" fill="#2d3d5a" stroke="#7d9dd3" stroke-width="0.75" />
+  <text x="884.7638833333333" y="951.2479999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#e8edf5"><tspan x="884.7638833333333" dy="-3.9000000000000012">Quick Dispatch</tspan><tspan x="884.7638833333333" dy="16.900000000000002">1 pedido → 1 job</tspan></text>
+</g>
+<g class="node" data-id="RR" data-label="Recipe Runner
+YAML composto" data-shape="rectangle">
+  <rect x="977.8283833333334" y="924.348" width="138.28" height="53.800000000000004" rx="0" ry="0" fill="#2d3d5a" stroke="#7d9dd3" stroke-width="0.75" />
+  <text x="1046.9683833333333" y="951.2479999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#e8edf5"><tspan x="1046.9683833333333" dy="-3.9000000000000012">Recipe Runner</tspan><tspan x="1046.9683833333333" dy="16.900000000000002">YAML composto</tspan></text>
+</g>
+<g class="node" data-id="Caps" data-label="image.generation
+audio.tts
+video.render
+research.market
+platform.*
+review.auto" data-shape="rectangle">
+  <rect x="821.8334666666667" y="1092.1480000000001" width="142.726" height="121.4" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="893.1964666666668" y="1152.8480000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="893.1964666666668" dy="-37.70000000000001">image.generation</tspan><tspan x="893.1964666666668" dy="16.900000000000002">audio.tts</tspan><tspan x="893.1964666666668" dy="16.900000000000002">video.render</tspan><tspan x="893.1964666666668" dy="16.900000000000002">research.market</tspan><tspan x="893.1964666666668" dy="16.900000000000002">platform.*</tspan><tspan x="893.1964666666668" dy="16.900000000000002">review.auto</tspan></text>
+</g>
+<g class="node" data-id="SD" data-label="Stable Diffusion
+local" data-shape="rectangle">
+  <rect x="239.41025000000002" y="1374.2979999999998" width="131.611" height="53.800000000000004" rx="0" ry="0" fill="#2d5a3d" stroke="#7dd3a0" stroke-width="0.75" />
+  <text x="305.21575" y="1401.1979999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#e8f5e9"><tspan x="305.21575" dy="-3.9000000000000012">Stable Diffusion</tspan><tspan x="305.21575" dy="16.900000000000002">local</tspan></text>
+</g>
+<g class="node" data-id="Coqui" data-label="Coqui TTS
+local" data-shape="rectangle">
+  <rect x="551.22225" y="1374.2979999999998" width="104.93499999999999" height="53.800000000000004" rx="0" ry="0" fill="#2d5a3d" stroke="#7dd3a0" stroke-width="0.75" />
+  <text x="603.68975" y="1401.1979999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#e8f5e9"><tspan x="603.68975" dy="-3.9000000000000012">Coqui TTS</tspan><tspan x="603.68975" dy="16.900000000000002">local</tspan></text>
+</g>
+<g class="node" data-id="Inemaimg" data-label="inemaimg
+local API" data-shape="rectangle">
+  <rect x="116.10825" y="1374.2979999999998" width="95.30199999999999" height="53.800000000000004" rx="0" ry="0" fill="#2d5a3d" stroke="#7dd3a0" stroke-width="0.75" />
+  <text x="163.75925" y="1401.1979999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#e8f5e9"><tspan x="163.75925" dy="-3.9000000000000012">inemaimg</tspan><tspan x="163.75925" dy="16.900000000000002">local API</tspan></text>
+</g>
+<g class="node" data-id="Inemavox" data-label="inemavox
+local API" data-shape="rectangle">
+  <rect x="684.15725" y="1374.2979999999998" width="98.26599999999999" height="53.800000000000004" rx="0" ry="0" fill="#2d5a3d" stroke="#7dd3a0" stroke-width="0.75" />
+  <text x="733.29025" y="1401.1979999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#e8f5e9"><tspan x="733.29025" dy="-3.9000000000000012">inemavox</tspan><tspan x="733.29025" dy="16.900000000000002">local API</tspan></text>
+</g>
+<g class="node" data-id="FFm" data-label="FFmpeg / Remotion
+local" data-shape="rectangle">
+  <rect x="810.42325" y="1374.2979999999998" width="152.35899999999998" height="53.800000000000004" rx="0" ry="0" fill="#2d5a3d" stroke="#7dd3a0" stroke-width="0.75" />
+  <text x="886.60275" y="1401.1979999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#e8f5e9"><tspan x="886.60275" dy="-3.9000000000000012">FFmpeg / Remotion</tspan><tspan x="886.60275" dy="16.900000000000002">local</tspan></text>
+</g>
+<g class="node" data-id="Rev" data-label="auto-reviewer
+local" data-shape="rectangle">
+  <rect x="399.02124999999995" y="1374.2979999999998" width="124.20100000000001" height="53.800000000000004" rx="0" ry="0" fill="#2d5a3d" stroke="#7dd3a0" stroke-width="0.75" />
+  <text x="461.12174999999996" y="1401.1979999999999" text-anchor="middle" font-size="13" font-weight="500" fill="#e8f5e9"><tspan x="461.12174999999996" dy="-3.9000000000000012">auto-reviewer</tspan><tspan x="461.12174999999996" dy="16.900000000000002">local</tspan></text>
+</g>
+<g class="node" data-id="KIE" data-label="KIE" data-shape="rectangle">
+  <rect x="1165.35025" y="1374.2979999999998" width="62.69799999999999" height="36.900000000000006" rx="0" ry="0" fill="#5a3d2d" stroke="#d39d7d" stroke-width="0.75" />
+  <text x="1196.69925" y="1392.7479999999998" text-anchor="middle" font-size="13" font-weight="500" fill="#fff4e8" dy="4.55">KIE</text>
+</g>
+<g class="node" data-id="Polli" data-label="Pollinations" data-shape="rectangle">
+  <rect x="1256.0482499999998" y="1374.2979999999998" width="110.122" height="36.900000000000006" rx="0" ry="0" fill="#5a3d2d" stroke="#d39d7d" stroke-width="0.75" />
+  <text x="1311.1092499999997" y="1392.7479999999998" text-anchor="middle" font-size="13" font-weight="500" fill="#fff4e8" dy="4.55">Pollinations</text>
+</g>
+<g class="node" data-id="EL" data-label="ElevenLabs" data-shape="rectangle">
+  <rect x="1022.78225" y="1374.2979999999998" width="114.568" height="36.900000000000006" rx="0" ry="0" fill="#5a3d2d" stroke="#d39d7d" stroke-width="0.75" />
+  <text x="1080.06625" y="1392.7479999999998" text-anchor="middle" font-size="13" font-weight="500" fill="#fff4e8" dy="4.55">ElevenLabs</text>
+</g>
+<g class="node" data-id="OAI" data-label="OpenAI / Anthropic" data-shape="rectangle">
+  <rect x="1394.17025" y="1374.2979999999998" width="150.877" height="36.900000000000006" rx="0" ry="0" fill="#5a3d2d" stroke="#d39d7d" stroke-width="0.75" />
+  <text x="1469.6087499999999" y="1392.7479999999998" text-anchor="middle" font-size="13" font-weight="500" fill="#fff4e8" dy="4.55">OpenAI / Anthropic</text>
+</g>
+<g class="node" data-id="PG" data-label="Postgres
+jobs, tenants,
+approvals" data-shape="cylinder">
+  <rect x="940.3764666666666" y="1579.4646666666667" width="118.273" height="70.7" fill="#3d2d5a" stroke="none" />
+  <line x1="940.3764666666666" y1="1579.4646666666667" x2="940.3764666666666" y2="1650.1646666666668" stroke="#a07dd3" stroke-width="0.75" />
+  <line x1="1058.6494666666665" y1="1579.4646666666667" x2="1058.6494666666665" y2="1650.1646666666668" stroke="#a07dd3" stroke-width="0.75" />
+  <ellipse cx="999.5129666666666" cy="1650.1646666666668" rx="59.1365" ry="7" fill="#3d2d5a" stroke="#a07dd3" stroke-width="0.75" />
+  <ellipse cx="999.5129666666666" cy="1579.4646666666667" rx="59.1365" ry="7" fill="#3d2d5a" stroke="#a07dd3" stroke-width="0.75" />
+  <text x="999.5129666666666" y="1614.8146666666667" text-anchor="middle" font-size="13" font-weight="500" fill="#ede8f5"><tspan x="999.5129666666666" dy="-12.350000000000001">Postgres</tspan><tspan x="999.5129666666666" dy="16.900000000000002">jobs, tenants,</tspan><tspan x="999.5129666666666" dy="16.900000000000002">approvals</tspan></text>
+</g>
+<g class="node" data-id="RD" data-label="Redis
+filas RQ" data-shape="cylinder">
+  <rect x="826.7074666666665" y="1579.4646666666667" width="85.66900000000001" height="53.80000000000001" fill="#3d2d5a" stroke="none" />
+  <line x1="826.7074666666665" y1="1579.4646666666667" x2="826.7074666666665" y2="1633.2646666666667" stroke="#a07dd3" stroke-width="0.75" />
+  <line x1="912.3764666666665" y1="1579.4646666666667" x2="912.3764666666665" y2="1633.2646666666667" stroke="#a07dd3" stroke-width="0.75" />
+  <ellipse cx="869.5419666666666" cy="1633.2646666666667" rx="42.834500000000006" ry="7" fill="#3d2d5a" stroke="#a07dd3" stroke-width="0.75" />
+  <ellipse cx="869.5419666666666" cy="1579.4646666666667" rx="42.834500000000006" ry="7" fill="#3d2d5a" stroke="#a07dd3" stroke-width="0.75" />
+  <text x="869.5419666666666" y="1606.3646666666668" text-anchor="middle" font-size="13" font-weight="500" fill="#ede8f5"><tspan x="869.5419666666666" dy="-3.9000000000000012">Redis</tspan><tspan x="869.5419666666666" dy="16.900000000000002">filas RQ</tspan></text>
+</g>
+<g class="node" data-id="S3" data-label="MinIO / S3
+artefatos" data-shape="cylinder">
+  <rect x="698.9594666666666" y="1579.4646666666667" width="99.74799999999999" height="53.80000000000001" fill="#3d2d5a" stroke="none" />
+  <line x1="698.9594666666666" y1="1579.4646666666667" x2="698.9594666666666" y2="1633.2646666666667" stroke="#a07dd3" stroke-width="0.75" />
+  <line x1="798.7074666666665" y1="1579.4646666666667" x2="798.7074666666665" y2="1633.2646666666667" stroke="#a07dd3" stroke-width="0.75" />
+  <ellipse cx="748.8334666666666" cy="1633.2646666666667" rx="49.873999999999995" ry="7" fill="#3d2d5a" stroke="#a07dd3" stroke-width="0.75" />
+  <ellipse cx="748.8334666666666" cy="1579.4646666666667" rx="49.873999999999995" ry="7" fill="#3d2d5a" stroke="#a07dd3" stroke-width="0.75" />
+  <text x="748.8334666666666" y="1606.3646666666668" text-anchor="middle" font-size="13" font-weight="500" fill="#ede8f5"><tspan x="748.8334666666666" dy="-3.9000000000000012">MinIO / S3</tspan><tspan x="748.8334666666666" dy="16.900000000000002">artefatos</tspan></text>
+</g>
+<g class="node" data-id="MEM" data-label="SQLite FTS5
+memória chat" data-shape="cylinder">
+  <rect x="552.6864666666665" y="1579.4646666666667" width="118.273" height="53.80000000000001" fill="#3d2d5a" stroke="none" />
+  <line x1="552.6864666666665" y1="1579.4646666666667" x2="552.6864666666665" y2="1633.2646666666667" stroke="#a07dd3" stroke-width="0.75" />
+  <line x1="670.9594666666666" y1="1579.4646666666667" x2="670.9594666666666" y2="1633.2646666666667" stroke="#a07dd3" stroke-width="0.75" />
+  <ellipse cx="611.8229666666665" cy="1633.2646666666667" rx="59.1365" ry="7" fill="#3d2d5a" stroke="#a07dd3" stroke-width="0.75" />
+  <ellipse cx="611.8229666666665" cy="1579.4646666666667" rx="59.1365" ry="7" fill="#3d2d5a" stroke="#a07dd3" stroke-width="0.75" />
+  <text x="611.8229666666665" y="1606.3646666666668" text-anchor="middle" font-size="13" font-weight="500" fill="#ede8f5"><tspan x="611.8229666666665" dy="-3.9000000000000012">SQLite FTS5</tspan><tspan x="611.8229666666665" dy="16.900000000000002">memória chat</tspan></text>
+</g>
+<g class="node" data-id="ChatOut" data-label="💬 Chat
+auto" data-shape="rectangle">
+  <rect x="639.7559333333332" y="84" width="85.66900000000001" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="682.5904333333333" y="110.9" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="682.5904333333333" dy="-3.9000000000000012">💬 Chat</tspan><tspan x="682.5904333333333" dy="16.900000000000002">auto</tspan></text>
+</g>
+<g class="node" data-id="DL" data-label="⬇️ Download ZIP
+painel" data-shape="rectangle">
+  <rect x="753.4249333333332" y="84" width="147.172" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="827.0109333333332" y="110.9" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="827.0109333333332" dy="-3.9000000000000012">⬇️ Download ZIP</tspan><tspan x="827.0109333333332" dy="16.900000000000002">painel</tspan></text>
+</g>
+<g class="node" data-id="PUB" data-label="📣 Publish
+opt-in nas redes" data-shape="rectangle">
+  <rect x="475.6989333333333" y="84" width="136.057" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="543.7274333333332" y="110.9" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="543.7274333333332" dy="-3.9000000000000012">📣 Publish</tspan><tspan x="543.7274333333332" dy="16.900000000000002">opt-in nas redes</tspan></text>
+</g>
+</svg>

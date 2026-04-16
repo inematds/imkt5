@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env
+.env
+.env.local
+
+# Dados locais
+data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Logs
+logs/
+*.log
+
+# Tenant profiles (conteúdo é por-deploy; template fica versionado)
+profiles/*
+!profiles/_template/
+!profiles/.gitkeep
+
+# Workers — subprojetos independentes podem ter seus próprios artifacts
+workers/*/node_modules/
+workers/*/.venv/
+workers/*/dist/
+workers/*/outputs/

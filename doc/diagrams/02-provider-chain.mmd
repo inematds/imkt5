@@ -1,0 +1,36 @@
+flowchart LR
+    Req["📥 Pedido<br/>capability:<br/>image.generation"]
+
+    subgraph Chain["🔗 CADEIA DE PROVIDERS (por capability)"]
+        direction TB
+        P1["🏠 Stable Diffusion<br/>local: true<br/>priority: 100"]
+        P2["🏠 inemaimg<br/>local: true<br/>priority: 90"]
+        P3["☁️ KIE<br/>local: false<br/>priority: 20"]
+        P4["☁️ Pollinations<br/>local: false<br/>priority: 10"]
+    end
+
+    subgraph HC["💓 HEALTH CHECK"]
+        H["GET /health<br/>a cada 30s"]
+    end
+
+    Out["📤 Resultado<br/>no S3 + event"]
+
+    Req --> Chain
+    Chain <--> HC
+
+    H -->|"ok ✓"| P1
+    P1 -->|"200 ok"| Out
+    P1 -.->|"timeout / 5xx"| P2
+    P2 -->|"200 ok"| Out
+    P2 -.->|"falhou"| P3
+    P3 -->|"200 ok"| Out
+    P3 -.->|"falhou"| P4
+    P4 -->|"200 ok"| Out
+
+    classDef local fill:#2d5a3d,stroke:#7dd3a0,color:#e8f5e9,stroke-width:2px
+    classDef remote fill:#5a3d2d,stroke:#d39d7d,color:#fff4e8,stroke-width:2px
+    classDef hc fill:#5a2d3d,stroke:#d37d9d,color:#f5e8ed
+
+    class P1,P2 local
+    class P3,P4 remote
+    class H hc

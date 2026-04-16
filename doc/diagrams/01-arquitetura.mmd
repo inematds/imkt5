@@ -1,0 +1,87 @@
+graph TD
+    subgraph Canais["🗨️  CANAIS DE ENTRADA"]
+        TG[Telegram]
+        WA[WhatsApp]
+        WEB[Web App]
+    end
+
+    subgraph GW["🧠  GATEWAY CONVERSACIONAL"]
+        Resolve[Tenant Resolver<br/>tg/wa/web → user_id]
+        Agent[Agent Loop<br/>LLM + memória FTS5]
+        Classifier{Intenção?}
+    end
+
+    subgraph DISP["🔀  DISPATCH"]
+        Quick[Quick Dispatch<br/>1 pedido → 1 job]
+        RR[Recipe Runner<br/>YAML composto]
+    end
+
+    subgraph CAP["🧩  CAPABILITY REGISTRY"]
+        Caps["image.generation<br/>audio.tts<br/>video.render<br/>research.market<br/>platform.*<br/>review.auto"]
+    end
+
+    subgraph LOCAL["🏠  WORKERS LOCAIS   (prioridade alta)"]
+        SD[Stable Diffusion<br/>local]
+        Coqui[Coqui TTS<br/>local]
+        Inemaimg[inemaimg<br/>local API]
+        Inemavox[inemavox<br/>local API]
+        FFm[FFmpeg / Remotion<br/>local]
+        Rev[auto-reviewer<br/>local]
+    end
+
+    subgraph REMOTE["☁️  WORKERS REMOTOS   (fallback)"]
+        KIE[KIE]
+        Polli[Pollinations]
+        EL[ElevenLabs]
+        OAI[OpenAI / Anthropic]
+    end
+
+    subgraph STORE["💾  STORAGE"]
+        PG[(Postgres<br/>jobs, tenants,<br/>approvals)]
+        RD[(Redis<br/>filas RQ)]
+        S3[(MinIO / S3<br/>artefatos)]
+        MEM[(SQLite FTS5<br/>memória chat)]
+    end
+
+    subgraph DEL["📤  DELIVERY"]
+        ChatOut[💬 Chat<br/>auto]
+        DL[⬇️ Download ZIP<br/>painel]
+        PUB[📣 Publish<br/>opt-in nas redes]
+    end
+
+    TG --> Resolve
+    WA --> Resolve
+    WEB --> Resolve
+
+    Resolve --> Agent
+    Agent <--> MEM
+    Agent --> Classifier
+    Classifier -->|simples| Quick
+    Classifier -->|composto| RR
+
+    Quick --> CAP
+    RR --> CAP
+    RR <--> PG
+
+    CAP ==>|1º tenta local| LOCAL
+    CAP -.->|2º fallback| REMOTE
+
+    LOCAL --> S3
+    REMOTE --> S3
+    LOCAL <--> RD
+    REMOTE <--> RD
+
+    S3 --> DEL
+    DEL --> TG
+    DEL --> WA
+    DEL --> WEB
+
+    classDef local fill:#2d5a3d,stroke:#7dd3a0,color:#e8f5e9
+    classDef remote fill:#5a3d2d,stroke:#d39d7d,color:#fff4e8
+    classDef store fill:#3d2d5a,stroke:#a07dd3,color:#ede8f5
+    classDef gw fill:#2d3d5a,stroke:#7d9dd3,color:#e8edf5
+
+    class SD,Coqui,Inemaimg,Inemavox,FFm,Rev local
+    class KIE,Polli,EL,OAI remote
+    class PG,RD,S3,MEM store
+    class Resolve,Agent,Classifier,Quick,RR gw

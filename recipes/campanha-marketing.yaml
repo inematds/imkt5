@@ -1,0 +1,97 @@
+name: campanha-marketing
+version: 3
+# Composição completa — derivada do pipeline de 5 estágios do timesmkt3,
+# mas multi-tenant, com aprovação distribuída (3 modos) e sem
+# stage final de "distribution" (delivery é modo, não stage).
+
+stages:
+
+  # ─── Pesquisa: opt-in ────────────────────────────────────────────
+  - id: research
+    requires: research.market
+    when: $.input.with_research == true
+    payload_from:
+      brief: $.input.brief
+    approval: {mode: none}
+
+  # ─── Brief criativo: auto-review ──────────────────────────────────
+  - id: brief
+    requires: brief.strategic
+    needs: [research]
+    payload_from:
+      brief: $.input.brief
+      research: $.stages.research.output
+    approval:
+      mode: auto_reviewer
+      criteria:
+        - "brief tem ângulo estratégico claro"
+        - "brief define público-alvo"
+        - "brief define CTA"
+      escalation: on_uncertain
+
+  # ─── Copy: aprovação do solicitante ───────────────────────────────
+  - id: copy
+    requires: copy.narrative
+    needs: [brief]
+    payload_from:
+      brief: $.stages.brief.output
+    approval:
+      mode: user
+      timeout: 7200   # 2h
+
+  # ─── Imagens: local-first, sem aprovação ──────────────────────────
+  - id: images
+    requires: image.generation
+    needs: [copy]
+    parallel: 6
+    payload_from:
+      prompts: $.stages.copy.output.prompts
+      style: $.tenant.profile.visual_style
+    approval: {mode: none}
+
+  # ─── Voiceover: roda em paralelo com imagens ──────────────────────
+  - id: voiceover
+    requires: audio.tts
+    needs: [copy]
+    payload_from:
+      text: $.stages.copy.output.voiceover_script
+      voice_id: $.tenant.profile.voice_id
+    approval: {mode: none}
+
+  # ─── Ads: composição visual ───────────────────────────────────────
+  - id: ads
+    requires: design.static_ad
+    needs: [images]
+    payload_from:
+      images: $.stages.images.output.outputs[*].image_url
+      narrative: $.stages.copy.output
+    approval:
+      mode: user
+
+  # ─── Video: revisado por humano (supervisor) ──────────────────────
+  - id: video
+    requires: video.cinematic
+    needs: [ads, voiceover]
+    payload_from:
+      images: $.stages.ads.output.image_urls
+      audio: $.stages.voiceover.output.audio_url
+    approval:
+      mode: human_reviewer
+      reviewer_role: content_supervisor
+
+  # ─── Otimização por plataforma: fanout sobre capabilities ─────────
+  - id: platforms
+    fanout_over_capabilities:
+      - platform.instagram
+      - platform.youtube
+      - platform.tiktok
+      - platform.facebook
+      - platform.threads
+      - platform.linkedin
+    needs: [video]
+    payload_from:
+      video: $.stages.video.output
+      narrative: $.stages.copy.output
+    approval: {mode: user}
+
+  # Sem stage "distribute" — publicação é ação do painel Web, não job.

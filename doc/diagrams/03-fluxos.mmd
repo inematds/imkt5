@@ -1,0 +1,55 @@
+sequenceDiagram
+    autonumber
+    actor U as 👤 Usuário
+    participant CH as 🗨️ Canal<br/>(TG/WA/Web)
+    participant GW as 🧠 Gateway
+    participant QD as 🔀 Quick Dispatch
+    participant RR as 📋 Recipe Runner
+    participant W as ⚙️ Worker<br/>(provider chain)
+    participant AR as 🤖 auto-reviewer
+    participant HR as 👥 Human Reviewer
+    participant S3 as 💾 S3/MinIO
+
+    rect rgba(45, 90, 61, 0.2)
+        Note over U,S3: FLUXO A — pedido simples: "gera uma imagem de X"
+        U->>CH: texto
+        CH->>GW: IncomingMessage
+        GW->>GW: classifica: simples
+        GW->>QD: dispatch_job(image.generation)
+        QD->>W: Job → 1º local (Stable Diffusion)
+        W->>S3: salva imagem
+        W-->>QD: JobResult
+        QD-->>GW: pronto
+        GW-->>CH: OutgoingMessage + anexo
+        CH-->>U: 🖼️ imagem
+    end
+
+    rect rgba(93, 61, 45, 0.2)
+        Note over U,S3: FLUXO B — campanha composta
+        U->>CH: "cria campanha Y"
+        CH->>GW: IncomingMessage
+        GW->>GW: classifica: composto
+        GW->>RR: run_recipe(campanha-marketing)
+        RR->>W: stage research (opt-in)
+        W-->>RR: pesquisa de mercado
+        RR->>AR: aprova brief? (critérios)
+        AR-->>RR: approved ✓
+        RR->>W: stage copy
+        W-->>RR: narrativa
+        RR->>CH: "aprovar copy?"
+        CH->>U: pergunta
+        U-->>CH: "sim"
+        CH-->>RR: approved ✓
+        par stages paralelos
+            RR->>W: images (inemaimg local)
+        and
+            RR->>W: voiceover (inemavox local)
+        end
+        W->>S3: artefatos
+        RR->>W: video (compõe imagens + áudio)
+        W->>S3: vídeo final
+        RR->>HR: aprovar vídeo? (supervisor)
+        HR-->>RR: approved ✓
+        RR-->>CH: pacote pronto
+        CH-->>U: 💬 chat + ⬇️ link ZIP + 📣 botão publicar
+    end

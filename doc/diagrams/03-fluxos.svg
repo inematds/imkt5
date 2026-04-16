@@ -1,0 +1,233 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1648.8429999999998 1623" width="1648.8429999999998" height="1623" style="--bg:#1a1b26;--fg:#a9b1d6;--line:#3d59a1;--accent:#7aa2f7;--muted:#565f89;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" />
+  </marker>
+  <marker id="seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="var(--_arrow)" stroke-width="1" />
+  </marker>
+</defs>
+<g class="block" data-type="rect" data-label="rgba(45, 90, 61, 0.2)">
+  <rect x="30" y="78" width="1588.8429999999998" height="450" rx="0" ry="0" fill="none" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="30" y="78" width="144.37000000000003" height="18" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="36" y="87" font-size="11" font-weight="600" fill="var(--_text-sec)" dy="3.8499999999999996">rect [rgba(45, 90, 61, 0.2)]</text>
+</g>
+<g class="block" data-type="par" data-label="stages paralelos">
+  <rect x="707.415" y="1169" width="404.2930000000001" height="124" rx="0" ry="0" fill="none" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="707.415" y="1169" width="132.49" height="18" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="713.415" y="1178" font-size="11" font-weight="600" fill="var(--_text-sec)" dy="3.8499999999999996">par [stages paralelos]</text>
+  <line x1="707.415" y1="1245" x2="1111.708" y2="1245" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+</g>
+<g class="block" data-type="rect" data-label="rgba(93, 61, 45, 0.2)">
+  <rect x="30" y="551" width="1588.8429999999998" height="1022" rx="0" ry="0" fill="none" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="30" y="551" width="144.37000000000003" height="18" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="36" y="560" font-size="11" font-weight="600" fill="var(--_text-sec)" dy="3.8499999999999996">rect [rgba(93, 61, 45, 0.2)]</text>
+</g>
+<line class="lifeline" data-actor="U" x1="89.20849999999999" y1="70" x2="89.20849999999999" y2="1593" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="CH" x1="267.6395" y1="70" x2="267.6395" y2="1593" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="GW" x1="447.5525" y1="70" x2="447.5525" y2="1593" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="QD" x1="607.829" y1="70" x2="607.829" y2="1593" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="RR" x1="787.001" y1="70" x2="787.001" y2="1593" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="W" x1="999.1475" y1="70" x2="999.1475" y2="1593" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="AR" x1="1208.33" y1="70" x2="1208.33" y2="1593" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="HR" x1="1389.725" y1="70" x2="1389.725" y2="1593" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="S3" x1="1556.6705" y1="70" x2="1556.6705" y2="1593" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<g class="message" data-from="U" data-to="CH" data-label="texto" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="89.20849999999999" y1="118" x2="267.6395" y2="118" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="178.42399999999998" y="108" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">texto</text>
+</g>
+<g class="message" data-from="CH" data-to="GW" data-label="IncomingMessage" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="267.6395" y1="158" x2="447.5525" y2="158" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="357.596" y="148" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">IncomingMessage</text>
+</g>
+<g class="message" data-from="GW" data-to="GW" data-label="classifica: simples" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="447.5525,198 477.5525,198 477.5525,218 447.5525,218" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="485.5525" y="208" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">classifica: simples</text>
+</g>
+<g class="message" data-from="GW" data-to="QD" data-label="dispatch_job(image.generation)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="447.5525" y1="268" x2="607.829" y2="268" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="527.69075" y="258" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">dispatch_job(image.generation)</text>
+</g>
+<g class="message" data-from="QD" data-to="W" data-label="Job → 1º local (Stable Diffusion)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="607.829" y1="308" x2="999.1475" y2="308" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="803.48825" y="298" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Job → 1º local (Stable Diffusion)</text>
+</g>
+<g class="message" data-from="W" data-to="S3" data-label="salva imagem" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="999.1475" y1="348" x2="1556.6705" y2="348" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="1277.909" y="338" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">salva imagem</text>
+</g>
+<g class="message" data-from="W" data-to="QD" data-label="JobResult" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="999.1475" y1="388" x2="607.829" y2="388" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="803.48825" y="378" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">JobResult</text>
+</g>
+<g class="message" data-from="QD" data-to="GW" data-label="pronto" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="607.829" y1="428" x2="447.5525" y2="428" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="527.69075" y="418" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">pronto</text>
+</g>
+<g class="message" data-from="GW" data-to="CH" data-label="OutgoingMessage + anexo" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="447.5525" y1="468" x2="267.6395" y2="468" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="357.596" y="458" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">OutgoingMessage + anexo</text>
+</g>
+<g class="message" data-from="CH" data-to="U" data-label="🖼️ imagem" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="267.6395" y1="508" x2="89.20849999999999" y2="508" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="178.42399999999998" y="498" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">🖼️ imagem</text>
+</g>
+<g class="message" data-from="U" data-to="CH" data-label="cria campanha Y" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="89.20849999999999" y1="591" x2="267.6395" y2="591" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="178.42399999999998" y="581" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">cria campanha Y</text>
+</g>
+<g class="message" data-from="CH" data-to="GW" data-label="IncomingMessage" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="267.6395" y1="631" x2="447.5525" y2="631" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="357.596" y="621" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">IncomingMessage</text>
+</g>
+<g class="message" data-from="GW" data-to="GW" data-label="classifica: composto" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="447.5525,671 477.5525,671 477.5525,691 447.5525,691" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="485.5525" y="681" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">classifica: composto</text>
+</g>
+<g class="message" data-from="GW" data-to="RR" data-label="run_recipe(campanha-marketing)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="447.5525" y1="741" x2="787.001" y2="741" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="617.27675" y="731" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">run_recipe(campanha-marketing)</text>
+</g>
+<g class="message" data-from="RR" data-to="W" data-label="stage research (opt-in)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="787.001" y1="781" x2="999.1475" y2="781" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="893.07425" y="771" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">stage research (opt-in)</text>
+</g>
+<g class="message" data-from="W" data-to="RR" data-label="pesquisa de mercado" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="999.1475" y1="821" x2="787.001" y2="821" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="893.07425" y="811" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">pesquisa de mercado</text>
+</g>
+<g class="message" data-from="RR" data-to="AR" data-label="aprova brief? (critérios)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="787.001" y1="861" x2="1208.33" y2="861" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="997.6655" y="851" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">aprova brief? (critérios)</text>
+</g>
+<g class="message" data-from="AR" data-to="RR" data-label="approved ✓" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="1208.33" y1="901" x2="787.001" y2="901" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="997.6655" y="891" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">approved ✓</text>
+</g>
+<g class="message" data-from="RR" data-to="W" data-label="stage copy" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="787.001" y1="941" x2="999.1475" y2="941" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="893.07425" y="931" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">stage copy</text>
+</g>
+<g class="message" data-from="W" data-to="RR" data-label="narrativa" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="999.1475" y1="981" x2="787.001" y2="981" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="893.07425" y="971" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">narrativa</text>
+</g>
+<g class="message" data-from="RR" data-to="CH" data-label="aprovar copy?" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="787.001" y1="1021" x2="267.6395" y2="1021" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="527.32025" y="1011" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">aprovar copy?</text>
+</g>
+<g class="message" data-from="CH" data-to="U" data-label="pergunta" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="267.6395" y1="1061" x2="89.20849999999999" y2="1061" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="178.42399999999998" y="1051" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">pergunta</text>
+</g>
+<g class="message" data-from="U" data-to="CH" data-label="sim" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="89.20849999999999" y1="1101" x2="267.6395" y2="1101" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="178.42399999999998" y="1091" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">sim</text>
+</g>
+<g class="message" data-from="CH" data-to="RR" data-label="approved ✓" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="267.6395" y1="1141" x2="787.001" y2="1141" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="527.32025" y="1131" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">approved ✓</text>
+</g>
+<g class="message" data-from="RR" data-to="W" data-label="images (inemaimg local)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="787.001" y1="1209" x2="999.1475" y2="1209" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="893.07425" y="1199" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">images (inemaimg local)</text>
+</g>
+<g class="message" data-from="RR" data-to="W" data-label="voiceover (inemavox local)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="787.001" y1="1273" x2="999.1475" y2="1273" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="893.07425" y="1263" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">voiceover (inemavox local)</text>
+</g>
+<g class="message" data-from="W" data-to="S3" data-label="artefatos" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="999.1475" y1="1313" x2="1556.6705" y2="1313" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="1277.909" y="1303" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">artefatos</text>
+</g>
+<g class="message" data-from="RR" data-to="W" data-label="video (compõe imagens + áudio)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="787.001" y1="1353" x2="999.1475" y2="1353" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="893.07425" y="1343" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">video (compõe imagens + áudio)</text>
+</g>
+<g class="message" data-from="W" data-to="S3" data-label="vídeo final" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="999.1475" y1="1393" x2="1556.6705" y2="1393" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="1277.909" y="1383" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">vídeo final</text>
+</g>
+<g class="message" data-from="RR" data-to="HR" data-label="aprovar vídeo? (supervisor)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="787.001" y1="1433" x2="1389.725" y2="1433" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="1088.3629999999998" y="1423" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">aprovar vídeo? (supervisor)</text>
+</g>
+<g class="message" data-from="HR" data-to="RR" data-label="approved ✓" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="1389.725" y1="1473" x2="787.001" y2="1473" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="1088.3629999999998" y="1463" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">approved ✓</text>
+</g>
+<g class="message" data-from="RR" data-to="CH" data-label="pacote pronto" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="787.001" y1="1513" x2="267.6395" y2="1513" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="527.32025" y="1503" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">pacote pronto</text>
+</g>
+<g class="message" data-from="CH" data-to="U" data-label="💬 chat + ⬇️ link ZIP + 📣 botão publicar" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="267.6395" y1="1553" x2="89.20849999999999" y2="1553" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="178.42399999999998" y="1543" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">💬 chat + ⬇️ link ZIP + 📣 botão publicar</text>
+</g>
+<g class="note" data-position="over" data-actors="U,S3">
+  <polygon points="735.2705,516 904.6085,516 910.6085,522 910.6085,539 735.2705,539" fill="var(--bg)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <polygon points="904.6085,516 910.6085,522 904.6085,522" fill="var(--_inner-stroke)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="822.9395" y="527.5" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">FLUXO B — campanha composta</text>
+</g>
+<g class="actor" data-id="U" data-label="👤 Usuário" data-type="actor">
+  <g transform="translate(71.20849999999999,32) scale(1.5)">
+    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+    <path d="M15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+    <path d="M5.62842 18.3563C7.08963 17.0398 9.39997 16 12 16C14.6 16 16.9104 17.0398 18.3716 18.3563" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+  </g>
+  <text x="89.20849999999999" y="84" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">👤 Usuário</text>
+</g>
+<g class="actor" data-id="CH" data-label="🗨️ Canal
+(TG/WA/Web)" data-type="participant">
+  <rect x="178.41700000000003" y="30" width="178.44499999999996" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="267.6395" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)"><tspan x="267.6395" dy="-3.9000000000000012">🗨️ Canal</tspan><tspan x="267.6395" dy="16.900000000000002">(TG/WA/Web)</tspan></text>
+</g>
+<g class="actor" data-id="GW" data-label="🧠 Gateway" data-type="participant">
+  <rect x="396.862" y="30" width="101.381" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="447.5525" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">🧠 Gateway</text>
+</g>
+<g class="actor" data-id="QD" data-label="🔀 Quick Dispatch" data-type="participant">
+  <rect x="538.2429999999999" y="30" width="139.17200000000003" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="607.829" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">🔀 Quick Dispatch</text>
+</g>
+<g class="actor" data-id="RR" data-label="📋 Recipe Runner" data-type="participant">
+  <rect x="717.415" y="30" width="139.17200000000003" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="787.001" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">📋 Recipe Runner</text>
+</g>
+<g class="actor" data-id="W" data-label="⚙️ Worker
+(provider chain)" data-type="participant">
+  <rect x="896.587" y="30" width="205.12099999999998" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="999.1475" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)"><tspan x="999.1475" dy="-3.9000000000000012">⚙️ Worker</tspan><tspan x="999.1475" dy="16.900000000000002">(provider chain)</tspan></text>
+</g>
+<g class="actor" data-id="AR" data-label="🤖 auto-reviewer" data-type="participant">
+  <rect x="1141.7079999999999" y="30" width="133.244" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="1208.33" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">🤖 auto-reviewer</text>
+</g>
+<g class="actor" data-id="HR" data-label="👥 Human Reviewer" data-type="participant">
+  <rect x="1314.952" y="30" width="149.546" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="1389.725" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">👥 Human Reviewer</text>
+</g>
+<g class="actor" data-id="S3" data-label="💾 S3/MinIO" data-type="participant">
+  <rect x="1504.498" y="30" width="104.345" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="1556.6705" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">💾 S3/MinIO</text>
+</g>
+</svg>
