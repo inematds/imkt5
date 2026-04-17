@@ -78,37 +78,6 @@ class StubTenantContext:
         self._data[tenant_id] = data
 
 
-# ── approval gates — stubs em dev ─────────────────────────────────────
-class _StubUserGate:
-    """Em dev, auto-aprova após log. Em prod, manda mensagem no canal."""
-
-    def __init__(self, runner: RecipeRunner) -> None:
-        self._runner = runner
-
-    async def ask(
-        self, *, tenant_id, user_id, origin_channel, origin_external_id,
-        run_id, stage_id, question,
-    ) -> None:
-        print(f"[approval-user] {tenant_id}/{user_id} stage={stage_id} q={question}")
-        # Em dev, auto-aprova após 100ms (simula resposta humana)
-        await asyncio.sleep(0.1)
-        await self._runner.on_approval_decided(
-            run_id, stage_id, ApprovalDecision.APPROVED
-        )
-
-
-class _StubReviewerGate:
-    def __init__(self, runner: RecipeRunner) -> None:
-        self._runner = runner
-
-    async def ask(self, *, tenant_id, reviewer_role, run_id, stage_id, question) -> None:
-        print(f"[approval-reviewer] role={reviewer_role} stage={stage_id}")
-        await asyncio.sleep(0.1)
-        await self._runner.on_approval_decided(
-            run_id, stage_id, ApprovalDecision.APPROVED
-        )
-
-
 class _AutoReviewGate:
     """Despacha review pra worker auto-reviewer real (via dispatcher)."""
 
@@ -201,6 +170,8 @@ def main() -> None:
                 run_id, stage_id, decision
             )
 
+    tenant_ctx = StubTenantContext()
+
     auto_gate = _AutoReviewGate(dispatcher, registry)
     approval_gate = CompositeApprovalGate(
         on_decided=_on_decided,
@@ -208,16 +179,24 @@ def main() -> None:
     )
     runner = RecipeRunner(dispatcher=dispatcher, approval_gate=approval_gate)
     runner_ref["runner"] = runner
-    approval_gate._user_gate = _StubUserGate(runner)
-    approval_gate._reviewer_gate = _StubReviewerGate(runner)
+
+    # Gates reais: user_gate pergunta no canal; human_reviewer idem pro reviewer.
+    from imkt4.channels.base import ChannelRegistry
+    from imkt4.recipes.approvals.telegram_gates import UserApprovalGate, HumanReviewerGate
+    channels_registry = ChannelRegistry()
+    user_gate = UserApprovalGate(channels=channels_registry, on_decided=_on_decided)
+    human_reviewer_gate = HumanReviewerGate(
+        user_gate=user_gate,
+        tenant_ctx_provider=tenant_ctx,
+    )
+    approval_gate._user_gate = user_gate
+    approval_gate._reviewer_gate = human_reviewer_gate
 
     # ligação dispatcher → runner (callback de fim de job)
     dispatcher.set_on_finish(
         lambda jid, ok, out, err:
         runner.on_job_finished(jid, success=ok, output=out, error=err)
     )
-
-    tenant_ctx = StubTenantContext()
 
     # ── Agent loop: LLM + tools (quick-dispatch + run-recipe) ─────────
     from imkt4.agent import AgentLoop, ContextBuilder
@@ -280,12 +259,19 @@ def main() -> None:
             cid: TelegramIdentity(tenant_id="inema", user_id=f"tg-{cid}")
             for cid in tg_allowed
         }
+        tenancy_repo = None
+        if db is not None:
+            from imkt4.db.tenancy_repo import TenancyRepo
+            tenancy_repo = TenancyRepo(db)
         tg_channel = TelegramChannel(
             bot_token=tg_token,
             allowed_chat_ids=tg_allowed,
             identity_map=identity_map,
             default_tenant_id="inema",
+            on_approval=user_gate.resolve,
+            tenancy_repo=tenancy_repo,
         )
+        channels_registry.register(tg_channel)
 
     async def _on_message_from_channel(inc):
         return await agent.process_message(inc)

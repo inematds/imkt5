@@ -146,12 +146,10 @@ async def test_campanha_roda_completa():
     # images tem parallel:6 → 6 chamadas
     assert len(payloads["images"]) == 6
 
-    # platforms é fanout_over_capabilities com 6 plataformas
-    plat_calls = sum(
-        len(payloads.get(p, []))
-        for p in ["ig", "yt", "tt", "fb", "th", "li"]
-    )
-    assert plat_calls == 6
+    # stage platforms foi comentado (workers platform-* diferidos)
+    # — validar que a receita foi até video com sucesso
+    assert "video" in run.stages
+    assert run.stages["video"].status.value == "success"
 
 
 async def test_research_opt_out():

@@ -1,8 +1,8 @@
 name: campanha-marketing
-version: 3
-# Composição completa — derivada do pipeline de 5 estágios do timesmkt3,
-# mas multi-tenant, com aprovação distribuída (3 modos) e sem
-# stage final de "distribution" (delivery é modo, não stage).
+version: 4
+# Composição completa — derivada do pipeline do timesmkt3, multi-tenant.
+# Política de aprovação: auto_reviewer por default. Humano só quando
+# o usuário passar with_user_approval: true no input.
 
 stages:
 
@@ -29,17 +29,23 @@ stages:
         - "brief define CTA"
       escalation: on_uncertain
 
-  # ─── Copy: aprovação do solicitante ───────────────────────────────
+  # ─── Copy: auto-review por default (ver doc/approval-policy.md) ──
   - id: copy
     requires: copy.narrative
     needs: [brief]
     payload_from:
       brief: $.stages.brief.output
     approval:
-      mode: user
-      timeout: 7200   # 2h
+      mode: auto_reviewer
+      criteria:
+        - "texto está em português"
+        - "tem hook claro nos primeiros 10s"
+        - "tem CTA explícito"
+        - "alinhado com brand do tenant"
+        - "não usa claims médicos sem disclaimer"
+      escalation: on_uncertain
 
-  # ─── Imagens: local-first, sem aprovação ──────────────────────────
+  # ─── Imagens: sem aprovação (trivial) ─────────────────────────────
   - id: images
     requires: image.generation
     needs: [copy]
@@ -49,7 +55,7 @@ stages:
       style: $.tenant.profile.visual_style
     approval: {mode: none}
 
-  # ─── Voiceover: roda em paralelo com imagens ──────────────────────
+  # ─── Voiceover: sem aprovação ─────────────────────────────────────
   - id: voiceover
     requires: audio.tts
     needs: [copy]
@@ -58,7 +64,7 @@ stages:
       voice_id: $.tenant.profile.voice_id
     approval: {mode: none}
 
-  # ─── Ads: composição visual ───────────────────────────────────────
+  # ─── Ads: auto-review (composição visual) ─────────────────────────
   - id: ads
     requires: design.static_ad
     needs: [images]
@@ -66,9 +72,14 @@ stages:
       images: $.stages.images.output.outputs[*].image_url
       narrative: $.stages.copy.output
     approval:
-      mode: user
+      mode: auto_reviewer
+      criteria:
+        - "composição visual balanceada"
+        - "texto overlay legível em todas resoluções"
+        - "respeita paleta da marca"
+      escalation: on_uncertain
 
-  # ─── Video: revisado por humano (supervisor) ──────────────────────
+  # ─── Video: auto-review ───────────────────────────────────────────
   - id: video
     requires: video.cinematic
     needs: [ads, voiceover]
@@ -76,8 +87,12 @@ stages:
       images: $.stages.ads.output.image_urls
       audio: $.stages.voiceover.output.audio_url
     approval:
-      mode: human_reviewer
-      reviewer_role: content_supervisor
+      mode: auto_reviewer
+      criteria:
+        - "áudio sincronizado"
+        - "abertura captura atenção em 2s"
+        - "CTA final claro"
+      escalation: on_uncertain
 
   # ─── Otimização por plataforma (DIFERIDA) ─────────────────────────
   # Os 6 workers platform-* estão adiados — ver doc/deferred-platform-workers.md.
