@@ -35,6 +35,7 @@ from imkt4.recipes.loader import load_recipes_from_dir
 from imkt4.recipes.runner import RecipeRunner
 from imkt4.tools.run_recipe import StaticRecipeCatalog
 from imkt4.types.approvals import ApprovalDecision
+from imkt4.types.jobs import Job
 
 
 # ── carrega .env manualmente (sem dependência) ────────────────────────
@@ -323,6 +324,28 @@ def main() -> None:
             await asyncio.wait_for(registry.refresh_health(), timeout=10.0)
         except asyncio.TimeoutError:
             print("[boot] health-check inicial timeout; seguindo")
+
+        # Recovery: re-enfileira jobs que estavam pending/running (gateway
+        # caiu no meio). Só se JobsStore é Postgres (in-memory = sem estado).
+        if hasattr(jobs_store, "find_orphans"):
+            try:
+                orphans = await jobs_store.find_orphans(older_than_seconds=30)
+                if orphans:
+                    print(f"[boot] recovery: {len(orphans)} jobs orphan re-enfileirados")
+                    for rec in orphans:
+                        job = Job(
+                            job_id=rec.job_id,
+                            tenant_id=rec.tenant_id,
+                            user_id=rec.user_id,
+                            worker_type=rec.worker_type,
+                            required_capability=rec.capability,
+                            payload={},   # payload original não está no store
+                            origin_channel="recovery",
+                            origin_channel_external_id=rec.job_id,
+                        )
+                        await dispatcher.dispatch(job)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[boot] recovery falhou: {exc}")
 
         if tg_channel is not None:
             try:

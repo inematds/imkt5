@@ -19,6 +19,7 @@ Endpoints:
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from pathlib import Path
 from typing import Any
@@ -239,6 +240,111 @@ def create_app(
             run_id, req.stage_id, ApprovalDecision.REJECTED
         )
         return {"status": "ok"}
+
+    # ── delivery: download bundle zip de uma recipe run ──────────────
+    @app.get("/runs/{run_id}/bundle.zip")
+    async def download_bundle(run_id: str) -> Any:
+        try:
+            run = runner.get_run(run_id)
+        except KeyError as exc:
+            raise HTTPException(404, f"run não encontrada: {run_id}") from exc
+
+        # Coleta todos os paths de artefatos dos outputs dos stages
+        from io import BytesIO
+        import zipfile
+        from urllib.parse import urlparse
+
+        def _iter_urls(obj: Any):
+            if isinstance(obj, str):
+                s = obj
+                if s.startswith(("file://", "/artifacts/")) or s.startswith(("http://", "https://")):
+                    yield s
+            elif isinstance(obj, dict):
+                for v in obj.values():
+                    yield from _iter_urls(v)
+            elif isinstance(obj, list):
+                for v in obj:
+                    yield from _iter_urls(v)
+
+        def _resolve_local_path(url: str) -> Path | None:
+            if url.startswith("file://"):
+                return Path(url[len("file://"):])
+            if url.startswith("/artifacts/"):
+                root = os.environ.get("IMKT4_ARTIFACT_ROOT", str(ARTIFACT_ROOT))
+                return Path(root) / url[len("/artifacts/"):]
+            return None
+
+        buf = BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            # manifest.json com resumo da run
+            manifest: dict[str, Any] = {
+                "run_id": run_id,
+                "recipe": run.recipe.name,
+                "tenant_id": run.tenant_id,
+                "stages": {},
+            }
+            for sid, state in run.stages.items():
+                manifest["stages"][sid] = {
+                    "status": state.status.value,
+                    "output": state.output if state.outputs else None,
+                }
+                for url in _iter_urls(state.output if state.outputs else None):
+                    path = _resolve_local_path(url)
+                    if path and path.exists():
+                        arc = f"{sid}/{path.name}"
+                        try:
+                            zf.write(path, arc)
+                        except Exception:  # noqa: BLE001
+                            pass
+            zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2, default=str))
+
+        from fastapi.responses import Response
+        return Response(
+            content=buf.getvalue(),
+            media_type="application/zip",
+            headers={"Content-Disposition": f"attachment; filename=run-{run_id[:8]}.zip"},
+        )
+
+    # ── delivery: publish manual (disparo de job platform.*) ─────────
+    class PublishReq(BaseModel):
+        platform: str  # instagram|youtube|tiktok|facebook|threads|linkedin
+        artifact_url: str
+        caption: str = ""
+        tenant_id: str
+        user_id: str = "u1"
+
+    @app.post("/runs/{run_id}/publish")
+    async def publish_run(run_id: str, req: PublishReq) -> dict[str, Any]:
+        # Dispara um job platform.<req.platform>. Se worker não existe,
+        # retorna 503 com lista de platforms disponíveis.
+        capability = f"platform.{req.platform}"
+        available = []
+        for w in registry.all_workers():
+            for cap in w.capabilities:
+                if cap.startswith("platform."):
+                    available.append(cap.split(".", 1)[1])
+        if capability not in [f"platform.{p}" for p in available]:
+            raise HTTPException(
+                503,
+                f"platform '{req.platform}' sem worker registrado. "
+                f"disponíveis: {available}"
+            )
+        job = Job(
+            job_id=str(uuid.uuid4()),
+            tenant_id=req.tenant_id,
+            user_id=req.user_id,
+            required_capability=capability,
+            payload={"artifact_url": req.artifact_url, "caption": req.caption,
+                     "run_id": run_id},
+            origin_channel="publish",
+            origin_channel_external_id=run_id,
+        )
+        await store.create(
+            job_id=job.job_id, tenant_id=req.tenant_id, user_id=req.user_id,
+            capability=capability, worker_type=None,
+        )
+        await dispatcher.dispatch(job)
+        return {"job_id": job.job_id, "status": "dispatched"}
 
     # ── audit (read-only) ─────────────────────────────────────────────
     @app.get("/audit")

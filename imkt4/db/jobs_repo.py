@@ -95,6 +95,24 @@ class PostgresJobsStore:
             )
         return [_row_to_record(r) for r in rows]
 
+    async def find_orphans(self, *, older_than_seconds: int = 0) -> list[JobRecord]:
+        """Jobs que ficaram 'pending' ou 'running' além de `older_than_seconds`.
+
+        Usado no startup pra re-enfileirar jobs que estavam em voo quando o
+        gateway caiu.
+        """
+        async with self._db.pool().acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT * FROM jobs
+                WHERE status IN ('pending', 'running')
+                  AND updated_at < now() - ($1 || ' seconds')::interval
+                ORDER BY created_at ASC
+                """,
+                str(older_than_seconds),
+            )
+        return [_row_to_record(r) for r in rows]
+
 
 def _row_to_record(row) -> JobRecord:
     output = row["output"] or {}
