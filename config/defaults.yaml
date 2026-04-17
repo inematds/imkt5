@@ -11,7 +11,7 @@ gateway:
 
 dispatcher:
   # HttpDispatcher — ponte entre gateway e workers via HTTP
-  request_timeout_seconds: 600          # env: IMKT4_DISPATCH_TIMEOUT
+  request_timeout_seconds: 1200         # env: IMKT4_DISPATCH_TIMEOUT (20min — renders educativos longos)
   retry_when_saturated_seconds: 0.5     # env: IMKT4_DISPATCH_RETRY_SECONDS
   max_pending_jobs: 1000                # env: IMKT4_DISPATCH_MAX_PENDING
   max_select_retries: 120               # env: IMKT4_DISPATCH_MAX_RETRIES

@@ -200,6 +200,25 @@ workers:
     timeout_seconds: 30
     max_concurrent: 4
 
+  # education-outline — roteirista pedagógico (hook → conteúdo → CTA).
+  - name: education-outline
+    capabilities: [education.outline]
+    endpoint: http://localhost:8108
+    local: true
+    priority: 50
+    timeout_seconds: 180
+    max_concurrent: 2
+
+  # outline-to-video-plan — converte outline educativo em scene_plan
+  # compatível com ffmpeg-local (video.render).
+  - name: outline-to-video-plan
+    capabilities: [video.plan_from_outline]
+    endpoint: http://localhost:8109
+    local: true
+    priority: 50
+    timeout_seconds: 30
+    max_concurrent: 4
+
   # # ── plataformas (da absorção do timesmkt3) ───────────────────────
   # - name: platform-instagram
   # capabilities: [platform.instagram]

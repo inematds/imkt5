@@ -1,0 +1,83 @@
+name: curso-educativo
+version: 1
+# Pipeline educativo: outline (hook→conteúdo→CTA) → imagens por slide →
+#                    voiceover (narração completa) → scene_plan →
+#                    carousel JSON + MP4 final.
+#
+# Input:
+#   topic           string    (obrigatório) — o que ensinar
+#   slide_count     int       (default 10, entre 5-15)
+#   language        string    (default "pt-BR")
+#   depth           string    iniciante|intermediario|avancado (default iniciante)
+#   audience        string    (default "público geral")
+#   style           string    didatico|direto|narrativo (default didatico)
+#   image_model     string    (default flux2-klein)
+#   tts_provider    string    (default edge)
+#   skip_video      bool      (default false)
+#   skip_audio      bool      (default false)
+
+stages:
+
+  # 1) Outline estruturado (hook → conteúdo → CTA)
+  - id: outline
+    requires: education.outline
+    payload_from:
+      topic: $.input.topic
+      slide_count: $.input.slide_count
+      language: $.input.language
+      depth: $.input.depth
+      audience: $.input.audience
+      style: $.input.style
+    approval: {mode: none}
+
+  # 2) Imagens (fanout: 1 por slide)
+  - id: images
+    requires: image.generation
+    needs: [outline]
+    when: $.input.skip_images != true
+    fanout_over: $.stages.outline.output.outline.slides
+    payload_from:
+      prompt: $.fanout_item.image_prompt
+      model: $.input.image_model
+    approval: {mode: none}
+
+  # 3) Carousel JSON (reuso carousel-composer)
+  - id: carousel
+    requires: design.carousel
+    needs: [images]
+    payload_from:
+      images: $.stages.images.output.outputs[*].image_url
+      title: $.stages.outline.output.outline.title
+    approval: {mode: none}
+
+  # 4) Voiceover — narração completa (hook + conteúdo + CTA)
+  - id: voiceover
+    requires: audio.tts
+    needs: [outline]
+    when: $.input.skip_audio != true && $.input.skip_video != true
+    payload_from:
+      text: $.stages.outline.output.outline.narration_concat
+      lang: $.input.language
+      engine: $.input.tts_provider
+    approval: {mode: none}
+
+  # 5) Scene plan — converte outline + imagens + voz em scene_plan
+  - id: video_plan
+    requires: video.plan_from_outline
+    needs: [outline, images, voiceover]
+    when: $.input.skip_video != true
+    payload_from:
+      outline: $.stages.outline.output.outline
+      ads: $.stages.images.output.outputs[*].image_url
+      voiceover_url: $.stages.voiceover.output.audio_url
+    approval: {mode: none}
+
+  # 6) Render MP4 final
+  - id: video_render
+    requires: video.render
+    needs: [video_plan]
+    when: $.input.skip_video != true
+    payload_from:
+      scene_plan: $.stages.video_plan.output.scene_plan
+      tenant_id: $.tenant.tenant_id
+    approval: {mode: none}

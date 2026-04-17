@@ -102,7 +102,12 @@ class FfmpegLocalWorker(BaseWorker):
                     "-t", str(dur), "-i", str(img_path),
                     "-vf", vf,
                     "-c:v", "libx264", "-pix_fmt", "yuv420p",
-                    "-preset", "veryfast", "-r", "30",
+                    # ultrafast + CRF 30: render rápido, arquivo pequeno
+                    # (qualidade aceitável pra slideshow educativo).
+                    "-preset", "ultrafast", "-r", "30",
+                    "-crf", "30",
+                    # Desativa B-frames (ultrafast já faz, mas explícito)
+                    "-tune", "stillimage",
                     str(out),
                 ])
                 scene_clips.append(out)
@@ -191,10 +196,13 @@ def _build_vf(
     fps = 30
     total_frames = duration * fps
 
-    # 1) scale/crop pro aspect correto (preserva zoompan depois)
+    # 1) scale/crop pro aspect correto. Upscale 1.3x (suficiente pra
+    # zoom até ~1.1); valores maiores matam performance sem ganho visual.
+    scale_w = int(width * 1.3)
+    scale_h = int(height * 1.3)
     base = (
-        f"scale={width * 2}:{height * 2}:force_original_aspect_ratio=increase,"
-        f"crop={width * 2}:{height * 2}"
+        f"scale={scale_w}:{scale_h}:force_original_aspect_ratio=increase,"
+        f"crop={scale_w}:{scale_h}"
     )
 
     # 2) motion — push-in (zoom lento) como default, senão estático
