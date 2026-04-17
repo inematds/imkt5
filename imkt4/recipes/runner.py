@@ -17,7 +17,12 @@ from __future__ import annotations
 import asyncio
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def _now() -> datetime:
+    """UTC aware — evita timestamps mistos (com/sem tzinfo) no DB."""
+    return datetime.now(timezone.utc)
 from enum import Enum
 from typing import Any, Protocol
 
@@ -71,7 +76,7 @@ class RecipeRun:
     origin_channel: str
     origin_channel_external_id: str
     stages: dict[str, StageState] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=_now)
 
     def is_finished(self) -> bool:
         return all(
@@ -219,7 +224,7 @@ class RecipeRunner:
 
         if any(o.get("_error") for o in stage_state.outputs):
             stage_state.status = StageStatus.FAILED
-            stage_state.finished_at = datetime.utcnow()
+            stage_state.finished_at = _now()
             await self._advance(run)
             await self._persist(run)
             return
@@ -239,7 +244,7 @@ class RecipeRunner:
             )
         else:
             stage_state.status = StageStatus.SUCCESS
-            stage_state.finished_at = datetime.utcnow()
+            stage_state.finished_at = _now()
             await self._advance(run)
             await self._persist(run)
 
@@ -256,13 +261,13 @@ class RecipeRunner:
         # humano; enquanto não implementado, benefício da dúvida.
         if decision in (ApprovalDecision.APPROVED, ApprovalDecision.UNCERTAIN):
             stage_state.status = StageStatus.SUCCESS
-            stage_state.finished_at = datetime.utcnow()
+            stage_state.finished_at = _now()
             await self._advance(run)
             await self._persist(run)
         elif decision in (ApprovalDecision.REJECTED, ApprovalDecision.EXPIRED):
             stage_state.status = StageStatus.FAILED
             stage_state.error = f"approval: {decision.value}"
-            stage_state.finished_at = datetime.utcnow()
+            stage_state.finished_at = _now()
             await self._advance(run)
             await self._persist(run)
 
@@ -316,7 +321,7 @@ class RecipeRunner:
     async def _launch_stage(self, run: RecipeRun, stage: RecipeStage) -> None:
         state = run.stages[stage.id]
         state.status = StageStatus.RUNNING
-        state.started_at = datetime.utcnow()
+        state.started_at = _now()
 
         # Semântica: trabalho roda primeiro, aprovação depois (em on_job_finished).
         # Caso especial: stage sem trabalho que existe só pra ser gate

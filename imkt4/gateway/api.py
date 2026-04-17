@@ -468,8 +468,11 @@ def create_app(
                         continue
                     stages = row.get("stages") or {}
                     counts: dict[str, int] = {}
-                    for sd in stages.values():
-                        st = (sd or {}).get("status", "?")
+                    for sid, sd in stages.items():
+                        # Ignora chaves de metadata (ex.: "_reconciled")
+                        if sid.startswith("_") or not isinstance(sd, dict):
+                            continue
+                        st = sd.get("status", "?")
                         counts[st] = counts.get(st, 0) + 1
                     status = "failed" if row.get("failed") else ("success" if row.get("finished") else "running")
                     out.append({

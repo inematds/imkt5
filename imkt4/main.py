@@ -358,6 +358,16 @@ def main() -> None:
             except Exception as exc:  # noqa: BLE001
                 print(f"[boot] recovery falhou: {exc}")
 
+        # Runs órfãs — marca como failed runs que ficaram running/pending
+        # no DB sem updates por mais de 60s (signatura de gateway morto).
+        if runs_repo is not None:
+            try:
+                n = await runs_repo.fail_orphans(older_than_seconds=60)
+                if n:
+                    print(f"[boot] runs: {n} órfãs reconciliadas (failed)")
+            except Exception as exc:  # noqa: BLE001
+                print(f"[boot] runs reconciliation falhou: {exc}")
+
         if tg_channel is not None:
             try:
                 await tg_channel.start(_on_message_from_channel)

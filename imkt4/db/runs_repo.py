@@ -103,6 +103,28 @@ class RunsRepo:
             out.append(d)
         return out
 
+    async def fail_orphans(self, *, older_than_seconds: int = 60) -> int:
+        """Marca como failed runs que ficaram não-terminais além do limite.
+
+        Usado no startup pra zerar runs presas por restart do gateway
+        (stages pending/running/awaiting_approval sem ninguém pra avançar).
+        Retorna quantas foram reconciliadas.
+        """
+        async with self._db.pool().acquire() as conn:
+            rows = await conn.fetch(
+                f"""
+                UPDATE recipe_runs
+                   SET failed = true, finished = true,
+                       updated_at = now(),
+                       stages = stages || '{{"_reconciled": "gateway restart"}}'::jsonb
+                 WHERE finished = false
+                   AND updated_at < now() - ($1 || ' seconds')::interval
+                 RETURNING run_id
+                """,
+                str(older_than_seconds),
+            )
+        return len(rows)
+
     async def get(self, run_id: str) -> dict[str, Any] | None:
         async with self._db.pool().acquire() as conn:
             r = await conn.fetchrow(
