@@ -254,18 +254,54 @@ def main() -> None:
     )
 
     # boot: starta dispatcher + health refresh inicial
+    # ── Canal Telegram (se config presente) ──────────────────────────
+    from imkt4.channels.telegram import TelegramChannel, TelegramIdentity
+    tg_channel: TelegramChannel | None = None
+    tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    tg_allowed_raw = os.environ.get("TELEGRAM_ALLOWED_CHAT_IDS", "").strip()
+    tg_allowed = {
+        int(x) for x in tg_allowed_raw.split(",") if x.strip().lstrip("-").isdigit()
+    }
+    if tg_token and tg_allowed:
+        # Hoje: todo chat_id autorizado vai pro tenant 'inema'.
+        # Depois (DB), ler de channel_bindings.
+        identity_map = {
+            cid: TelegramIdentity(tenant_id="inema", user_id=f"tg-{cid}")
+            for cid in tg_allowed
+        }
+        tg_channel = TelegramChannel(
+            bot_token=tg_token,
+            allowed_chat_ids=tg_allowed,
+            identity_map=identity_map,
+            default_tenant_id="inema",
+        )
+
+    async def _on_message_from_channel(inc):
+        return await agent.process_message(inc)
+
     @app.on_event("startup")
     async def _startup() -> None:
         await memory.init()
         await dispatcher.start()
-        # refresh health uma vez no boot (não bloqueante depois)
         try:
             await asyncio.wait_for(registry.refresh_health(), timeout=10.0)
         except asyncio.TimeoutError:
             print("[boot] health-check inicial timeout; seguindo")
 
+        if tg_channel is not None:
+            try:
+                await tg_channel.start(_on_message_from_channel)
+                print(f"[boot] Telegram channel conectado (chats autorizados: {sorted(tg_allowed)})")
+            except Exception as exc:  # noqa: BLE001
+                print(f"[boot] Telegram channel falhou: {exc}")
+
     @app.on_event("shutdown")
     async def _shutdown() -> None:
+        if tg_channel is not None:
+            try:
+                await tg_channel.stop()
+            except Exception:  # noqa: BLE001
+                pass
         await dispatcher.stop()
 
     host = os.environ.get("GATEWAY_HOST", "0.0.0.0")
