@@ -105,6 +105,7 @@ imkt4/
 | Doc | Quando ler |
 |---|---|
 | [`doc/architecture.md`](doc/architecture.md) | Entender o design canônico |
+| [`doc/backlog.md`](doc/backlog.md) | 🗺️ **Roadmap completo do que falta** — priorizado, com esforço |
 | [`doc/QUICKSTART.md`](doc/QUICKSTART.md) | Testar end-to-end com curl |
 | [`doc/creating-workers.md`](doc/creating-workers.md) | Criar um worker novo |
 | [`doc/creating-recipes.md`](doc/creating-recipes.md) | Criar uma receita nova |
