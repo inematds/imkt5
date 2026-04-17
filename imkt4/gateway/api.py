@@ -146,7 +146,10 @@ def create_app(
     @app.get("/admin", response_class=HTMLResponse)
     async def admin_ui() -> Any:
         # HTML da SPA — público. Endpoints /admin/<resto> exigem admin-global.
-        return HTMLResponse(content=ADMIN_HTML)
+        return HTMLResponse(
+            content=ADMIN_HTML,
+            headers={"Cache-Control": "no-store, must-revalidate"},
+        )
 
     async def _require_admin(request: Any) -> Principal:
         p = await current_principal(request, request.headers.get("authorization"))
