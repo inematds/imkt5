@@ -111,6 +111,15 @@ admin UI, infra de produção.
 
 ## 🟢 Polimento (pode esperar)
 
+### 10b. Reativar auto-review nos stages `brief` e `copy` com critérios objetivos
+- **Esforço:** S | **Risco:** baixo
+- **Problema hoje:** `brief` e `copy` estão com `approval: {mode: none}` na receita `campanha-marketing` porque os critérios antigos eram subjetivos ("brief tem ângulo estratégico claro", "copy tem hook forte") — LLM revisor decidia aleatório (aprovava num run, rejeitava noutro).
+- **O que fazer:** reescrever critérios como asserções objetivas verificáveis, tipo:
+  - `brief`: `creative_brief.campaign_angle não é vazio`, `creative_brief.approved_ctas é array com ≥ 2 itens`, `creative_brief.visual_direction.dominant_colors tem ≥ 2 hex codes`.
+  - `copy`: `copy.instagram_caption tem ≥ 30 caracteres`, `copy.youtube.title existe e tem ≤ 70 chars`, `copy.threads_post tem ≤ 500 chars`.
+- **Padrão**: idêntico ao que está funcionando no stage `ad_design` hoje.
+- **Arquivo:** `recipes/campanha-marketing.yaml` — substituir blocos `approval` dos dois stages.
+
 ### 11. Fila Redis real + RQ
 - **Esforço:** S | **Risco:** baixo
 - **Problema hoje:** `InMemoryDispatcher` (asyncio.Queue local) — sem persistência, sem workers cross-process.

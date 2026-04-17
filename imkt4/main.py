@@ -254,6 +254,13 @@ def main() -> None:
         config=AgentConfig(model=agent_model, temperature=0.3),
     )
 
+    # TenancyRepo global — usado tanto pelo Telegram channel quanto pelo
+    # admin UI (aba Canais).
+    tenancy_repo = None
+    if db is not None:
+        from imkt4.db.tenancy_repo import TenancyRepo
+        tenancy_repo = TenancyRepo(db)
+
     app = create_app(
         registry=registry,
         runner=runner,
@@ -264,6 +271,7 @@ def main() -> None:
         agent=agent,
         memory=memory,
         pg_pool=db,  # AuditSink.ensure_schema chama via .pool quando precisa
+        tenancy_repo=tenancy_repo,
     )
 
     # boot: starta dispatcher + health refresh inicial
@@ -282,10 +290,6 @@ def main() -> None:
             cid: TelegramIdentity(tenant_id="inema", user_id=f"tg-{cid}")
             for cid in tg_allowed
         }
-        tenancy_repo = None
-        if db is not None:
-            from imkt4.db.tenancy_repo import TenancyRepo
-            tenancy_repo = TenancyRepo(db)
         tg_channel = TelegramChannel(
             bot_token=tg_token,
             allowed_chat_ids=tg_allowed,

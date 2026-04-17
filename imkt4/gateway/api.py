@@ -40,7 +40,7 @@ from imkt4.tools.run_recipe import StaticRecipeCatalog
 from imkt4.types.approvals import ApprovalDecision
 from imkt4.types.jobs import Job, JobPriority
 
-from fastapi import Depends
+from fastapi import Depends, Request
 
 
 ARTIFACT_ROOT = Path("./data/artifacts").resolve()
@@ -102,6 +102,7 @@ def create_app(
     agent: Any | None = None,
     memory: Any | None = None,
     pg_pool: Any | None = None,
+    tenancy_repo: Any | None = None,
 ) -> FastAPI:
     app = FastAPI(title="imkt4 Gateway", version="0.0.1")
 
@@ -137,31 +138,46 @@ def create_app(
 
     @app.get("/admin", response_class=HTMLResponse)
     async def admin_ui() -> Any:
+        # HTML da SPA — público. Endpoints /admin/<resto> exigem admin-global.
         return HTMLResponse(content=ADMIN_HTML)
+
+    async def _require_admin(request: Any) -> Principal:
+        p = await current_principal(request, request.headers.get("authorization"))
+        if p.roles == ("anon",):
+            raise HTTPException(401, "admin exige autenticação")
+        if not p.is_admin_global() and not any(
+            r.startswith("admin-tenant") for r in p.roles
+        ):
+            raise HTTPException(403, "requer admin-global ou admin-tenant")
+        return p
 
     # ── admin: config/workers/recipes (textual) ──────────────────────
     @app.get("/admin/config/defaults", response_class=HTMLResponse)
-    async def admin_cfg_get() -> Any:
+    async def admin_cfg_get(request: Request) -> Any:
+        await _require_admin(request)
         p = Path("config/defaults.yaml")
         if not p.exists():
             return HTMLResponse("# sem defaults.yaml\n", media_type="text/plain")
         return HTMLResponse(p.read_text(), media_type="text/plain")
 
     @app.put("/admin/config/defaults")
-    async def admin_cfg_put(request: Any) -> dict[str, str]:
+    async def admin_cfg_put(request: Request) -> dict[str, str]:
+        await _require_admin(request)
         body = (await request.body()).decode()
         Path("config/defaults.yaml").write_text(body)
         return {"status": "ok"}
 
     @app.get("/admin/config/tenant/{tenant_id}", response_class=HTMLResponse)
-    async def admin_tcfg_get(tenant_id: str) -> Any:
+    async def admin_tcfg_get(tenant_id: str, request: Request) -> Any:
+        await _require_admin(request)
         p = Path(f"profiles/{tenant_id}/config.yaml")
         if not p.exists():
             return HTMLResponse("# sem config.yaml pra este tenant\n", media_type="text/plain")
         return HTMLResponse(p.read_text(), media_type="text/plain")
 
     @app.put("/admin/config/tenant/{tenant_id}")
-    async def admin_tcfg_put(tenant_id: str, request: Any) -> dict[str, str]:
+    async def admin_tcfg_put(tenant_id: str, request: Request) -> dict[str, str]:
+        await _require_admin(request)
         body = (await request.body()).decode()
         folder = Path(f"profiles/{tenant_id}")
         folder.mkdir(parents=True, exist_ok=True)
@@ -169,7 +185,8 @@ def create_app(
         return {"status": "ok"}
 
     @app.post("/admin/workers/append")
-    async def admin_workers_append(request: Any) -> dict[str, str]:
+    async def admin_workers_append(request: Request) -> dict[str, str]:
+        await _require_admin(request)
         body = (await request.body()).decode().rstrip()
         path = Path("config/workers.yaml")
         existing = path.read_text()
@@ -179,15 +196,16 @@ def create_app(
         return {"status": "ok"}
 
     @app.get("/admin/recipes")
-    async def admin_recipes_list() -> list[str]:
+    async def admin_recipes_list(request: Request) -> list[str]:
+        await _require_admin(request)
         folder = Path("recipes")
         if not folder.exists():
             return []
         return sorted([p.stem for p in folder.glob("*.yaml")])
 
     @app.get("/admin/recipes/{name}", response_class=HTMLResponse)
-    async def admin_recipe_get(name: str) -> Any:
-        # valida nome
+    async def admin_recipe_get(name: str, request: Request) -> Any:
+        await _require_admin(request)
         if "/" in name or ".." in name:
             raise HTTPException(400, "nome inválido")
         p = Path(f"recipes/{name}.yaml")
@@ -196,7 +214,8 @@ def create_app(
         return HTMLResponse(p.read_text(), media_type="text/plain")
 
     @app.put("/admin/recipes/{name}")
-    async def admin_recipe_put(name: str, request: Any) -> dict[str, str]:
+    async def admin_recipe_put(name: str, request: Request) -> dict[str, str]:
+        await _require_admin(request)
         if "/" in name or ".." in name:
             raise HTTPException(400, "nome inválido")
         # valida YAML antes de gravar
@@ -216,6 +235,57 @@ def create_app(
             except Exception as exc:  # noqa: BLE001
                 log_msg = f"reload recipes: {exc}"
                 print(log_msg)
+        return {"status": "ok"}
+
+    # ── admin: channels (whitelist de bindings) ──────────────────────
+    class ChannelBindingReq(BaseModel):
+        kind: str          # telegram|whatsapp|web
+        external_id: str
+        tenant_id: str
+        user_id: str = ""
+
+    @app.get("/admin/channels")
+    async def admin_channels_list(request: Request, kind: str | None = None) -> list[dict]:
+        await _require_admin(request)
+        if tenancy_repo is None:
+            raise HTTPException(503, "TenancyRepo não configurado (Postgres offline?)")
+        rows = await tenancy_repo.list_bindings(channel=kind)
+        out = []
+        for r in rows:
+            out.append({
+                "kind": r["channel"],
+                "external_id": r["external_id"],
+                "tenant_id": r["tenant_id"],
+                "user_id": r["user_id"],
+                "created_at": r["verified_at"].isoformat() if r.get("verified_at") else None,
+            })
+        return out
+
+    @app.post("/admin/channels")
+    async def admin_channels_add(request: Request, req: ChannelBindingReq) -> dict[str, str]:
+        await _require_admin(request)
+        if tenancy_repo is None:
+            raise HTTPException(503, "TenancyRepo não configurado")
+        if req.user_id:
+            await tenancy_repo.ensure_user(
+                user_id=req.user_id, tenant_id=req.tenant_id, display_name=req.user_id,
+            )
+        await tenancy_repo.upsert_channel_binding(
+            tenant_id=req.tenant_id,
+            user_id=req.user_id or f"{req.kind}-{req.external_id}",
+            channel=req.kind,
+            external_id=req.external_id,
+        )
+        return {"status": "ok"}
+
+    @app.delete("/admin/channels/{kind}/{external_id}")
+    async def admin_channels_del(kind: str, external_id: str, request: Request) -> dict[str, str]:
+        await _require_admin(request)
+        if tenancy_repo is None:
+            raise HTTPException(503, "TenancyRepo não configurado")
+        ok = await tenancy_repo.delete_binding(channel=kind, external_id=external_id)
+        if not ok:
+            raise HTTPException(404, "binding não encontrado")
         return {"status": "ok"}
 
     # ── jobs ──────────────────────────────────────────────────────────

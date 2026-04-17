@@ -32,3 +32,4 @@ workers/*/node_modules/
 workers/*/.venv/
 workers/*/dist/
 workers/*/outputs/
+config/auth.json

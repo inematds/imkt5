@@ -76,7 +76,12 @@ ADMIN_HTML = r"""<!DOCTYPE html>
     <button class="tab active" onclick="showTab('config')">Config</button>
     <button class="tab" onclick="showTab('workers')">Workers</button>
     <button class="tab" onclick="showTab('recipes')">Recipes</button>
+    <button class="tab" onclick="showTab('channels')">Canais</button>
     <button class="tab" onclick="showTab('audit')">Audit</button>
+  </div>
+  <div style="margin-left:auto;font-size:12px;color:#7d8590;">
+    <span id="auth-status">sem token</span>
+    <button class="ghost" onclick="setToken()" style="padding:4px 10px;font-size:11px;">token</button>
   </div>
 </div>
 
@@ -153,6 +158,39 @@ ADMIN_HTML = r"""<!DOCTYPE html>
     <div class="row"><button onclick="newRecipe()">Criar skeleton</button></div>
   </div>
 
+  <!-- CHANNELS -->
+  <div class="panel" id="panel-channels">
+    <h2>Canais autorizados</h2>
+    <p style="color:#7d8590;font-size:13px;">
+      Lista branca de chats por canal (Telegram, WhatsApp). Cada linha
+      mapeia um <code>external_id</code> (chat_id do Telegram, número do
+      WhatsApp) pra um <code>tenant_id</code> + <code>user_id</code>.
+      Adicionar ou remover aqui aplica imediatamente — sem restart.
+    </p>
+    <table>
+      <thead><tr>
+        <th>Kind</th><th>External ID</th><th>Tenant</th><th>User</th>
+        <th>Criado</th><th></th>
+      </tr></thead>
+      <tbody id="channels-tbody"></tbody>
+    </table>
+    <button class="ghost" onclick="loadChannels()" style="margin-top:10px;">Atualizar</button>
+
+    <h2 style="margin-top:30px;">Adicionar binding</h2>
+    <div class="grid" style="grid-template-columns: 120px 1fr 1fr 1fr auto; gap:10px; max-width:900px;">
+      <select id="ch-kind">
+        <option value="telegram">telegram</option>
+        <option value="whatsapp">whatsapp</option>
+        <option value="web">web</option>
+      </select>
+      <input id="ch-external" placeholder="external_id (chat_id, phone)">
+      <input id="ch-tenant" placeholder="tenant_id (ex: inema)">
+      <input id="ch-user" placeholder="user_id (ex: nei)">
+      <button onclick="addChannel()">Adicionar</button>
+    </div>
+    <span id="ch-status"></span>
+  </div>
+
   <!-- AUDIT -->
   <div class="panel" id="panel-audit">
     <h2>Audit log</h2>
@@ -172,6 +210,38 @@ ADMIN_HTML = r"""<!DOCTYPE html>
 </div>
 
 <script>
+// ── token + fetch wrapper ─────────────────────────────────────
+function getToken() {
+  return localStorage.getItem('imkt4_admin_token') || '';
+}
+function setToken() {
+  const cur = getToken();
+  const t = prompt('Token admin (Bearer):', cur);
+  if (t !== null) {
+    localStorage.setItem('imkt4_admin_token', t.trim());
+    updateAuthStatus();
+    location.reload();
+  }
+}
+function updateAuthStatus() {
+  const t = getToken();
+  const el = document.getElementById('auth-status');
+  el.textContent = t ? 'autenticado (' + t.slice(0, 6) + '…)' : 'sem token';
+  el.style.color = t ? '#3fb950' : '#f85149';
+}
+async function api(url, opts = {}) {
+  const token = getToken();
+  const h = { ...(opts.headers || {}) };
+  if (token) h['Authorization'] = 'Bearer ' + token;
+  const r = await api(url, { ...opts, headers: h });
+  if (r.status === 401) {
+    alert('Token inválido/ausente. Clique em [token] no topo pra configurar.');
+  } else if (r.status === 403) {
+    alert('Sem permissão (403).');
+  }
+  return r;
+}
+
 function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -181,6 +251,7 @@ function showTab(name) {
   if (name === 'recipes') loadRecipes();
   if (name === 'audit') loadAudit();
   if (name === 'config') loadConfig('global');
+  if (name === 'channels') loadChannels();
 }
 
 // ── CONFIG ────────────────────────────────────────────────────
@@ -189,7 +260,7 @@ async function loadConfig(scope) {
   const url = scope === 'global'
     ? '/admin/config/defaults'
     : '/admin/config/tenant/' + encodeURIComponent(tenant);
-  const r = await fetch(url);
+  const r = await api(url);
   if (!r.ok) {
     setStatus('cfg-status', 'err', 'erro: ' + r.status);
     return;
@@ -208,14 +279,14 @@ async function saveConfig(scope) {
   const content = scope === 'global'
     ? document.getElementById('cfg-global').value
     : document.getElementById('cfg-tenant').value;
-  const r = await fetch(url, { method: 'PUT', headers: {'Content-Type':'text/plain'}, body: content });
+  const r = await api(url, { method: 'PUT', headers: {'Content-Type':'text/plain'}, body: content });
   if (r.ok) setStatus('cfg-status', 'ok', 'salvo');
   else setStatus('cfg-status', 'err', 'falhou: ' + r.status);
 }
 
 // ── WORKERS ───────────────────────────────────────────────────
 async function loadWorkers() {
-  const r = await fetch('/workers');
+  const r = await api('/workers');
   const data = await r.json();
   const tbody = document.getElementById('workers-tbody');
   tbody.innerHTML = '';
@@ -234,7 +305,7 @@ async function loadWorkers() {
 async function appendWorker() {
   const y = document.getElementById('new-worker-yaml').value.trim();
   if (!y) return;
-  const r = await fetch('/admin/workers/append', { method: 'POST', headers: {'Content-Type':'text/plain'}, body: y });
+  const r = await api('/admin/workers/append', { method: 'POST', headers: {'Content-Type':'text/plain'}, body: y });
   if (r.ok) {
     alert('worker adicionado ao workers.yaml — reinicie pra aplicar');
     document.getElementById('new-worker-yaml').value = '';
@@ -245,7 +316,7 @@ async function appendWorker() {
 
 // ── RECIPES ───────────────────────────────────────────────────
 async function loadRecipes() {
-  const r = await fetch('/admin/recipes');
+  const r = await api('/admin/recipes');
   const names = await r.json();
   const sel = document.getElementById('recipe-select');
   sel.innerHTML = '<option value="">-- selecione --</option>';
@@ -258,7 +329,7 @@ async function loadRecipes() {
 async function loadRecipe() {
   const name = document.getElementById('recipe-select').value;
   if (!name) return;
-  const r = await fetch('/admin/recipes/' + encodeURIComponent(name));
+  const r = await api('/admin/recipes/' + encodeURIComponent(name));
   const txt = await r.text();
   document.getElementById('recipe-yaml').value = txt;
 }
@@ -266,7 +337,7 @@ async function saveRecipe() {
   const name = document.getElementById('recipe-select').value;
   if (!name) return;
   const content = document.getElementById('recipe-yaml').value;
-  const r = await fetch('/admin/recipes/' + encodeURIComponent(name), {
+  const r = await api('/admin/recipes/' + encodeURIComponent(name), {
     method: 'PUT', headers: {'Content-Type':'text/plain'}, body: content
   });
   if (r.ok) setStatus('recipe-status', 'ok', 'salvo — reinicie pra aplicar');
@@ -276,7 +347,7 @@ async function newRecipe() {
   const n = document.getElementById('new-recipe-name').value.trim();
   if (!n) return;
   const skeleton = `name: ${n}\nversion: 1\n\nstages:\n  - id: step1\n    requires: some.capability\n    payload_from:\n      input: $.input.some_field\n    approval: {mode: none}\n`;
-  const r = await fetch('/admin/recipes/' + encodeURIComponent(n), {
+  const r = await api('/admin/recipes/' + encodeURIComponent(n), {
     method: 'PUT', headers: {'Content-Type':'text/plain'}, body: skeleton
   });
   if (r.ok) {
@@ -288,13 +359,67 @@ async function newRecipe() {
   }
 }
 
+// ── CHANNELS ──────────────────────────────────────────────────
+async function loadChannels() {
+  const r = await api('/admin/channels');
+  if (!r.ok) return;
+  const rows = await r.json();
+  const tbody = document.getElementById('channels-tbody');
+  tbody.innerHTML = '';
+  rows.forEach(ch => {
+    const tr = document.createElement('tr');
+    const created = (ch.created_at || '').toString().slice(0,19).replace('T',' ');
+    tr.innerHTML = `
+      <td><code>${ch.kind}</code></td>
+      <td><code>${ch.external_id}</code></td>
+      <td>${ch.tenant_id}</td>
+      <td>${ch.user_id || ''}</td>
+      <td style="color:#7d8590;">${created}</td>
+      <td><button class="danger" style="padding:2px 10px;font-size:11px;"
+          onclick="delChannel('${ch.kind}', '${ch.external_id}')">x</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+async function addChannel() {
+  const body = {
+    kind: document.getElementById('ch-kind').value,
+    external_id: document.getElementById('ch-external').value.trim(),
+    tenant_id: document.getElementById('ch-tenant').value.trim(),
+    user_id: document.getElementById('ch-user').value.trim(),
+  };
+  if (!body.external_id || !body.tenant_id) {
+    setStatus('ch-status', 'err', 'external_id e tenant_id obrigatórios'); return;
+  }
+  const r = await api('/admin/channels', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (r.ok) {
+    setStatus('ch-status', 'ok', 'adicionado');
+    document.getElementById('ch-external').value = '';
+    document.getElementById('ch-user').value = '';
+    loadChannels();
+  } else {
+    const txt = await r.text();
+    setStatus('ch-status', 'err', 'falhou: ' + txt.slice(0,100));
+  }
+}
+async function delChannel(kind, externalId) {
+  if (!confirm(`Remover binding ${kind}:${externalId}?`)) return;
+  const r = await api('/admin/channels/' + kind + '/' + encodeURIComponent(externalId),
+                     { method: 'DELETE' });
+  if (r.ok) loadChannels();
+  else alert('falhou: ' + r.status);
+}
+
 // ── AUDIT ─────────────────────────────────────────────────────
 async function loadAudit() {
   const tenant = document.getElementById('audit-tenant').value.trim();
   const limit = document.getElementById('audit-limit').value || '50';
   let url = '/audit?limit=' + limit;
   if (tenant) url += '&tenant_id=' + encodeURIComponent(tenant);
-  const r = await fetch(url);
+  const r = await api(url);
   const rows = await r.json();
   const tbody = document.getElementById('audit-tbody');
   tbody.innerHTML = '';
@@ -319,6 +444,8 @@ function setStatus(id, kind, msg) {
 }
 
 // init
+updateAuthStatus();
+if (!getToken()) setToken();
 loadConfig('global');
 </script>
 </body>

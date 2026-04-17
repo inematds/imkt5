@@ -55,3 +55,23 @@ class TenancyRepo:
                 """,
                 user_id, tenant_id, display_name or user_id,
             )
+
+    async def list_bindings(self, *, channel: str | None = None) -> list[dict]:
+        q = """SELECT channel, external_id, tenant_id, user_id, verified_at
+               FROM channel_bindings"""
+        args: tuple = ()
+        if channel:
+            q += " WHERE channel = $1"
+            args = (channel,)
+        q += " ORDER BY verified_at DESC NULLS LAST LIMIT 200"
+        async with self._db.pool().acquire() as conn:
+            rows = await conn.fetch(q, *args)
+        return [dict(r) for r in rows]
+
+    async def delete_binding(self, *, channel: str, external_id: str) -> bool:
+        async with self._db.pool().acquire() as conn:
+            r = await conn.execute(
+                "DELETE FROM channel_bindings WHERE channel=$1 AND external_id=$2",
+                channel, external_id,
+            )
+        return r.endswith(" 1")
