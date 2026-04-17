@@ -207,6 +207,41 @@ def main() -> None:
     )
 
     tenant_ctx = StubTenantContext()
+
+    # ── Agent loop: LLM + tools (quick-dispatch + run-recipe) ─────────
+    from imkt4.agent import AgentLoop, ContextBuilder
+    from imkt4.agent.loop import AgentConfig
+    from imkt4.memory.store import MemoryStore
+    from imkt4.providers.ollama import OllamaProvider
+    from imkt4.providers.openrouter import OpenRouterProvider
+    from imkt4.tools.base import BaseTool
+    from imkt4.tools.dispatch_job import DispatchJobTool
+    from imkt4.tools.registry import ToolRegistry
+    from imkt4.tools.run_recipe import RunRecipeTool
+    from imkt4.config import load as _load_cfg
+
+    memory = MemoryStore(_load_cfg().memory.db_path)
+
+    provider_name = os.environ.get("IMKT4_AGENT_PROVIDER", "ollama")
+    if provider_name == "openrouter":
+        provider = OpenRouterProvider()
+        agent_model = os.environ.get("IMKT4_AGENT_MODEL", _load_cfg().llm.openrouter.default_model)
+    else:
+        provider = OllamaProvider()
+        agent_model = os.environ.get("IMKT4_AGENT_MODEL", _load_cfg().llm.ollama.router_model)
+
+    tool_registry = ToolRegistry()
+    tool_registry.register(DispatchJobTool(submitter=dispatcher))
+    tool_registry.register(RunRecipeTool(catalog=catalog, runner=runner, tenant_ctx_provider=tenant_ctx))
+
+    agent = AgentLoop(
+        provider=provider,
+        tools=tool_registry,
+        context_builder=ContextBuilder(memory=memory),
+        memory=memory,
+        config=AgentConfig(model=agent_model, temperature=0.3),
+    )
+
     app = create_app(
         registry=registry,
         runner=runner,
@@ -214,11 +249,14 @@ def main() -> None:
         dispatcher=dispatcher,
         tenant_ctx_provider=tenant_ctx,
         jobs_store=jobs_store,
+        agent=agent,
+        memory=memory,
     )
 
     # boot: starta dispatcher + health refresh inicial
     @app.on_event("startup")
     async def _startup() -> None:
+        await memory.init()
         await dispatcher.start()
         # refresh health uma vez no boot (não bloqueante depois)
         try:

@@ -79,9 +79,11 @@ admin UI, infra de produção.
 - **O que fazer:** no agent loop, antes de chamar LLM, fazer `memory.search(tenant, user, query)` e injetar top-K no system prompt. Depois de responder, `memory.save(resumo)`.
 - **Arquivos:** edição de `imkt4/agent/loop.py` e `context.py`.
 
-### 7. Portar 12 workers do timesmkt3
-- **Esforço:** L (um por vez, ~1–2 dias cada) | **Risco:** médio
-- **Os 12:** research (✅ feito), creative-brief, copywriter, ad-designer, video-quick, video-pro, platform-instagram, platform-youtube, platform-tiktok, platform-facebook, platform-threads, platform-linkedin.
+### 7. Portar workers do timesmkt3 (escopo reduzido)
+- **Esforço:** M (um por vez, ~1–2 dias cada) | **Risco:** médio
+- **Escopo atual (5 workers)**: creative-brief, copywriter, ad-designer, video-quick, video-pro.
+  (research ✅ feito)
+- **DIFERIDOS** — NÃO portar agora: os 6 `platform-*` (instagram, youtube, tiktok, facebook, threads, linkedin). Detalhes em `doc/deferred-platform-workers.md`.
 - **Padrão:** cada um copia `timesmkt3/skills/<agente>/SKILL.md` pra `workers/<nome>/SKILL.md`, adapta I/O (sem `prj/<cliente>/outputs/`, usa storage helper), registra no `config/workers.yaml`.
 - **Estratégia:** começar pelo `copywriter` (mais genérico) e `ad-designer` (integração visual já existe no inemaimg).
 - **Referência:** `doc/creating-workers.md` passo a passo.
@@ -187,12 +189,14 @@ FASE B — Multi-tenant real (2 semanas)
   8. Auth                      (#10)
   → Múltiplos usuários, aprovações reais, estado persistente.
 
-FASE C — Portar workers (2-4 semanas)
-  9. copywriter + ad-designer (#7, primeiros 2)
-  10. video-quick             (#7)
-  11. 6 platform-*            (#7)
-  12. yt-source-ingest + yt-clip + yt-publish (#8)
-  → Receitas campanha-marketing e yt-clip-publish rodam completas.
+FASE C — Portar workers (1-2 semanas — escopo reduzido)
+  9. copywriter + creative-brief + ad-designer (#7, núcleo)
+  10. video-quick + video-pro (#7)
+  11. yt-source-ingest + yt-clip + yt-publish (#8)
+  → campanha-marketing roda até o vídeo (stage platforms fica pendente
+    até os platform-* serem portados em fase futura — ver
+    doc/deferred-platform-workers.md).
+  → yt-clip-publish roda completa.
 
 FASE D — Produção (2-3 semanas)
   13. Redis real              (#11)

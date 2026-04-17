@@ -79,19 +79,22 @@ stages:
       mode: human_reviewer
       reviewer_role: content_supervisor
 
-  # ─── Otimização por plataforma: fanout sobre capabilities ─────────
-  - id: platforms
-    fanout_over_capabilities:
-      - platform.instagram
-      - platform.youtube
-      - platform.tiktok
-      - platform.facebook
-      - platform.threads
-      - platform.linkedin
-    needs: [video]
-    payload_from:
-      video: $.stages.video.output
-      narrative: $.stages.copy.output
-    approval: {mode: user}
+  # ─── Otimização por plataforma (DIFERIDA) ─────────────────────────
+  # Os 6 workers platform-* estão adiados — ver doc/deferred-platform-workers.md.
+  # Quando forem portados, descomentar:
+  #
+  # - id: platforms
+  #   fanout_over_capabilities:
+  #     - platform.instagram
+  #     - platform.youtube
+  #     - platform.tiktok
+  #     - platform.facebook
+  #     - platform.threads
+  #     - platform.linkedin
+  #   needs: [video]
+  #   payload_from:
+  #     video: $.stages.video.output
+  #     narrative: $.stages.copy.output
+  #   approval: {mode: user}
 
   # Sem stage "distribute" — publicação é ação do painel Web, não job.

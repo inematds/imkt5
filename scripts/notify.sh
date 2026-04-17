@@ -26,15 +26,20 @@ fi
 if [ -n "${IMKT4_NOTIFY_BOT_TOKEN:-}" ] && [ -n "${IMKT4_NOTIFY_CHAT_ID:-}" ]; then
   TOKEN="$IMKT4_NOTIFY_BOT_TOKEN"
   CHAT="$IMKT4_NOTIFY_CHAT_ID"
-else
-  # fallback: openpcbot (bot pessoal)
-  OPENPC_ENV="/home/nmaldaner/projetos/openpcbot/.env"
-  if [ ! -f "$OPENPC_ENV" ]; then
-    echo "notify: sem IMKT4_NOTIFY_* setado e openpcbot/.env ausente" >&2
-    exit 2
+elif [ -f "$(dirname "$0")/../.env" ]; then
+  # prefere o bot dedicado @imkt4bot do proprio imkt4/.env
+  IMKT4_ENV="$(dirname "$0")/../.env"
+  TOKEN="$(grep -E '^TELEGRAM_BOT_TOKEN=' "$IMKT4_ENV" | head -1 | cut -d= -f2-)"
+  CHAT="$(grep -E '^TELEGRAM_ALLOWED_CHAT_IDS=' "$IMKT4_ENV" | head -1 | cut -d= -f2- | cut -d, -f1)"
+
+  # fallback: admin bot (openpcbot)
+  if [ -z "$TOKEN" ] || [ -z "$CHAT" ]; then
+    TOKEN="$(grep -E '^TELEGRAM_ADMIN_BOT_TOKEN=' "$IMKT4_ENV" | head -1 | cut -d= -f2-)"
+    CHAT="$(grep -E '^TELEGRAM_ADMIN_CHAT_ID=' "$IMKT4_ENV" | head -1 | cut -d= -f2-)"
   fi
-  TOKEN="$(grep -E '^TELEGRAM_BOT_TOKEN=' "$OPENPC_ENV" | head -1 | cut -d= -f2-)"
-  CHAT="$(grep -E '^ALLOWED_CHAT_ID=' "$OPENPC_ENV" | head -1 | cut -d= -f2-)"
+else
+  echo "notify: sem IMKT4_NOTIFY_* setado e .env ausente" >&2
+  exit 2
 fi
 
 if [ -z "$TOKEN" ] || [ -z "$CHAT" ]; then

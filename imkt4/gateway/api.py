@@ -63,6 +63,14 @@ class ApprovalRequest(BaseModel):
     reason: str = ""
 
 
+class ChatRequest(BaseModel):
+    tenant_id: str = "demo"
+    user_id: str = "web"
+    text: str
+    channel: str = "web"                     # telegram | whatsapp | web
+    channel_external_id: str = "web-session"
+
+
 def create_app(
     *,
     registry: CapabilityRegistry,
@@ -71,6 +79,8 @@ def create_app(
     dispatcher: Any,
     tenant_ctx_provider: Any,
     jobs_store: JobsStore | None = None,
+    agent: Any | None = None,
+    memory: Any | None = None,
 ) -> FastAPI:
     app = FastAPI(title="imkt4 Gateway", version="0.0.1")
 
@@ -227,6 +237,24 @@ def create_app(
                 }
             )
         return out
+
+    @app.post("/chat")
+    async def chat(req: ChatRequest) -> dict[str, Any]:
+        """Agent loop — LLM decide entre responder direto OU disparar job/receita."""
+        if agent is None:
+            raise HTTPException(503, "agent loop não configurado")
+        from imkt4.types.messages import IncomingMessage
+        from imkt4.types.tenants import ChannelKind
+        try:
+            kind = ChannelKind(req.channel)
+        except ValueError:
+            raise HTTPException(400, f"channel inválido: {req.channel}")
+        inc = IncomingMessage(
+            tenant_id=req.tenant_id, user_id=req.user_id, channel=kind,
+            channel_external_id=req.channel_external_id, text=req.text,
+        )
+        out = await agent.process_message(inc)
+        return {"text": out.text}
 
     @app.get("/config")
     async def get_config(tenant_id: str | None = None) -> dict[str, Any]:

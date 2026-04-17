@@ -69,6 +69,16 @@ class HttpDispatcher:
 
     async def dispatch(self, job: Job) -> None:
         """Enfileira pra processamento. Retorna imediatamente."""
+        # Se job ainda não está no store (quick-dispatch via tool LLM em vez
+        # de via rota HTTP), cria agora pra ser rastreável.
+        if self._jobs_store and self._jobs_store.get(job.job_id) is None:
+            self._jobs_store.create(
+                job_id=job.job_id,
+                tenant_id=job.tenant_id,
+                user_id=job.user_id,
+                capability=job.required_capability,
+                worker_type=job.worker_type,
+            )
         await self._pending.put(job)
 
     async def start(self) -> None:
