@@ -103,11 +103,13 @@ workers:
     timeout_seconds: 120
     max_concurrent: 2
 
-  # - name: copywriter
-  # capabilities: [copy.narrative, copy.headlines]
-  # endpoint: http://localhost:8102
-  # local: true
-  # priority: 50
+  - name: copywriter
+    capabilities: [copy.platform]
+    endpoint: http://localhost:8102
+    local: true
+    priority: 50
+    timeout_seconds: 120
+    max_concurrent: 2
 
   # # ── aprovação automática ─────────────────────────────────────────
   - name: auto-reviewer
