@@ -68,6 +68,8 @@ start_bg "copywriter" "$VENV" workers/copywriter/server.py
 
 start_bg "ad-designer" "$VENV" workers/ad-designer/server.py
 
+start_bg "video-quick" "$VENV" workers/video-quick/server.py
+
 # inemaimg-adapter — só se o upstream responder em /health
 INEMAIMG_HEALTH_URL="${INEMAIMG_URL:-http://localhost:8000}/health"
 if [ "$(probe "$INEMAIMG_HEALTH_URL")" = "200" ]; then
