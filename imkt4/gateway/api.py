@@ -32,6 +32,7 @@ from pydantic import BaseModel
 from imkt4.capabilities.registry import CapabilityRegistry
 from imkt4.gateway.admin_ui import ADMIN_HTML
 from imkt4.gateway.recipes_ui import RECIPES_UI_HTML
+from imkt4.gateway.runs_ui import RUNS_UI_HTML
 from imkt4.gateway.audit import AuditSink, make_audit_middleware
 from imkt4.gateway.auth import Principal, current_principal, require
 from imkt4.gateway.jobs_store import JobsStore
@@ -156,6 +157,13 @@ def create_app(
     async def recipes_ui() -> Any:
         return HTMLResponse(
             content=RECIPES_UI_HTML,
+            headers={"Cache-Control": "no-store, must-revalidate"},
+        )
+
+    @app.get("/runs-ui", response_class=HTMLResponse)
+    async def runs_ui() -> Any:
+        return HTMLResponse(
+            content=RUNS_UI_HTML,
             headers={"Cache-Control": "no-store, must-revalidate"},
         )
 
@@ -369,6 +377,93 @@ def create_app(
             }
             for r in catalog.all()
         ]
+
+    @app.get("/runs")
+    async def list_runs(limit: int = 50, tenant_id: str | None = None) -> list[dict[str, Any]]:
+        """Últimas runs, mais recentes primeiro."""
+        runs = runner.list_runs(limit=limit, tenant_id=tenant_id)
+        out = []
+        for r in runs:
+            stage_counts: dict[str, int] = {}
+            for s in r.stages.values():
+                stage_counts[s.status.value] = stage_counts.get(s.status.value, 0) + 1
+            overall = "success"
+            if r.has_failed():
+                overall = "failed"
+            elif not r.is_finished():
+                overall = "running"
+            out.append({
+                "run_id": r.run_id,
+                "recipe": r.recipe.name,
+                "tenant_id": r.tenant_id,
+                "user_id": r.user_id,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "status": overall,
+                "stage_counts": stage_counts,
+                "total_stages": len(r.stages),
+            })
+        return out
+
+    @app.post("/runs/{run_id}/rerun")
+    async def rerun(run_id: str) -> dict[str, str]:
+        """Re-dispara a mesma receita com o mesmo input em uma nova run."""
+        try:
+            prev = runner.get_run(run_id)
+        except KeyError as exc:
+            raise HTTPException(404, f"run não encontrada: {run_id}") from exc
+        new_run = await runner.start(
+            recipe=prev.recipe,
+            tenant_id=prev.tenant_id,
+            user_id=prev.user_id,
+            input=dict(prev.input),
+            tenant_ctx=await tenant_ctx_provider.snapshot(prev.tenant_id),
+            origin_channel=prev.origin_channel,
+            origin_channel_external_id=prev.origin_channel_external_id,
+        )
+        return {"run_id": new_run.run_id, "source_run_id": run_id}
+
+    @app.post("/runs/{run_id}/rerun-from/{stage_id}")
+    async def rerun_from_stage(run_id: str, stage_id: str) -> dict[str, Any]:
+        """Re-dispara uma nova run, pulando stages anteriores a `stage_id`
+        (copia outputs dos stages anteriores da run original). Útil pra
+        repetir só a partir de onde deu ruim."""
+        try:
+            prev = runner.get_run(run_id)
+        except KeyError as exc:
+            raise HTTPException(404, f"run não encontrada: {run_id}") from exc
+        stage_ids = [s.id for s in prev.recipe.stages]
+        if stage_id not in stage_ids:
+            raise HTTPException(400, f"stage_id '{stage_id}' não existe na receita")
+        idx = stage_ids.index(stage_id)
+        pre_outputs = {
+            sid: prev.stages[sid].outputs
+            for sid in stage_ids[:idx]
+            if sid in prev.stages and prev.stages[sid].outputs
+        }
+        new_run = await runner.start(
+            recipe=prev.recipe,
+            tenant_id=prev.tenant_id,
+            user_id=prev.user_id,
+            input=dict(prev.input),
+            tenant_ctx=await tenant_ctx_provider.snapshot(prev.tenant_id),
+            origin_channel=prev.origin_channel,
+            origin_channel_external_id=prev.origin_channel_external_id,
+        )
+        # pre-popula os stages anteriores como SUCCESS (copiados da run original)
+        from imkt4.recipes.runner import StageStatus as _St
+        for sid, outs in pre_outputs.items():
+            st = new_run.stages.get(sid)
+            if st:
+                st.outputs = [dict(o) for o in outs]
+                st.status = _St.SUCCESS
+        # re-avalia _advance pra disparar o stage alvo (dependências já satisfeitas)
+        await runner._advance(new_run)  # type: ignore[attr-defined]
+        return {
+            "run_id": new_run.run_id,
+            "source_run_id": run_id,
+            "skipped_stages": list(pre_outputs.keys()),
+            "started_from": stage_id,
+        }
 
     @app.get("/runs/{run_id}")
     async def get_run(run_id: str) -> dict[str, Any]:

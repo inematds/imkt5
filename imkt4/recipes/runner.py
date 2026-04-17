@@ -159,6 +159,14 @@ class RecipeRunner:
     def get_run(self, run_id: str) -> RecipeRun:
         return self._runs[run_id]
 
+    def list_runs(self, *, limit: int = 50, tenant_id: str | None = None) -> list[RecipeRun]:
+        """Runs mais recentes primeiro. Filtra por tenant_id opcional."""
+        runs = list(self._runs.values())
+        if tenant_id:
+            runs = [r for r in runs if r.tenant_id == tenant_id]
+        runs.sort(key=lambda r: r.created_at, reverse=True)
+        return runs[:limit]
+
     async def on_job_finished(
         self,
         job_id: str,
