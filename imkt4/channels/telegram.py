@@ -46,6 +46,39 @@ def _resolve_artifact_path(storage_path: str) -> str:
     return storage_path
 
 
+def _fetch_attachment_bytes(storage_path: str) -> bytes:
+    """Baixa bytes do artefato pra enviar pro Telegram.
+
+    Suporta:
+      - file://  → lê do disco
+      - /artifacts/X → lê de ARTIFACT_ROOT/X
+      - /s3/<bucket>/<key> → baixa do MinIO via boto3
+      - http(s):// → baixa via httpx
+    """
+    if storage_path.startswith(("file://", "/artifacts/")):
+        return open(_resolve_artifact_path(storage_path), "rb").read()
+    if storage_path.startswith("/s3/"):
+        rest = storage_path[len("/s3/"):]
+        bucket, _, key = rest.partition("/")
+        import boto3  # noqa: PLC0415
+        client = boto3.client(
+            "s3",
+            endpoint_url=os.environ.get("S3_ENDPOINT", "").rstrip("/"),
+            aws_access_key_id=os.environ.get("S3_ACCESS_KEY", ""),
+            aws_secret_access_key=os.environ.get("S3_SECRET_KEY", ""),
+            region_name=os.environ.get("S3_REGION", "us-east-1"),
+        )
+        obj = client.get_object(Bucket=bucket, Key=key)
+        return obj["Body"].read()
+    if storage_path.startswith(("http://", "https://")):
+        import httpx  # noqa: PLC0415
+        r = httpx.get(storage_path, timeout=60.0)
+        r.raise_for_status()
+        return r.content
+    # fallback: path absoluto
+    return open(storage_path, "rb").read()
+
+
 @dataclass(frozen=True)
 class TelegramIdentity:
     """Resolve telegram chat_id → (tenant_id, user_id)."""
@@ -124,29 +157,34 @@ class TelegramChannel(BaseChannel):
 
     async def _send_one_attachment(self, chat_id: int, att, caption: str) -> None:
         from imkt4.types.messages import AttachmentKind
-        fp = _resolve_artifact_path(att.storage_path)
         kind = att.kind
         try:
-            with open(fp, "rb") as f:
-                if kind == AttachmentKind.IMAGE:
-                    await self._app.bot.send_photo(
-                        chat_id=chat_id, photo=f, caption=caption or None,
-                    )
-                elif kind == AttachmentKind.VIDEO:
-                    await self._app.bot.send_video(
-                        chat_id=chat_id, video=f, caption=caption or None,
-                    )
-                elif kind in (AttachmentKind.AUDIO, AttachmentKind.VOICE):
-                    await self._app.bot.send_audio(
-                        chat_id=chat_id, audio=f, caption=caption or None,
-                    )
-                else:
-                    await self._app.bot.send_document(
-                        chat_id=chat_id, document=f, caption=caption or None,
-                        filename=att.original_filename or None,
-                    )
+            import asyncio as _asyncio
+            # Fetch em thread (boto3/httpx síncronos) pra não bloquear loop
+            data = await _asyncio.to_thread(_fetch_attachment_bytes, att.storage_path)
+            import io as _io
+            buf = _io.BytesIO(data)
+            buf.name = att.original_filename or att.storage_path.rsplit("/", 1)[-1]
+
+            if kind == AttachmentKind.IMAGE:
+                await self._app.bot.send_photo(
+                    chat_id=chat_id, photo=buf, caption=caption or None,
+                )
+            elif kind == AttachmentKind.VIDEO:
+                await self._app.bot.send_video(
+                    chat_id=chat_id, video=buf, caption=caption or None,
+                )
+            elif kind in (AttachmentKind.AUDIO, AttachmentKind.VOICE):
+                await self._app.bot.send_audio(
+                    chat_id=chat_id, audio=buf, caption=caption or None,
+                )
+            else:
+                await self._app.bot.send_document(
+                    chat_id=chat_id, document=buf, caption=caption or None,
+                    filename=att.original_filename or None,
+                )
         except Exception as exc:  # noqa: BLE001
-            log.warning("falhou enviar anexo %s: %s", fp, exc)
+            log.warning("falhou enviar anexo %s: %s", att.storage_path, exc)
             await self._app.bot.send_message(
                 chat_id=chat_id,
                 text=(caption + "\n\n" if caption else "") + f"(arquivo: {att.storage_path})",

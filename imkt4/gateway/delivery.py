@@ -142,6 +142,7 @@ def _looks_like_url(s: str) -> bool:
     return (
         s.startswith("file://")
         or s.startswith("/artifacts/")
+        or s.startswith("/s3/")
         or s.startswith("http://")
         or s.startswith("https://")
         or s.startswith("s3://")
@@ -158,7 +159,7 @@ def _classify(url: str, key_hint: str = "") -> MessageAttachment | None:
     if _AUDIO_EXT.search(url) or "audio" in kh:
         return MessageAttachment(kind=AttachmentKind.AUDIO, storage_path=url)
     # Ignora URLs que não parecem mídia (ex.: "url" de resultado Tavily)
-    if url.startswith(("file://", "/artifacts/")):
+    if url.startswith(("file://", "/artifacts/", "/s3/")):
         return MessageAttachment(kind=AttachmentKind.DOCUMENT, storage_path=url)
     return None
 
