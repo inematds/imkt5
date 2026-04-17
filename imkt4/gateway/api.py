@@ -31,6 +31,7 @@ from pydantic import BaseModel
 
 from imkt4.capabilities.registry import CapabilityRegistry
 from imkt4.gateway.admin_ui import ADMIN_HTML
+from imkt4.gateway.recipes_ui import RECIPES_UI_HTML
 from imkt4.gateway.audit import AuditSink, make_audit_middleware
 from imkt4.gateway.auth import Principal, current_principal, require
 from imkt4.gateway.jobs_store import JobsStore
@@ -148,6 +149,13 @@ def create_app(
         # HTML da SPA — público. Endpoints /admin/<resto> exigem admin-global.
         return HTMLResponse(
             content=ADMIN_HTML,
+            headers={"Cache-Control": "no-store, must-revalidate"},
+        )
+
+    @app.get("/recipes-ui", response_class=HTMLResponse)
+    async def recipes_ui() -> Any:
+        return HTMLResponse(
+            content=RECIPES_UI_HTML,
             headers={"Cache-Control": "no-store, must-revalidate"},
         )
 
