@@ -231,32 +231,70 @@ def _build_vf(
         # estático — só reduz pra dimensão final
         vf = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
 
-    # 3) text overlay via textfile (evita escape inferno)
-    overlay = scene.get("text_overlay")
+    # 3) text overlay com word-wrap + caixa estilo carrossel
+    overlay = (scene.get("text_overlay") or "").strip()
     if overlay:
-        txt_path = tmp / f"text_{idx:02d}.txt"
-        txt_path.write_text(overlay, encoding="utf-8")
-
-        position = scene.get("text_position", "top")
-        if position == "top":
-            y_expr = f"{height * 0.10:.0f}"
-        elif position == "center":
-            y_expr = "(h-text_h)/2"
-        else:  # bottom
-            y_expr = f"h-text_h-{height * 0.10:.0f}"
-
         font_size = int(scene.get("font_size", 88))
-        # Aplica drawtext direto (sem drawbox full-frame — o shadow já ajuda
-        # na legibilidade sobre fundo variado).
-        draw_simple = (
+
+        # Padding horizontal: 8% da largura de cada lado. Texto útil = 84% do
+        # frame. Estimativa de largura média por char em DejaVu Sans Bold:
+        # ~0.55 × font_size. Cálculo defensivo com 0.6 pra não ter sobra.
+        pad_side = int(width * 0.08)
+        usable_w = width - 2 * pad_side
+        avg_char_w = font_size * 0.6
+        max_chars_per_line = max(8, int(usable_w / avg_char_w))
+
+        import textwrap as _tw
+        wrapped = _tw.fill(overlay.upper(), width=max_chars_per_line)
+        # Se mesmo com wrap passou de 3 linhas, reduz fonte proporcionalmente
+        n_lines = wrapped.count("\n") + 1
+        if n_lines > 3:
+            font_size = max(44, int(font_size * 3 / n_lines))
+            avg_char_w = font_size * 0.6
+            max_chars_per_line = max(8, int(usable_w / avg_char_w))
+            wrapped = _tw.fill(overlay.upper(), width=max_chars_per_line)
+            n_lines = wrapped.count("\n") + 1
+
+        txt_path = tmp / f"text_{idx:02d}.txt"
+        txt_path.write_text(wrapped, encoding="utf-8")
+
+        # Posição vertical: top default, mas com espaço da borda de 10%
+        position = scene.get("text_position", "top")
+        # Altura aproximada do bloco: font_size × 1.2 (line-height) × n_lines
+        block_h = int(font_size * 1.25 * n_lines)
+        margin_y = int(height * 0.08)
+        if position == "top":
+            y_box = margin_y
+        elif position == "center":
+            y_box = (height - block_h) // 2
+        else:  # bottom
+            y_box = height - block_h - margin_y
+
+        # Box: largura full − pad_side × 2, altura do bloco + padding vertical
+        box_pad_y = int(font_size * 0.6)
+        box_pad_x = int(font_size * 0.5)
+        box_x = pad_side
+        box_w = width - 2 * pad_side
+        box_y = y_box - box_pad_y
+        box_full_h = block_h + box_pad_y * 2
+
+        # Caixa semitransparente escura atrás do texto (estilo carrossel IG)
+        # + drawtext centralizado com line_spacing pra respiro
+        opacity = scene.get("overlay_opacity", 0.55)
+        line_spacing = int(font_size * 0.2)
+        draw = (
+            f"drawbox=x={box_x}:y={box_y}:w={box_w}:h={box_full_h}:"
+            f"color=black@{opacity}:t=fill,"
             f"drawtext=fontfile={FONT_BOLD}:"
             f"textfile={txt_path}:"
             f"fontcolor=white:"
             f"fontsize={font_size}:"
-            f"x=(w-text_w)/2:y={y_expr}:"
-            f"shadowcolor=black@0.8:shadowx=0:shadowy=4"
+            f"line_spacing={line_spacing}:"
+            f"x=(w-text_w)/2:"
+            f"y={y_box}:"
+            f"shadowcolor=black@0.9:shadowx=0:shadowy=3"
         )
-        vf = f"{vf},{draw_simple}"
+        vf = f"{vf},{draw}"
 
     return vf
 
