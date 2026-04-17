@@ -42,11 +42,10 @@ if [ -z "$TOKEN" ] || [ -z "$CHAT" ]; then
   exit 3
 fi
 
-BODY="*\[imkt4\]* ${MSG}"
+BODY="[imkt4] ${MSG}"
 
 RESP=$(curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
   -d "chat_id=${CHAT}" \
-  -d "parse_mode=Markdown" \
   --data-urlencode "text=${BODY}")
 
 OK=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('ok'))" 2>/dev/null || echo "false")

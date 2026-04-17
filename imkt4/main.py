@@ -29,6 +29,7 @@ import uvicorn
 from imkt4.capabilities.registry import CapabilityRegistry
 from imkt4.gateway.api import create_app
 from imkt4.gateway.http_dispatcher import HttpDispatcher
+from imkt4.gateway.jobs_store import JobsStore
 from imkt4.recipes.approvals import CompositeApprovalGate
 from imkt4.recipes.loader import load_recipes_from_dir
 from imkt4.recipes.runner import RecipeRunner
@@ -177,7 +178,8 @@ def main() -> None:
     recipes = load_recipes_from_dir(recipes_dir) if Path(recipes_dir).exists() else {}
     catalog = StaticRecipeCatalog(recipes)
 
-    dispatcher = HttpDispatcher(registry=registry)
+    jobs_store = JobsStore()
+    dispatcher = HttpDispatcher(registry=registry, jobs_store=jobs_store)
 
     # Approval gate composto — montado depois que runner existe (callback ref)
     runner_ref = {"runner": None}
@@ -211,6 +213,7 @@ def main() -> None:
         catalog=catalog,
         dispatcher=dispatcher,
         tenant_ctx_provider=tenant_ctx,
+        jobs_store=jobs_store,
     )
 
     # boot: starta dispatcher + health refresh inicial

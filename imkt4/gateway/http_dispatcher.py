@@ -42,6 +42,7 @@ class HttpDispatcher:
         request_timeout: float = 600.0,
         retry_when_saturated_seconds: float = 0.5,
         max_pending: int = 1000,
+        jobs_store: Any | None = None,
     ) -> None:
         self._registry = registry
         self._timeout = request_timeout
@@ -50,6 +51,7 @@ class HttpDispatcher:
         self._pending: asyncio.Queue[Job] = asyncio.Queue(maxsize=max_pending)
         self._consumer_task: asyncio.Task[None] | None = None
         self._stopping = False
+        self._jobs_store = jobs_store
 
     def set_on_finish(self, cb: OnFinishCallback) -> None:
         self._on_finish = cb
@@ -95,20 +97,25 @@ class HttpDispatcher:
             "job %s → worker=%s capability=%s",
             job.job_id, worker.name, job.required_capability or job.worker_type,
         )
+        if self._jobs_store:
+            self._jobs_store.mark_running(job.job_id, worker.name)
         await self._registry.acquire(worker.name)
         try:
             output = await self._call_worker(worker, job)
             log.info("job %s ✓ worker=%s", job.job_id, worker.name)
+            if self._jobs_store:
+                self._jobs_store.mark_finished(
+                    job.job_id, success=True, output=output, error=None,
+                )
             await self._notify(job.job_id, True, output, None)
         except Exception as exc:  # noqa: BLE001
-            log.warning(
-                "job %s ✗ worker=%s err=%s",
-                job.job_id, worker.name, exc,
-            )
-            await self._notify(
-                job.job_id, False, None,
-                f"worker={worker.name} err={type(exc).__name__}: {exc}",
-            )
+            err_str = f"worker={worker.name} err={type(exc).__name__}: {exc}"
+            log.warning("job %s ✗ worker=%s err=%s", job.job_id, worker.name, exc)
+            if self._jobs_store:
+                self._jobs_store.mark_finished(
+                    job.job_id, success=False, output=None, error=err_str,
+                )
+            await self._notify(job.job_id, False, None, err_str)
         finally:
             await self._registry.release(worker.name)
             self._pending.task_done()
