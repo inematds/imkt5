@@ -240,10 +240,44 @@ def _safe_json_parse(s: str) -> dict[str, Any]:
     # remover cercas ```json ... ```
     if s.startswith("```"):
         s = s.strip("`").lstrip("json").strip()
+    # tenta parse direto
     try:
         return json.loads(s)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"resposta LLM não é JSON válido: {s[:200]}") from exc
+    except json.JSONDecodeError:
+        pass
+
+    # tolerância: modelos às vezes prefixam com texto — extrai o primeiro
+    # bloco balanceado {...}
+    start = s.find("{")
+    if start != -1:
+        depth = 0
+        in_str = False
+        esc = False
+        for i in range(start, len(s)):
+            c = s[i]
+            if esc:
+                esc = False
+                continue
+            if c == "\\":
+                esc = True
+                continue
+            if c == '"':
+                in_str = not in_str
+                continue
+            if in_str:
+                continue
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    candidate = s[start:i + 1]
+                    try:
+                        return json.loads(candidate)
+                    except json.JSONDecodeError:
+                        break
+
+    raise RuntimeError(f"resposta LLM não é JSON válido: {s[:300]}")
 
 
 # ── carrega knowledge do tenant ───────────────────────────────────────

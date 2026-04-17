@@ -40,40 +40,6 @@ SYSTEM_PROMPT_TEMPLATE = """\
 ## CONHECIMENTO DO TENANT
 
 {knowledge}
-
-## REGRAS DE SAÍDA
-
-Você DEVE retornar APENAS um JSON válido com a estrutura exata abaixo.
-Sem texto antes ou depois. Sem cercas de markdown.
-
-{{
-  "creative_brief": {{
-    "campaign_theme": "...",
-    "campaign_angle": "...",
-    "positioning_statement": "...",
-    "emotional_hook": "...",
-    "visual_direction": {{
-      "mood": "...",
-      "dominant_colors": ["#hex1", "#hex2"],
-      "photography_style": "...",
-      "visual_cues": ["...", "..."]
-    }},
-    "key_messages": {{
-      "instagram": "...",
-      "youtube": "...",
-      "threads": "...",
-      "tiktok": "...",
-      "facebook": "...",
-      "linkedin": "..."
-    }},
-    "guardrails": {{
-      "tones_to_avoid": ["...", "..."],
-      "imagery_to_avoid": ["...", "..."],
-      "ctas_out_of_scope": ["...", "..."]
-    }},
-    "image_prompt_seeds": ["descrição visual 1", "descrição visual 2"]
-  }}
-}}
 """
 
 
