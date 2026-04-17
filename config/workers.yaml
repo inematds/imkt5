@@ -154,24 +154,41 @@ workers:
     local: true
     priority: 100
 
-  # ── yt / tiktok (da absorção de yt-pub-lives) ────────────────────
-  # - name: yt-source-ingest
-  # capabilities: [video.source_ingest]
-  # endpoint: http://localhost:8300
-  # local: true
-  # priority: 100
+  # ── yt / tiktok (portados de yt-pub-lives) ───────────────────────
+  - name: yt-source-ingest
+    capabilities: [video.source_ingest]
+    endpoint: http://localhost:8300
+    local: true
+    priority: 100
+    timeout_seconds: 60
+    max_concurrent: 4
 
-  # - name: yt-clip
-  # capabilities: [video.clip_extraction]
-  # endpoint: http://localhost:8301
-  # local: true
-  # priority: 100
+  - name: yt-clip
+    capabilities: [video.clip_extraction]
+    endpoint: http://localhost:8301
+    local: true
+    priority: 100
+    timeout_seconds: 900
+    max_concurrent: 1
 
-  # - name: yt-publish
-  # capabilities: [video.publish, platform.youtube]
-  # endpoint: http://localhost:8302
-  # local: true
-  # priority: 100
+  - name: yt-publish
+    capabilities: [video.publish, platform.youtube]
+    endpoint: http://localhost:8302
+    local: true
+    priority: 100
+    timeout_seconds: 900
+    max_concurrent: 1
+
+  # tiktok-ingest: tem mesmo capability do yt-source-ingest; prioridade
+  # 90 (menor) — só ganha quando source.external_id é @handle tiktok;
+  # yt-source-ingest com channel UC... é filtrado no worker.
+  - name: tiktok-ingest
+    capabilities: [video.source_ingest]
+    endpoint: http://localhost:8303
+    local: true
+    priority: 90
+    timeout_seconds: 60
+    max_concurrent: 4
 
   # # ── plataformas (da absorção do timesmkt3) ───────────────────────
   # - name: platform-instagram
