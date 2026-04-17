@@ -17,6 +17,7 @@ configurado pra rejeitar imediatamente — útil pra back-pressure).
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from dataclasses import asdict
 from typing import Any, Awaitable, Callable
@@ -195,7 +196,24 @@ class HttpDispatcher:
             r = await client.post(
                 f"{worker.endpoint.rstrip('/')}/execute", json=body
             )
-            r.raise_for_status()
+            if r.status_code != 200:
+                # Extrai a mensagem real do worker em vez de propagar o
+                # genérico "Server error '500'" do httpx.raise_for_status.
+                detail = ""
+                try:
+                    j = r.json()
+                    d = j.get("detail")
+                    if isinstance(d, dict):
+                        detail = d.get("error") or str(d)
+                    elif isinstance(d, str):
+                        detail = d
+                    else:
+                        detail = json.dumps(j)[:500]
+                except Exception:  # noqa: BLE001
+                    detail = (r.text or "")[:500] or "(corpo vazio)"
+                raise RuntimeError(
+                    f"{worker.name} HTTP {r.status_code}: {detail}"
+                )
             data = r.json()
         return data.get("output", {})
 
