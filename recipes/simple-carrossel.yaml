@@ -31,4 +31,5 @@ stages:
       title: $.input.title
       captions: $.input.captions
       cta: $.input.cta
+      palette: $.input.palette
     approval: {mode: none}
