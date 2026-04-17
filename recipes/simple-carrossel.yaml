@@ -1,17 +1,25 @@
 name: simple-carrossel
-version: 2
-# Exemplo de receita pequena: gerar imagens coesas + monta carrossel.
-# parallel: 2 é realista pra dev local com 1 GPU.
+version: 3
+# Carrossel mínimo: gera N imagens coesas com mesmo prompt + compõe
+# texto (título/captions/CTA) sobre elas estilo IG.
+#
+# Input:
+#   prompt      string  — descrição da imagem base
+#   count       int     — número de slides (default 2)
+#   model       string  — modelo SD (default flux2-klein)
+#   title       string  — texto no slide 1
+#   captions    list    — texto dos slides intermediários
+#   cta         string  — texto no último slide
 
 stages:
   - id: images
     requires: image.generation
     parallel: 2
     payload_from:
-      prompt: $.input.prompt   # mesmo prompt nas N imagens
+      prompt: $.input.prompt
       model: $.input.model
-      width: 512
-      height: 512
+      width: 1080
+      height: 1080
       steps: 15
     approval: {mode: none}
 
@@ -21,4 +29,6 @@ stages:
     payload_from:
       images: $.stages.images.output.outputs[*].image_url
       title: $.input.title
+      captions: $.input.captions
+      cta: $.input.cta
     approval: {mode: none}
