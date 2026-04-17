@@ -39,16 +39,27 @@ class HttpDispatcher:
         self,
         registry: CapabilityRegistry,
         *,
-        request_timeout: float = 600.0,
-        retry_when_saturated_seconds: float = 0.5,
-        max_pending: int = 1000,
+        request_timeout: float | None = None,
+        retry_when_saturated_seconds: float | None = None,
+        max_pending: int | None = None,
+        max_select_retries: int | None = None,
         jobs_store: Any | None = None,
     ) -> None:
+        from imkt4.config import load
+        cfg = load().dispatcher
         self._registry = registry
-        self._timeout = request_timeout
-        self._retry_seconds = retry_when_saturated_seconds
+        self._timeout = request_timeout if request_timeout is not None else cfg.request_timeout_seconds
+        self._retry_seconds = (
+            retry_when_saturated_seconds
+            if retry_when_saturated_seconds is not None
+            else cfg.retry_when_saturated_seconds
+        )
+        self._max_select_retries = (
+            max_select_retries if max_select_retries is not None else cfg.max_select_retries
+        )
+        _max_pending = max_pending if max_pending is not None else cfg.max_pending_jobs
         self._on_finish: OnFinishCallback | None = None
-        self._pending: asyncio.Queue[Job] = asyncio.Queue(maxsize=max_pending)
+        self._pending: asyncio.Queue[Job] = asyncio.Queue(maxsize=_max_pending)
         self._consumer_task: asyncio.Task[None] | None = None
         self._stopping = False
         self._jobs_store = jobs_store
@@ -121,9 +132,8 @@ class HttpDispatcher:
             self._pending.task_done()
 
     async def _select_with_retry(self, job):
-        # Se saturado, espera um tick e tenta de novo. Limita retries
-        # implicitamente pelo timeout do job no nível superior.
-        for attempt in range(120):  # ~60s a 0.5s/tentativa
+        # Se saturado, espera um tick e tenta de novo.
+        for attempt in range(self._max_select_retries):
             try:
                 if job.worker_type:
                     return self._registry.get_worker(job.worker_type)

@@ -27,16 +27,16 @@ import httpx
 from workers._base import BaseWorker
 
 # ── providers ────────────────────────────────────────────────────────
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_ROUTER_MODEL", os.environ.get("OLLAMA_MODEL", "qwen2.5:14b"))
-
+from imkt4.config import load as _load_cfg
+_LLM = _load_cfg().llm
+OLLAMA_URL = os.environ.get("OLLAMA_URL", _LLM.ollama.url)
+OLLAMA_MODEL = os.environ.get(
+    "OLLAMA_ROUTER_MODEL",
+    os.environ.get("OLLAMA_MODEL", _LLM.ollama.router_model),
+)
 OPENROUTER_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-OPENROUTER_URL = os.environ.get(
-    "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
-)
-OPENROUTER_MODEL = os.environ.get(
-    "OPENROUTER_MODEL_DEFAULT", "google/gemini-2.0-flash-exp:free"
-)
+OPENROUTER_URL = os.environ.get("OPENROUTER_BASE_URL", _LLM.openrouter.base_url)
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL_DEFAULT", _LLM.openrouter.default_model)
 
 SYSTEM_PROMPT = """\
 Você é um revisor automático. Seu trabalho é decidir se um artefato atende
@@ -191,4 +191,7 @@ class AutoReviewerWorker(BaseWorker):
 
 
 if __name__ == "__main__":
-    AutoReviewerWorker().run(port=8200)
+    import os
+    from imkt4.config import load
+    port = int(os.environ.get("AUTO_REVIEWER_PORT", load().workers.auto_reviewer.port))
+    AutoReviewerWorker().run(port=port)

@@ -93,4 +93,7 @@ class ResearchWorker(BaseWorker):
 
 
 if __name__ == "__main__":
-    ResearchWorker().run(port=8100)
+    import os
+    from imkt4.config import load
+    port = int(os.environ.get("RESEARCH_PORT", load().workers.research.port))
+    ResearchWorker().run(port=port)

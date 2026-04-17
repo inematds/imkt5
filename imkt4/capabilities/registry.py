@@ -26,8 +26,10 @@ async def _default_probe(
     worker: RegisteredWorker,
 ) -> tuple[WorkerHealth, str | None]:
     """Probe HTTP padrão: GET {endpoint}/health com timeout curto."""
+    from imkt4.config import load
+    timeout = load().capability_registry.probe_timeout_seconds
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             r = await client.get(f"{worker.endpoint.rstrip('/')}/health")
             if r.status_code == 200:
                 return WorkerHealth.HEALTHY, None

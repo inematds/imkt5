@@ -30,7 +30,10 @@ class JobRecord:
 
 
 class JobsStore:
-    def __init__(self, max_size: int = 500) -> None:
+    def __init__(self, max_size: int | None = None) -> None:
+        if max_size is None:
+            from imkt4.config import load
+            max_size = load().jobs_store.max_history
         self._data: OrderedDict[str, JobRecord] = OrderedDict()
         self._max = max_size
 

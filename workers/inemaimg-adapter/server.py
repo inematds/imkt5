@@ -34,9 +34,11 @@ import httpx
 from workers._base import BaseWorker
 from workers._base.storage import get_storage
 
-INEMAIMG_URL = os.environ.get("INEMAIMG_URL", "http://localhost:8000")
-INEMAIMG_MODEL_DEFAULT = os.environ.get("INEMAIMG_MODEL", "qwen-edit-2511")
-INEMAIMG_TIMEOUT = float(os.environ.get("INEMAIMG_TIMEOUT", "180"))
+from imkt4.config import load as _load_cfg
+_CFG = _load_cfg().workers.inemaimg_adapter
+INEMAIMG_URL = os.environ.get("INEMAIMG_URL", _CFG.upstream_url)
+INEMAIMG_MODEL_DEFAULT = os.environ.get("INEMAIMG_MODEL", _CFG.default_model)
+INEMAIMG_TIMEOUT = float(os.environ.get("INEMAIMG_TIMEOUT", _CFG.request_timeout_seconds))
 
 
 class InemaimgAdapter(BaseWorker):
@@ -89,4 +91,6 @@ class InemaimgAdapter(BaseWorker):
 
 
 if __name__ == "__main__":
-    InemaimgAdapter().run(port=int(os.environ.get("IMKT4_INEMAIMG_ADAPTER_PORT", "8020")))
+    InemaimgAdapter().run(
+        port=int(os.environ.get("IMKT4_INEMAIMG_ADAPTER_PORT", _CFG.port))
+    )

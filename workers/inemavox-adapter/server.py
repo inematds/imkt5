@@ -32,9 +32,11 @@ import httpx
 from workers._base import BaseWorker
 from workers._base.storage import get_storage
 
-INEMAVOX_URL = os.environ.get("INEMAVOX_URL", "http://localhost:8000")
-POLL_INTERVAL = float(os.environ.get("INEMAVOX_POLL_INTERVAL", "1.5"))
-POLL_MAX = int(os.environ.get("INEMAVOX_POLL_MAX_SECONDS", "600"))
+from imkt4.config import load as _load_cfg
+_CFG = _load_cfg().workers.inemavox_adapter
+INEMAVOX_URL = os.environ.get("INEMAVOX_URL", _CFG.upstream_url)
+POLL_INTERVAL = float(os.environ.get("INEMAVOX_POLL_INTERVAL", _CFG.poll_interval_seconds))
+POLL_MAX = int(os.environ.get("INEMAVOX_POLL_MAX_SECONDS", _CFG.poll_max_seconds))
 
 
 class InemavoxAdapter(BaseWorker):
@@ -179,4 +181,6 @@ class InemavoxAdapter(BaseWorker):
 
 
 if __name__ == "__main__":
-    InemavoxAdapter().run(port=int(os.environ.get("IMKT4_INEMAVOX_ADAPTER_PORT", "8021")))
+    InemavoxAdapter().run(
+        port=int(os.environ.get("IMKT4_INEMAVOX_ADAPTER_PORT", _CFG.port))
+    )

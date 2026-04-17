@@ -19,9 +19,13 @@ class LocalStorage:
     """Salva em disco local sob ./data/artifacts/."""
 
     def __init__(self, root: str | Path | None = None) -> None:
-        self._root = Path(
-            root or os.environ.get("IMKT4_ARTIFACT_ROOT", "./data/artifacts")
-        ).resolve()
+        if root is None:
+            try:
+                from imkt4.config import load
+                root = load().storage.artifact_root
+            except Exception:  # noqa: BLE001
+                root = os.environ.get("IMKT4_ARTIFACT_ROOT", "./data/artifacts")
+        self._root = Path(root).resolve()
 
     def save_bytes(
         self,

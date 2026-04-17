@@ -1,0 +1,96 @@
+# Fonte única de defaults operacionais do imkt4.
+#
+# Regra de precedência: env var → este arquivo → fallback no código.
+# Chave-valor: cada valor tem um env var que pode sobrescrever.
+#
+# Docs: doc/defaults.md
+
+gateway:
+  host: 0.0.0.0        # env: GATEWAY_HOST
+  port: 8080           # env: GATEWAY_PORT
+
+dispatcher:
+  # HttpDispatcher — ponte entre gateway e workers via HTTP
+  request_timeout_seconds: 600          # env: IMKT4_DISPATCH_TIMEOUT
+  retry_when_saturated_seconds: 0.5     # env: IMKT4_DISPATCH_RETRY_SECONDS
+  max_pending_jobs: 1000                # env: IMKT4_DISPATCH_MAX_PENDING
+  max_select_retries: 120               # env: IMKT4_DISPATCH_MAX_RETRIES
+
+capability_registry:
+  probe_timeout_seconds: 3.0            # env: IMKT4_PROBE_TIMEOUT
+  default_worker_priority: 50
+  default_worker_max_concurrent: 4
+  default_worker_timeout_seconds: 120
+
+jobs_store:
+  max_history: 500                       # env: IMKT4_JOBS_HISTORY
+
+approvals:
+  default_timeout_seconds: 1800          # 30 min; env: IMKT4_APPROVAL_TIMEOUT
+
+storage:
+  artifact_root: ./data/artifacts        # env: IMKT4_ARTIFACT_ROOT
+
+memory:
+  db_path: ./data/memory.db              # env: MEMORY_DB_PATH
+
+llm:
+  openrouter:
+    base_url: https://openrouter.ai/api/v1      # env: OPENROUTER_BASE_URL
+    default_model: google/gemini-2.0-flash-exp:free  # env: OPENROUTER_MODEL_DEFAULT
+  ollama:
+    url: http://localhost:11434                 # env: OLLAMA_URL
+    chat_model: qwen3.5:35b-a3b                 # env: OLLAMA_MODEL
+    router_model: qwen2.5:14b                   # env: OLLAMA_ROUTER_MODEL
+
+# Workers — cada um tem seu default de port e parâmetros específicos.
+# Overrides via env: <UPPER_NAME>_* (ex.: INEMAIMG_URL, RESEARCH_PORT)
+workers:
+
+  research:
+    port: 8100                           # env: RESEARCH_PORT
+
+  auto_reviewer:
+    port: 8200                           # env: AUTO_REVIEWER_PORT
+
+  inemaimg_adapter:
+    port: 8020                           # env: IMKT4_INEMAIMG_ADAPTER_PORT
+    upstream_url: http://localhost:8000  # env: INEMAIMG_URL
+    default_model: qwen-edit-2511        # env: INEMAIMG_MODEL
+    request_timeout_seconds: 180         # env: INEMAIMG_TIMEOUT
+
+  inemavox_adapter:
+    port: 8021                           # env: IMKT4_INEMAVOX_ADAPTER_PORT
+    upstream_url: http://localhost:8010  # env: INEMAVOX_URL
+    poll_interval_seconds: 1.5           # env: INEMAVOX_POLL_INTERVAL
+    poll_max_seconds: 600                # env: INEMAVOX_POLL_MAX_SECONDS
+
+# Payload defaults por capability — usados pela UI quando usuário entra
+# texto livre. Também servem como sugestão para clientes HTTP.
+capability_payload_defaults:
+
+  image.generation:
+    model: flux2-klein
+    steps: 15
+    width: 512
+    height: 512
+
+  audio.tts:
+    engine: edge
+    lang: pt
+
+  audio.dubbing:
+    engine: chatterbox
+    lang: pt
+
+  audio.transcribe:
+    format: srt
+
+  research.market:
+    max_results_per_query: 3
+    depth: basic
+
+  review.auto:
+    default_criteria:
+      - "o texto está em português"
+      - "o texto tem pelo menos 20 caracteres"

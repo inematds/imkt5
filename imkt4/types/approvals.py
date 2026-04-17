@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 
 class ApprovalMode(str, Enum):
@@ -38,12 +39,21 @@ class EscalationPolicy(str, Enum):
     ALWAYS = "always"
 
 
+def _default_approval_timeout() -> int:
+    """Lê do settings; fallback defensivo se config não carregou."""
+    try:
+        from imkt4.config import load
+        return int(load().approvals.default_timeout_seconds)
+    except Exception:  # noqa: BLE001
+        return 1800
+
+
 @dataclass(frozen=True, slots=True)
 class Approval:
     """Configuração declarativa de um gate de aprovação (vem da receita)."""
 
     mode: ApprovalMode = ApprovalMode.NONE
-    timeout_seconds: int = 1800  # 30 min
+    timeout_seconds: int = field(default_factory=_default_approval_timeout)
     # para human_reviewer
     reviewer_role: str | None = None
     # para auto_reviewer

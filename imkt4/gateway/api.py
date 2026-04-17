@@ -228,6 +228,18 @@ def create_app(
             )
         return out
 
+    @app.get("/config")
+    async def get_config(tenant_id: str | None = None) -> dict[str, Any]:
+        """Dump dos defaults carregados. Se tenant_id, aplica overrides."""
+        from imkt4.config import load
+        s = load()
+        if tenant_id:
+            s = s.for_tenant(tenant_id)
+        return {
+            "tenant_id": tenant_id,
+            "settings": s.as_dict(),
+        }
+
     @app.get("/capabilities")
     async def list_capabilities() -> dict[str, list[str]]:
         out: dict[str, list[str]] = {}
