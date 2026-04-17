@@ -117,6 +117,21 @@ async def _fetch_to_local(url: str) -> Path:
     if url.startswith("/artifacts/"):
         root = os.environ.get("IMKT4_ARTIFACT_ROOT", "./data/artifacts")
         return Path(root) / url[len("/artifacts/"):]
+    if url.startswith("/s3/"):
+        rest = url[len("/s3/"):]
+        bucket, _, key = rest.partition("/")
+        import boto3
+        client = boto3.client(
+            "s3",
+            endpoint_url=os.environ.get("S3_ENDPOINT", "").rstrip("/"),
+            aws_access_key_id=os.environ.get("S3_ACCESS_KEY", ""),
+            aws_secret_access_key=os.environ.get("S3_SECRET_KEY", ""),
+            region_name=os.environ.get("S3_REGION", "us-east-1"),
+        )
+        dest = Path(tempfile.mkstemp(suffix=".mp4")[1])
+        obj = client.get_object(Bucket=bucket, Key=key)
+        dest.write_bytes(obj["Body"].read())
+        return dest
     if url.startswith(("http://", "https://")):
         dest = Path(tempfile.mkstemp(suffix=".mp4")[1])
         async with httpx.AsyncClient(timeout=300.0) as client:

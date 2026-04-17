@@ -56,15 +56,49 @@ class AdDesignerWorker(BaseWorker):
         if not brief:
             raise ValueError("payload precisa de 'creative_brief'")
 
+        # Overrides opcionais do input. Tudo default-safe.
+        image_count = int(payload.get("image_count") or 3)
+        image_formats = payload.get("image_formats") or [
+            "instagram_feed", "instagram_stories", "youtube_thumbnail",
+        ]
+        platform_targets = payload.get("platform_targets") or [
+            "instagram", "youtube", "threads"
+        ]
+        language = payload.get("language") or "pt-BR"
+        ref_note = (payload.get("image_reference_note") or "").strip()
+        bg_color = (payload.get("image_background_color") or "").strip()
+
         knowledge = load_tenant_knowledge(
             job.tenant_id,
             files=["brand_identity.md", "product_campaign.md"],
         )
 
+        extra_rules = []
+        extra_rules.append(
+            f"Idioma dos textos visíveis: {language}."
+        )
+        extra_rules.append(
+            f"Gere exatamente {image_count} variante(s) — priorizando os formatos: {', '.join(image_formats)}."
+        )
+        if platform_targets:
+            extra_rules.append(
+                f"Plataformas-alvo: {', '.join(platform_targets)}."
+            )
+        if ref_note:
+            extra_rules.append(
+                f"Imagem de referência (obrigatório incluir em todos os background_prompt): {ref_note}"
+            )
+        if bg_color:
+            extra_rules.append(
+                f"Cor de fundo dominante: {bg_color} — mencione no background_prompt."
+            )
+
         system = (
             f"{self._skill}\n\n"
             f"## CONHECIMENTO DO TENANT\n\n"
-            f"{knowledge or '(sem knowledge configurado para este tenant)'}\n"
+            f"{knowledge or '(sem knowledge configurado para este tenant)'}\n\n"
+            f"## REGRAS DESTA RUN\n\n"
+            + "\n".join(f"- {r}" for r in extra_rules)
         )
 
         user_parts = [

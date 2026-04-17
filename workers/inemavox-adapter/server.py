@@ -61,10 +61,20 @@ class InemavoxAdapter(BaseWorker):
         if not text:
             raise ValueError("audio.tts precisa de 'text'")
 
+        # `or` trata explicitamente None/"" (receita passa None quando
+        # input opcional não foi fornecido).
+        engine = payload.get("engine") or "edge"
+        if engine == "auto":
+            engine = "edge"
+        lang = payload.get("lang") or "pt"
+        # Normaliza "pt-BR" → "pt" (edge usa locale curto)
+        if lang and lang.startswith("pt"):
+            lang = "pt"
+
         body = {
             "text": text,
-            "engine": payload.get("engine", "edge"),
-            "lang": payload.get("lang", "pt"),
+            "engine": engine,
+            "lang": lang,
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(f"{INEMAVOX_URL}/api/jobs/tts", json=body)

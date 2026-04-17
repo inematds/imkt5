@@ -60,6 +60,16 @@ class FfmpegLocalWorker(BaseWorker):
         height = int(plan.get("height", 1920))
         narration_url = payload.get("narration_url") or plan.get("narration_file")
 
+        # Overlay de marca (opcional). Procura em
+        # profiles/<tenant>/assets/brand_overlay.png.
+        use_brand_overlay = bool(payload.get("use_brand_overlay"))
+        tenant_id = payload.get("tenant_id") or job.tenant_id
+        brand_overlay: Path | None = None
+        if use_brand_overlay and tenant_id:
+            candidate = Path(f"profiles/{tenant_id}/assets/brand_overlay.png").resolve()
+            if candidate.exists():
+                brand_overlay = candidate
+
         with tempfile.TemporaryDirectory(prefix=f"ffrender-{job.job_id}-") as tmp:
             tmp_path = Path(tmp)
 
@@ -132,6 +142,25 @@ class FfmpegLocalWorker(BaseWorker):
                     "-shortest",
                     str(final),
                 ])
+
+            # 4b) Overlay de marca (PNG no canto inferior direito), opcional.
+            # Requer re-encode — só aplica se o overlay existe.
+            if brand_overlay is not None:
+                overlaid = tmp_path / "overlay.mp4"
+                try:
+                    await _run_ffmpeg([
+                        "-y", "-i", str(final), "-i", str(brand_overlay),
+                        "-filter_complex",
+                        "[1:v]scale=iw*0.15:-1[wm];"
+                        "[0:v][wm]overlay=W-w-30:H-h-30",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                        "-c:a", "copy",
+                        str(overlaid),
+                    ])
+                    if overlaid.exists() and overlaid.stat().st_size > 0:
+                        final = overlaid
+                except Exception:  # noqa: BLE001
+                    pass  # falha silenciosa — devolve vídeo sem overlay
 
             # 5) Salva via storage
             storage = get_storage()
@@ -234,6 +263,21 @@ async def _fetch_to(url: str, dest: Path) -> None:
         root = os.environ.get("IMKT4_ARTIFACT_ROOT", "./data/artifacts")
         src = Path(root) / url[len("/artifacts/"):]
         dest.write_bytes(Path(src).read_bytes())
+        return
+    if url.startswith("/s3/"):
+        # /s3/<bucket>/<key> — baixa direto do MinIO via boto3.
+        rest = url[len("/s3/"):]
+        bucket, _, key = rest.partition("/")
+        import boto3
+        client = boto3.client(
+            "s3",
+            endpoint_url=os.environ.get("S3_ENDPOINT", "").rstrip("/"),
+            aws_access_key_id=os.environ.get("S3_ACCESS_KEY", ""),
+            aws_secret_access_key=os.environ.get("S3_SECRET_KEY", ""),
+            region_name=os.environ.get("S3_REGION", "us-east-1"),
+        )
+        obj = client.get_object(Bucket=bucket, Key=key)
+        dest.write_bytes(obj["Body"].read())
         return
     if url.startswith(("http://", "https://")):
         async with httpx.AsyncClient(timeout=60.0) as client:

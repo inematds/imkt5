@@ -49,16 +49,30 @@ class CopywriterWorker(BaseWorker):
         if not brief:
             raise ValueError("payload precisa de 'creative_brief' (output do worker creative-brief)")
 
+        # Overrides opcionais
+        platform_targets = payload.get("platform_targets") or [
+            "instagram", "youtube", "threads", "tiktok", "facebook", "linkedin",
+        ]
+        language = payload.get("language") or "pt-BR"
+
         # knowledge do tenant — brand + platform guidelines são o que importa aqui
         knowledge = load_tenant_knowledge(
             job.tenant_id,
             files=["brand_identity.md", "platform_guidelines.md", "product_campaign.md"],
         )
 
+        extra_rules = [
+            f"Escreva todo o copy em: {language}.",
+            f"Gere copy APENAS pras seguintes plataformas: {', '.join(platform_targets)}. "
+            "No output JSON, preencha só essas chaves (ignore as demais).",
+        ]
+
         system = (
             f"{self._skill}\n\n"
             f"## CONHECIMENTO DO TENANT\n\n"
-            f"{knowledge or '(sem knowledge configurado para este tenant)'}\n"
+            f"{knowledge or '(sem knowledge configurado para este tenant)'}\n\n"
+            f"## REGRAS DESTA RUN\n\n"
+            + "\n".join(f"- {r}" for r in extra_rules)
         )
 
         user_parts = [

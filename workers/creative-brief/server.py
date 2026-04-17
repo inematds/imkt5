@@ -58,16 +58,34 @@ class CreativeBriefWorker(BaseWorker):
         if not brief:
             raise ValueError("payload precisa de 'brief'")
 
-        # knowledge do tenant
+        # Overrides opcionais
+        language = payload.get("language") or "pt-BR"
+        platform_targets = payload.get("platform_targets") or [
+            "instagram", "youtube", "threads", "tiktok", "facebook", "linkedin",
+        ]
+        ref_note = (payload.get("image_reference_note") or "").strip()
+
         knowledge = load_tenant_knowledge(
             job.tenant_id,
             files=["brand_identity.md", "product_campaign.md"],
         )
 
+        extra_rules = [f"Idioma do brief: {language}."]
+        if platform_targets:
+            extra_rules.append(
+                f"Plataformas foco da campanha: {', '.join(platform_targets)}. "
+                "Preencha key_messages apenas pra essas."
+            )
+        if ref_note:
+            extra_rules.append(
+                f"Referência visual fixa (incluir em image_prompt_seeds): {ref_note}"
+            )
+
         system = SYSTEM_PROMPT_TEMPLATE.format(
             skill=self._skill,
             knowledge=knowledge or "(sem knowledge configurado para este tenant)",
         )
+        system = f"{system}\n\n## REGRAS DESTA RUN\n\n" + "\n".join(f"- {r}" for r in extra_rules)
 
         user = f"## Brief do usuário\n\n{brief}\n"
         if research:

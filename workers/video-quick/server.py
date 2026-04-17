@@ -60,6 +60,10 @@ class VideoQuickWorker(BaseWorker):
         if len(ads) < 3:
             raise ValueError(f"payload precisa de pelo menos 3 imagens em 'ads' (recebido: {len(ads)})")
 
+        # Overrides opcionais
+        language = payload.get("language") or "pt-BR"
+        video_template = payload.get("video_template") or "auto"
+
         knowledge = load_tenant_knowledge(
             job.tenant_id,
             files=["brand_identity.md"],
@@ -68,7 +72,10 @@ class VideoQuickWorker(BaseWorker):
         system = (
             f"{self._skill}\n\n"
             f"## CONHECIMENTO DO TENANT\n\n"
-            f"{knowledge or '(sem knowledge configurado)'}\n"
+            f"{knowledge or '(sem knowledge configurado)'}\n\n"
+            f"## REGRAS DESTA RUN\n\n"
+            f"- Idioma das narrations e text_overlays: {language}.\n"
+            f"- Template solicitado: {video_template} (use como guia do estilo — 'auto' = livre).\n"
         )
 
         user_parts = [

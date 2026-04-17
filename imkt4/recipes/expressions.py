@@ -121,10 +121,26 @@ _BOOL_OPS = {
 
 
 def evaluate_when(expr: str | None, context: dict[str, Any]) -> bool:
-    """True se a condição `when` é verdadeira. None ou string vazia = True."""
+    """True se a condição `when` é verdadeira. None ou string vazia = True.
+
+    Suporta:
+      - comparações simples: `$.x == true`, `$.y != "foo"`, `$.n > 3`
+      - `A && B`             (AND curto-circuito)
+      - `A || B`             (OR curto-circuito)
+    Precedência: && tem mais que ||. Sem parênteses (intencional — simples).
+    """
     if not expr:
         return True
-    # muito simples: LHS OP RHS, todos literais ou $-path
+
+    # ── OR tem precedência menor — quebra primeiro
+    if " || " in expr:
+        return any(evaluate_when(p.strip(), context) for p in expr.split(" || "))
+
+    # ── AND depois
+    if " && " in expr:
+        return all(evaluate_when(p.strip(), context) for p in expr.split(" && "))
+
+    # ── comparação unária
     for op_str in sorted(_BOOL_OPS, key=len, reverse=True):
         if f" {op_str} " in expr:
             lhs_raw, rhs_raw = expr.split(f" {op_str} ", 1)
