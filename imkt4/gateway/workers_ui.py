@@ -140,6 +140,11 @@ WORKERS_UI_HTML = r"""<!DOCTYPE html>
       <h2>Workers</h2>
       <button class="small ghost" onclick="loadWorkers(true)">↻</button>
     </div>
+    <div class="filter-row" style="border-bottom:1px solid #30363d;">
+      <button data-sort="name" class="active" onclick="setSort('name')">A-Z</button>
+      <button data-sort="usage" onclick="setSort('usage')">+ usados</button>
+      <button data-sort="recent" onclick="setSort('recent')">recentes</button>
+    </div>
     <div id="workers-list"></div>
   </aside>
 
@@ -188,16 +193,26 @@ async function api(url, opts = {}) {
 let selectedWorker = null;
 let selectedJobId = null;
 let statusFilter = '';
+let workerSort = localStorage.getItem('imkt4_worker_sort') || 'name';  // name | usage | recent
+function setSort(s) {
+  workerSort = s;
+  localStorage.setItem('imkt4_worker_sort', s);
+  document.querySelectorAll('[data-sort]').forEach(b => {
+    b.classList.toggle('active', b.dataset.sort === s);
+  });
+  loadWorkers();
+}
 
 // ── workers ───────────────────────────────────────────────────
 async function loadWorkers(flash) {
   const [wResp, jResp] = await Promise.all([
-    fetch('/workers'), fetch('/jobs?limit=200'),
+    fetch('/workers'), fetch('/jobs?limit=500'),
   ]);
   const workers = await wResp.json();
   const jobs = await jResp.json();
 
   const counts = {};
+  const lastUsed = {};  // worker_name → max(updated_at)
   jobs.forEach(j => {
     const w = j.worker_name;
     if (!w) return;
@@ -206,11 +221,24 @@ async function loadWorkers(flash) {
     if (j.status === 'success') counts[w].success++;
     else if (j.status === 'failed') counts[w].failed++;
     else if (j.status === 'running' || j.status === 'pending') counts[w].running++;
+    const t = j.updated_at || j.created_at || '';
+    if (!lastUsed[w] || t > lastUsed[w]) lastUsed[w] = t;
+  });
+
+  // Ordena conforme workerSort
+  const sorted = [...workers].sort((a, b) => {
+    if (workerSort === 'usage') {
+      return (counts[b.name]?.total || 0) - (counts[a.name]?.total || 0);
+    }
+    if (workerSort === 'recent') {
+      return (lastUsed[b.name] || '').localeCompare(lastUsed[a.name] || '');
+    }
+    return a.name.localeCompare(b.name);  // default: A-Z
   });
 
   const list = document.getElementById('workers-list');
   list.innerHTML = '';
-  workers.forEach(w => {
+  sorted.forEach(w => {
     const c = counts[w.name] || { total: 0, success: 0, failed: 0, running: 0 };
     const row = document.createElement('div');
     row.className = 'worker-row';
@@ -405,6 +433,9 @@ function escapeHtml(s) {
 
 // init
 updateAuthStatus();
+document.querySelectorAll('[data-sort]').forEach(b => {
+  b.classList.toggle('active', b.dataset.sort === workerSort);
+});
 loadWorkers();
 setInterval(() => {
   loadWorkers();
