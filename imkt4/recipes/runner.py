@@ -226,7 +226,10 @@ class RecipeRunner:
     ) -> None:
         run = self._runs[run_id]
         stage_state = run.stages[stage_id]
-        if decision == ApprovalDecision.APPROVED:
+        # UNCERTAIN conta como aprovado — o pipeline continua. Escalation
+        # (`approval.escalation: on_uncertain` na receita) exigiria gate
+        # humano; enquanto não implementado, benefício da dúvida.
+        if decision in (ApprovalDecision.APPROVED, ApprovalDecision.UNCERTAIN):
             stage_state.status = StageStatus.SUCCESS
             stage_state.finished_at = datetime.utcnow()
             await self._advance(run)
@@ -235,6 +238,7 @@ class RecipeRunner:
             stage_state.error = f"approval: {decision.value}"
             stage_state.finished_at = datetime.utcnow()
             # Stages dependentes ficam SKIPPED quando o advance rodar
+            await self._advance(run)
 
     # ── internals ─────────────────────────────────────────────────────
     async def _advance(self, run: RecipeRun) -> None:
@@ -324,7 +328,6 @@ class RecipeRunner:
         self, run: RecipeRun, stage: RecipeStage
     ) -> list[dict[str, Any]]:
         ctx = run.context()
-        base_payload = resolve(stage.payload_from, ctx) or {}
 
         if stage.fanout_over:
             items = resolve(stage.fanout_over, ctx) or []
@@ -332,9 +335,16 @@ class RecipeRunner:
                 raise ValueError(
                     f"fanout_over em '{stage.id}' não resolveu pra lista: {type(items).__name__}"
                 )
+            # Resolve payload_from UMA VEZ por item, com fanout_item no ctx.
+            # Permite referenciar campos do item via $.fanout_item.X dentro
+            # do payload_from.
             return [
-                {**base_payload, "_fanout_item": item} for item in items
+                (resolve(stage.payload_from, {**ctx, "fanout_item": item}) or {})
+                | {"_fanout_item": item}
+                for item in items
             ]
+
+        base_payload = resolve(stage.payload_from, ctx) or {}
 
         if stage.fanout_over_capabilities:
             return [

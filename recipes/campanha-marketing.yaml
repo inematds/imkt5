@@ -1,8 +1,11 @@
 name: campanha-marketing
-version: 4
-# Composição completa — derivada do pipeline do timesmkt3, multi-tenant.
-# Política de aprovação: auto_reviewer por default. Humano só quando
-# o usuário passar with_user_approval: true no input.
+version: 6
+# Pipeline completo: brief → copy → ad-designer → imagens (fanout) →
+#                    voiceover → video (scene plan).
+#
+# TODO(auto-review): as aprovações via auto_reviewer estão como `none`
+# enquanto amadurecemos os critérios e a estabilidade do revisor.
+# Voltar stage-a-stage quando critérios forem objetivos e estáveis.
 
 stages:
 
@@ -11,105 +14,62 @@ stages:
     requires: research.market
     when: $.input.with_research == true
     payload_from:
-      brief: $.input.brief
+      query: $.input.brief
     approval: {mode: none}
 
-  # ─── Brief criativo: auto-review ──────────────────────────────────
+  # ─── Brief criativo ──────────────────────────────────────────────
   - id: brief
     requires: brief.strategic
     needs: [research]
     payload_from:
       brief: $.input.brief
       research: $.stages.research.output
-    approval:
-      mode: auto_reviewer
-      criteria:
-        - "brief tem ângulo estratégico claro"
-        - "brief define público-alvo"
-        - "brief define CTA"
-      escalation: on_uncertain
-
-  # ─── Copy: auto-review por default (ver doc/approval-policy.md) ──
-  - id: copy
-    requires: copy.narrative
-    needs: [brief]
-    payload_from:
-      brief: $.stages.brief.output
-    approval:
-      mode: auto_reviewer
-      criteria:
-        - "texto está em português"
-        - "tem hook claro nos primeiros 10s"
-        - "tem CTA explícito"
-        - "alinhado com brand do tenant"
-        - "não usa claims médicos sem disclaimer"
-      escalation: on_uncertain
-
-  # ─── Imagens: sem aprovação (trivial) ─────────────────────────────
-  - id: images
-    requires: image.generation
-    needs: [copy]
-    parallel: 6
-    payload_from:
-      prompts: $.stages.copy.output.prompts
-      style: $.tenant.profile.visual_style
     approval: {mode: none}
 
-  # ─── Voiceover: sem aprovação ─────────────────────────────────────
+  # ─── Copy: 3 plataformas ─────────────────────────────────────────
+  - id: copy
+    requires: copy.platform
+    needs: [brief]
+    payload_from:
+      creative_brief: $.stages.brief.output.creative_brief
+      research: $.stages.research.output
+    approval: {mode: none}
+
+  # ─── Ad Design: gera 3 variantes com background_prompt p/ SD ─────
+  - id: ad_design
+    requires: design.ad_layout
+    needs: [copy]
+    payload_from:
+      creative_brief: $.stages.brief.output.creative_brief
+      copy: $.stages.copy.output.copy
+    approval: {mode: none}
+
+  # ─── Imagens: fanout sobre variantes do ad-designer ──────────────
+  - id: images
+    requires: image.generation
+    needs: [ad_design]
+    fanout_over: $.stages.ad_design.output.ad_design.variants
+    payload_from:
+      prompt: $.fanout_item.background_prompt
+      negative_prompt: $.fanout_item.negative_prompt
+    approval: {mode: none}
+
+  # ─── Voiceover: script curto do copy ─────────────────────────────
   - id: voiceover
     requires: audio.tts
     needs: [copy]
     payload_from:
-      text: $.stages.copy.output.voiceover_script
-      voice_id: $.tenant.profile.voice_id
+      text: $.stages.copy.output.copy.key_benefit
+      lang: "pt"
     approval: {mode: none}
 
-  # ─── Ads: auto-review (composição visual) ─────────────────────────
-  - id: ads
-    requires: design.static_ad
-    needs: [images]
-    payload_from:
-      images: $.stages.images.output.outputs[*].image_url
-      narrative: $.stages.copy.output
-    approval:
-      mode: auto_reviewer
-      criteria:
-        - "composição visual balanceada"
-        - "texto overlay legível em todas resoluções"
-        - "respeita paleta da marca"
-      escalation: on_uncertain
-
-  # ─── Video: auto-review ───────────────────────────────────────────
+  # ─── Video (scene plan) ──────────────────────────────────────────
   - id: video
     requires: video.cinematic
-    needs: [ads, voiceover]
+    needs: [ad_design, images, voiceover]
     payload_from:
-      images: $.stages.ads.output.image_urls
-      audio: $.stages.voiceover.output.audio_url
-    approval:
-      mode: auto_reviewer
-      criteria:
-        - "áudio sincronizado"
-        - "abertura captura atenção em 2s"
-        - "CTA final claro"
-      escalation: on_uncertain
-
-  # ─── Otimização por plataforma (DIFERIDA) ─────────────────────────
-  # Os 6 workers platform-* estão adiados — ver doc/deferred-platform-workers.md.
-  # Quando forem portados, descomentar:
-  #
-  # - id: platforms
-  #   fanout_over_capabilities:
-  #     - platform.instagram
-  #     - platform.youtube
-  #     - platform.tiktok
-  #     - platform.facebook
-  #     - platform.threads
-  #     - platform.linkedin
-  #   needs: [video]
-  #   payload_from:
-  #     video: $.stages.video.output
-  #     narrative: $.stages.copy.output
-  #   approval: {mode: user}
-
-  # Sem stage "distribute" — publicação é ação do painel Web, não job.
+      creative_brief: $.stages.brief.output.creative_brief
+      copy: $.stages.copy.output.copy
+      ads: $.stages.images.output.outputs[*].image_url
+      voiceover_url: $.stages.voiceover.output.audio_url
+    approval: {mode: none}

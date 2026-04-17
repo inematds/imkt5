@@ -62,15 +62,28 @@ async def _make_handlers(payloads_seen: dict[str, list[dict]]):
         return h
     return {
         "research.market": make("research", {"insights": ["x", "y"]}),
-        "brief.strategic": make("brief", {"angle": "test"}),
-        "copy.narrative": make("copy", {
-            "prompts": ["p1", "p2", "p3", "p4", "p5", "p6"],
-            "voiceover_script": "roteiro",
+        "brief.strategic": make("brief", {
+            "creative_brief": {"campaign_angle": "test", "approved_ctas": ["Compre"]}
+        }),
+        "copy.platform": make("copy", {
+            "copy": {
+                "key_benefit": "benefício chave",
+                "threads_post": "curto",
+                "instagram_caption": "legenda",
+                "youtube": {"title": "t", "description": "d", "tags": ["x"]},
+            }
+        }),
+        "design.ad_layout": make("ad_design", {
+            "ad_design": {
+                "variants": [
+                    {"background_prompt": f"p{i}", "negative_prompt": "n"}
+                    for i in range(3)
+                ]
+            }
         }),
         "image.generation": make("images", {"image_url": "img.png"}),
         "audio.tts": make("voiceover", {"audio_url": "a.mp3"}),
-        "design.static_ad": make("ads", {"image_urls": ["ad1.png", "ad2.png"]}),
-        "video.cinematic": make("video", {"video_url": "v.mp4"}),
+        "video.cinematic": make("video", {"scene_plan": {"scenes": []}}),
         "platform.instagram": make("ig", {"post": "ig"}),
         "platform.youtube": make("yt", {"post": "yt"}),
         "platform.tiktok": make("tt", {"post": "tt"}),
@@ -143,8 +156,8 @@ async def test_campanha_roda_completa():
     }
     assert not run.has_failed()
 
-    # images tem parallel:6 → 6 chamadas
-    assert len(payloads["images"]) == 6
+    # images é fanout_over das 3 variants do ad_design → 3 chamadas
+    assert len(payloads["images"]) == 3
 
     # stage platforms foi comentado (workers platform-* diferidos)
     # — validar que a receita foi até video com sucesso
