@@ -123,14 +123,16 @@ class S3Storage:
         self._client.put_object(
             Bucket=self._bucket, Key=key, Body=data, ContentType=ctype,
         )
-        # URL pública (presigned se bucket privado)
+        # Devolve path relativo `/s3/<bucket>/<key>` — o gateway faz
+        # streaming proxy pro MinIO interno. Garante que a URL funciona
+        # de qualquer máquina que acessa o gateway, sem depender de
+        # hostname do S3_ENDPOINT.
+        #
+        # Se S3_PUBLIC_BASE estiver setado (bucket público direto da
+        # internet), devolve URL direta em vez do proxy.
         if self._public_base:
             return f"{self._public_base.rstrip('/')}/{self._bucket}/{key}"
-        return self._client.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": self._bucket, "Key": key},
-            ExpiresIn=self._presign_ttl,
-        )
+        return f"/s3/{self._bucket}/{key}"
 
     def save_base64(
         self,

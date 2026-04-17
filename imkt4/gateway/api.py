@@ -772,6 +772,58 @@ def create_app(
             raise HTTPException(404, "artefato não encontrado")
         return FileResponse(abs_path)
 
+    # ── proxy S3/MinIO: streama bytes pelo gateway ────────────────────
+    # Soluciona "localhost:9000 quebra em outra máquina" — UI recebe
+    # `/s3/<bucket>/<key>` e o gateway busca do MinIO internamente.
+    @app.get("/s3/{bucket}/{key:path}")
+    async def s3_proxy(bucket: str, key: str):
+        import os as _os
+        import httpx as _httpx
+        from fastapi.responses import StreamingResponse
+
+        endpoint = _os.environ.get("S3_ENDPOINT", "").rstrip("/")
+        access_key = _os.environ.get("S3_ACCESS_KEY", "")
+        secret_key = _os.environ.get("S3_SECRET_KEY", "")
+        if not endpoint:
+            raise HTTPException(503, "S3_ENDPOINT não configurado")
+
+        # Gera presigned URL internamente (apontando pro endpoint
+        # interno, não exposto ao cliente).
+        try:
+            import boto3  # noqa: PLC0415
+            client = boto3.client(
+                "s3",
+                endpoint_url=endpoint,
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                region_name=_os.environ.get("S3_REGION", "us-east-1"),
+            )
+            presigned = client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": bucket, "Key": key},
+                ExpiresIn=300,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(500, f"s3 presign: {exc}") from exc
+
+        # Streama pra o cliente
+        async def _stream():
+            async with _httpx.AsyncClient(timeout=120.0) as c:
+                async with c.stream("GET", presigned) as resp:
+                    if resp.status_code != 200:
+                        body = await resp.aread()
+                        raise HTTPException(
+                            resp.status_code,
+                            f"upstream: {body[:200].decode(errors='ignore')}",
+                        )
+                    async for chunk in resp.aiter_bytes(chunk_size=65536):
+                        yield chunk
+
+        # Detecta content-type via mimetypes (simpler que fazer HEAD upstream)
+        import mimetypes as _mt
+        ctype = _mt.guess_type(key)[0] or "application/octet-stream"
+        return StreamingResponse(_stream(), media_type=ctype)
+
     return app
 
 
