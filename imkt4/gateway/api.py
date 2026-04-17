@@ -91,6 +91,13 @@ class ChatRequest(BaseModel):
     channel_external_id: str = "web-session"
 
 
+class ChannelBindingReq(BaseModel):
+    kind: str          # telegram|whatsapp|web
+    external_id: str
+    tenant_id: str
+    user_id: str = ""
+
+
 def create_app(
     *,
     registry: CapabilityRegistry,
@@ -238,12 +245,6 @@ def create_app(
         return {"status": "ok"}
 
     # ── admin: channels (whitelist de bindings) ──────────────────────
-    class ChannelBindingReq(BaseModel):
-        kind: str          # telegram|whatsapp|web
-        external_id: str
-        tenant_id: str
-        user_id: str = ""
-
     @app.get("/admin/channels")
     async def admin_channels_list(request: Request, kind: str | None = None) -> list[dict]:
         await _require_admin(request)
@@ -262,7 +263,7 @@ def create_app(
         return out
 
     @app.post("/admin/channels")
-    async def admin_channels_add(request: Request, req: ChannelBindingReq) -> dict[str, str]:
+    async def admin_channels_add(req: ChannelBindingReq, request: Request) -> dict[str, str]:
         await _require_admin(request)
         if tenancy_repo is None:
             raise HTTPException(503, "TenancyRepo não configurado")
