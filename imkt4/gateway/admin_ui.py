@@ -233,7 +233,7 @@ async function api(url, opts = {}) {
   const token = getToken();
   const h = { ...(opts.headers || {}) };
   if (token) h['Authorization'] = 'Bearer ' + token;
-  const r = await api(url, { ...opts, headers: h });
+  const r = await fetch(url, { ...opts, headers: h });
   if (r.status === 401) {
     alert('Token inválido/ausente. Clique em [token] no topo pra configurar.');
   } else if (r.status === 403) {
