@@ -32,13 +32,13 @@ from typing import Any
 
 import httpx
 
+from imkt4.config import load as _load_cfg
 from workers._base import BaseWorker
 from workers._base.storage import get_storage
 
 log = logging.getLogger("imkt4.workers.inemaimg")
 logging.basicConfig(level=logging.INFO)
 
-from imkt4.config import load as _load_cfg
 _CFG = _load_cfg().workers.inemaimg_adapter
 INEMAIMG_URL = os.environ.get("INEMAIMG_URL", _CFG.upstream_url)
 INEMAIMG_MODEL_DEFAULT = os.environ.get("INEMAIMG_MODEL", _CFG.default_model)

@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections import defaultdict
 from dataclasses import asdict
 from typing import Any, Awaitable, Callable
 

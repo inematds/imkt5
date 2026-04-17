@@ -12,11 +12,10 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any
 
 from imkt4.agent.context import ContextBuilder
 from imkt4.memory.store import MemoryStore, MemoryCategory
-from imkt4.providers.base import BaseProvider, LLMMessage, LLMResponse, ToolCall
+from imkt4.providers.base import BaseProvider, LLMMessage, LLMResponse
 from imkt4.tools.registry import ToolRegistry
 from imkt4.tools.base import ToolContext
 from imkt4.types.messages import IncomingMessage, OutgoingMessage

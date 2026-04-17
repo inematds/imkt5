@@ -12,8 +12,8 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Any, Awaitable, Callable, Protocol
+from datetime import datetime
+from typing import Any, Awaitable, Callable
 
 from imkt4.channels.base import ChannelRegistry
 from imkt4.types.approvals import ApprovalDecision

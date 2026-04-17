@@ -8,7 +8,6 @@ que será injetado na primeira mensagem do LLM.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from imkt4.memory.store import MemoryStore
 

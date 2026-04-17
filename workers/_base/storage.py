@@ -15,7 +15,7 @@ import base64
 import logging
 import os
 from pathlib import Path
-from typing import Any, Literal, Protocol
+from typing import Literal, Protocol
 
 log = logging.getLogger("imkt4.storage")
 

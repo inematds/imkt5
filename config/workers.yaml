@@ -190,6 +190,16 @@ workers:
     timeout_seconds: 60
     max_concurrent: 4
 
+  # carousel-composer — MVP. Recebe lista de URLs e devolve JSON
+  # descritivo do carrossel (sem rendering de composição).
+  - name: carousel-composer
+    capabilities: [design.carousel]
+    endpoint: http://localhost:8107
+    local: true
+    priority: 50
+    timeout_seconds: 30
+    max_concurrent: 4
+
   # # ── plataformas (da absorção do timesmkt3) ───────────────────────
   # - name: platform-instagram
   # capabilities: [platform.instagram]

@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -117,7 +116,7 @@ class FfmpegLocalWorker(BaseWorker):
                 # apad garante áudio >= duração do vídeo; -t corta pela dur do vídeo.
                 await _run_ffmpeg([
                     "-y", "-i", str(concat_mp4), "-i", str(audio_local),
-                    "-filter_complex", f"[1:a]apad[apadded]",
+                    "-filter_complex", "[1:a]apad[apadded]",
                     "-map", "0:v", "-map", "[apadded]",
                     "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
                     "-t", str(total_video_dur),
@@ -210,20 +209,8 @@ def _build_vf(
             y_expr = f"h-text_h-{height * 0.10:.0f}"
 
         font_size = int(scene.get("font_size", 88))
-        # overlay semi-transparente escuro atrás do texto pra legibilidade
-        overlay_opacity = float(scene.get("overlay_opacity", 0.5))
-        draw = (
-            f"drawbox=x=0:y=0:w=iw:h=ih:color=black@{overlay_opacity}:t=fill,"
-            f"drawtext=fontfile={FONT_BOLD}:"
-            f"textfile={txt_path}:"
-            f"fontcolor=white:"
-            f"fontsize={font_size}:"
-            f"x=(w-text_w)/2:y={y_expr}:"
-            f"shadowcolor=black@0.8:shadowx=0:shadowy=4:"
-            f"box=0"
-        )
-        # overlay desenhado sobre a caixa escura só no topo (não full-frame).
-        # Simplifica: aplica drawtext direto sem drawbox (o shadow já ajuda).
+        # Aplica drawtext direto (sem drawbox full-frame — o shadow já ajuda
+        # na legibilidade sobre fundo variado).
         draw_simple = (
             f"drawtext=fontfile={FONT_BOLD}:"
             f"textfile={txt_path}:"

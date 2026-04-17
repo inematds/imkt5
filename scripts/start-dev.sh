@@ -78,6 +78,7 @@ start_bg "yt-source-ingest" "$VENV" workers/yt-source-ingest/server.py
 start_bg "yt-clip"           "$VENV" workers/yt-clip/server.py
 start_bg "yt-publish"        "$VENV" workers/yt-publish/server.py
 start_bg "tiktok-ingest"     "$VENV" workers/tiktok-ingest/server.py
+start_bg "carousel-composer" "$VENV" workers/carousel-composer/server.py
 
 # inemaimg-adapter — só se o upstream responder em /health
 INEMAIMG_HEALTH_URL="${INEMAIMG_URL:-http://localhost:8000}/health"

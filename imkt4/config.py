@@ -30,7 +30,6 @@ Carregamento: `load()` na boot-up do main.py; cache singleton.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 

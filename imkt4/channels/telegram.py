@@ -12,13 +12,12 @@ Segurança: só aceita mensagens de chat_ids em `allowed_chat_ids`.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 from dataclasses import dataclass
-from typing import Awaitable, Callable
+from typing import Any, Awaitable, Callable
 
-from telegram import Bot, Update
+from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
 from imkt4.channels.base import BaseChannel

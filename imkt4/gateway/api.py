@@ -35,7 +35,7 @@ from imkt4.gateway.recipes_ui import RECIPES_UI_HTML
 from imkt4.gateway.runs_ui import RUNS_UI_HTML
 from imkt4.gateway.workers_ui import WORKERS_UI_HTML
 from imkt4.gateway.audit import AuditSink, make_audit_middleware
-from imkt4.gateway.auth import Principal, current_principal, require
+from imkt4.gateway.auth import Principal, current_principal
 from imkt4.gateway.jobs_store import JobsStore
 from imkt4.gateway.web_ui import UI_HTML
 from imkt4.recipes.runner import RecipeRunner
@@ -550,7 +550,6 @@ def create_app(
         # Coleta todos os paths de artefatos dos outputs dos stages
         from io import BytesIO
         import zipfile
-        from urllib.parse import urlparse
 
         def _iter_urls(obj: Any):
             if isinstance(obj, str):
@@ -672,7 +671,7 @@ def create_app(
             if not Path(path).exists():
                 return []
             lines = Path(path).read_text().strip().split("\n")
-            records = [_json.loads(l) for l in lines if l]
+            records = [_json.loads(ln) for ln in lines if ln]
             if tenant_id:
                 records = [r for r in records if r.get("actor_tenant") == tenant_id]
             return records[-limit:][::-1]

@@ -6,7 +6,6 @@ que suportam, tipo qwen2.5, llama3.1).
 
 from __future__ import annotations
 
-import json
 import os
 from typing import Any
 

@@ -226,7 +226,6 @@ def main() -> None:
     from imkt4.memory.store import MemoryStore
     from imkt4.providers.ollama import OllamaProvider
     from imkt4.providers.openrouter import OpenRouterProvider
-    from imkt4.tools.base import BaseTool
     from imkt4.tools.dispatch_job import DispatchJobTool
     from imkt4.tools.registry import ToolRegistry
     from imkt4.tools.run_recipe import RunRecipeTool

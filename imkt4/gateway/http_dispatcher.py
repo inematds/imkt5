@@ -19,7 +19,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from dataclasses import asdict
 from typing import Any, Awaitable, Callable
 
 import httpx
