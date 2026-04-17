@@ -219,6 +219,17 @@ workers:
     timeout_seconds: 30
     max_concurrent: 4
 
+  # photography-director — linguagem visual completa (style preset,
+  # palette, tipografia, câmera, transições). Chamado sob demanda
+  # por receitas que pedem design.photo_direction.
+  - name: photography-director
+    capabilities: [design.photo_direction]
+    endpoint: http://localhost:8110
+    local: true
+    priority: 50
+    timeout_seconds: 120
+    max_concurrent: 2
+
   # # ── plataformas (da absorção do timesmkt3) ───────────────────────
   # - name: platform-instagram
   # capabilities: [platform.instagram]
