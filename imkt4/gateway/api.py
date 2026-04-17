@@ -575,39 +575,62 @@ def create_app(
 
     @app.get("/runs/{run_id}")
     async def get_run(run_id: str) -> dict[str, Any]:
+        def _ordered_stages(recipe_name: str, raw: dict) -> dict:
+            """Reordena dict de stages pela ordem declarada na receita.
+            Stages metadata (chaves começando com _) são ignoradas.
+            Stages extras (ex.: legado) vão pro fim, após os declarados.
+            """
+            try:
+                recipe = catalog.get(recipe_name)
+                order = [s.id for s in recipe.stages]
+            except KeyError:
+                order = []
+            cleaned = {k: v for k, v in raw.items()
+                       if not k.startswith("_") and isinstance(v, dict)}
+            out: dict[str, Any] = {}
+            for sid in order:
+                if sid in cleaned:
+                    out[sid] = cleaned[sid]
+            # resto (não declarado, se houver)
+            for sid, v in cleaned.items():
+                if sid not in out:
+                    out[sid] = v
+            return out
+
         try:
             run = runner.get_run(run_id)
         except KeyError:
-            # fallback DB — run pode estar persistida de uma sessão anterior
             repo = getattr(runner, "_runs_repo", None)
             if repo is not None:
                 row = await repo.get(run_id)
                 if row:
-                    stages = row.get("stages") or {}
+                    recipe_name = row.get("recipe_name", "")
+                    raw = row.get("stages") or {}
                     return {
                         "run_id": row["run_id"],
-                        "recipe": row.get("recipe_name"),
+                        "recipe": recipe_name,
                         "tenant_id": row.get("tenant_id"),
                         "finished": row.get("finished", False),
                         "failed": row.get("failed", False),
-                        "stages": stages,
+                        "stages": _ordered_stages(recipe_name, raw),
                     }
             raise HTTPException(404, f"run não encontrada: {run_id}")
+        raw_stages = {
+            sid: {
+                "status": s.status.value,
+                "job_ids": list(s.job_ids),
+                "error": s.error,
+                "outputs": s.outputs,
+            }
+            for sid, s in run.stages.items()
+        }
         return {
             "run_id": run.run_id,
             "recipe": run.recipe.name,
             "tenant_id": run.tenant_id,
             "finished": run.is_finished(),
             "failed": run.has_failed(),
-            "stages": {
-                sid: {
-                    "status": s.status.value,
-                    "job_ids": list(s.job_ids),
-                    "error": s.error,
-                    "outputs": s.outputs,
-                }
-                for sid, s in run.stages.items()
-            },
+            "stages": _ordered_stages(run.recipe.name, raw_stages),
         }
 
     @app.post("/runs/{run_id}/approve")
