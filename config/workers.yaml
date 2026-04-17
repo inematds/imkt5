@@ -129,7 +129,7 @@ workers:
     timeout_seconds: 120
     max_concurrent: 2
 
-  # ffmpeg-local — renderer MVP (imagem estática + áudio, sem motion)
+  # ffmpeg-local — renderer (H.264/AAC, zoompan motion, drawtext overlay)
   - name: ffmpeg-local
     capabilities: [video.render]
     endpoint: http://localhost:8105
@@ -137,6 +137,15 @@ workers:
     priority: 100
     timeout_seconds: 600
     max_concurrent: 1
+
+  # video-pro — cinematic, 8-12 cenas, 45-90s, estrutura narrativa
+  - name: video-pro
+    capabilities: [video.cinematic_pro]
+    endpoint: http://localhost:8106
+    local: true
+    priority: 50
+    timeout_seconds: 180
+    max_concurrent: 2
 
   # # ── aprovação automática ─────────────────────────────────────────
   - name: auto-reviewer

@@ -72,6 +72,8 @@ start_bg "video-quick" "$VENV" workers/video-quick/server.py
 
 start_bg "ffmpeg-local" "$VENV" workers/ffmpeg-local/server.py
 
+start_bg "video-pro" "$VENV" workers/video-pro/server.py
+
 # inemaimg-adapter — só se o upstream responder em /health
 INEMAIMG_HEALTH_URL="${INEMAIMG_URL:-http://localhost:8000}/health"
 if [ "$(probe "$INEMAIMG_HEALTH_URL")" = "200" ]; then
