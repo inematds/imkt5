@@ -71,8 +71,8 @@ class HttpDispatcher:
         """Enfileira pra processamento. Retorna imediatamente."""
         # Se job ainda não está no store (quick-dispatch via tool LLM em vez
         # de via rota HTTP), cria agora pra ser rastreável.
-        if self._jobs_store and self._jobs_store.get(job.job_id) is None:
-            self._jobs_store.create(
+        if self._jobs_store and await self._jobs_store.get(job.job_id) is None:
+            await self._jobs_store.create(
                 job_id=job.job_id,
                 tenant_id=job.tenant_id,
                 user_id=job.user_id,
@@ -119,13 +119,13 @@ class HttpDispatcher:
             job.job_id, worker.name, job.required_capability or job.worker_type,
         )
         if self._jobs_store:
-            self._jobs_store.mark_running(job.job_id, worker.name)
+            await self._jobs_store.mark_running(job.job_id, worker.name)
         await self._registry.acquire(worker.name)
         try:
             output = await self._call_worker(worker, job)
             log.info("job %s ✓ worker=%s", job.job_id, worker.name)
             if self._jobs_store:
-                self._jobs_store.mark_finished(
+                await self._jobs_store.mark_finished(
                     job.job_id, success=True, output=output, error=None,
                 )
             await self._notify(job.job_id, True, output, None)
@@ -133,7 +133,7 @@ class HttpDispatcher:
             err_str = f"worker={worker.name} err={type(exc).__name__}: {exc}"
             log.warning("job %s ✗ worker=%s err=%s", job.job_id, worker.name, exc)
             if self._jobs_store:
-                self._jobs_store.mark_finished(
+                await self._jobs_store.mark_finished(
                     job.job_id, success=False, output=None, error=err_str,
                 )
             await self._notify(job.job_id, False, None, err_str)

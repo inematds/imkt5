@@ -24,6 +24,8 @@ capability_registry:
 
 jobs_store:
   max_history: 500                       # env: IMKT4_JOBS_HISTORY
+  # Se POSTGRES_URL setado, usa PostgresJobsStore (persistente);
+  # senão, in-memory (perde no restart).
 
 approvals:
   default_timeout_seconds: 1800          # 30 min; env: IMKT4_APPROVAL_TIMEOUT

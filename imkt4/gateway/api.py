@@ -126,7 +126,7 @@ def create_app(
             origin_channel_external_id=req.origin_channel_external_id,
             priority=priority_map.get(req.priority, JobPriority.NORMAL),
         )
-        store.create(
+        await store.create(
             job_id=job.job_id,
             tenant_id=req.tenant_id,
             user_id=req.user_id,
@@ -138,11 +138,11 @@ def create_app(
 
     @app.get("/jobs")
     async def list_jobs(limit: int = 50) -> list[dict[str, Any]]:
-        return [_job_rec_dict(r) for r in store.recent(limit)]
+        return [_job_rec_dict(r) for r in await store.recent(limit)]
 
     @app.get("/jobs/{job_id}")
     async def get_job(job_id: str) -> dict[str, Any]:
-        r = store.get(job_id)
+        r = await store.get(job_id)
         if r is None:
             raise HTTPException(404, f"job não encontrado: {job_id}")
         return _job_rec_dict(r)

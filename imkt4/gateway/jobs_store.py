@@ -30,6 +30,12 @@ class JobRecord:
 
 
 class JobsStore:
+    """In-memory jobs store. Mesmo contrato do PostgresJobsStore.
+
+    TODOS os métodos são `async` pra permitir troca drop-in com o backend
+    Postgres. Contrato: await jobs_store.<method>(...).
+    """
+
     def __init__(self, max_size: int | None = None) -> None:
         if max_size is None:
             from imkt4.config import load
@@ -37,7 +43,7 @@ class JobsStore:
         self._data: OrderedDict[str, JobRecord] = OrderedDict()
         self._max = max_size
 
-    def create(
+    async def create(
         self,
         *,
         job_id: str,
@@ -58,7 +64,7 @@ class JobsStore:
         self._trim()
         return rec
 
-    def mark_running(self, job_id: str, worker_name: str) -> None:
+    async def mark_running(self, job_id: str, worker_name: str) -> None:
         r = self._data.get(job_id)
         if r is None:
             return
@@ -66,7 +72,7 @@ class JobsStore:
         r.worker_name = worker_name
         r.updated_at = datetime.utcnow()
 
-    def mark_finished(
+    async def mark_finished(
         self,
         job_id: str,
         *,
@@ -82,10 +88,10 @@ class JobsStore:
         r.error = error
         r.updated_at = datetime.utcnow()
 
-    def get(self, job_id: str) -> JobRecord | None:
+    async def get(self, job_id: str) -> JobRecord | None:
         return self._data.get(job_id)
 
-    def recent(self, limit: int = 50) -> list[JobRecord]:
+    async def recent(self, limit: int = 50) -> list[JobRecord]:
         return list(self._data.values())[-limit:][::-1]
 
     def _trim(self) -> None:

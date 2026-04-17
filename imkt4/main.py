@@ -178,7 +178,18 @@ def main() -> None:
     recipes = load_recipes_from_dir(recipes_dir) if Path(recipes_dir).exists() else {}
     catalog = StaticRecipeCatalog(recipes)
 
-    jobs_store = JobsStore()
+    # Jobs store: Postgres se POSTGRES_URL configurado, in-memory senão.
+    # IMPORTANTE: conectar o pool SÓ no startup event (mesmo event loop do uvicorn).
+    from imkt4.db.pool import get_pool
+    db = get_pool()
+    jobs_store: Any
+    if db is not None:
+        from imkt4.db.jobs_repo import PostgresJobsStore
+        jobs_store = PostgresJobsStore(db)
+        print("[boot] usando Postgres jobs store (connect no startup)")
+    else:
+        jobs_store = JobsStore()
+        print("[boot] usando JobsStore in-memory (POSTGRES_URL não setado)")
     dispatcher = HttpDispatcher(registry=registry, jobs_store=jobs_store)
 
     # Approval gate composto — montado depois que runner existe (callback ref)
@@ -281,6 +292,16 @@ def main() -> None:
 
     @app.on_event("startup")
     async def _startup() -> None:
+        # Conecta Postgres no MESMO event loop do uvicorn
+        if db is not None:
+            try:
+                await db.connect()
+                print("[boot] Postgres pool conectado")
+            except Exception as exc:
+                print(f"[boot] Postgres connect falhou: {exc} — usando in-memory")
+                nonlocal_store = JobsStore()
+                dispatcher._jobs_store = nonlocal_store
+
         await memory.init()
         await dispatcher.start()
         try:
@@ -303,6 +324,11 @@ def main() -> None:
             except Exception:  # noqa: BLE001
                 pass
         await dispatcher.stop()
+        if db is not None:
+            try:
+                await db.close()
+            except Exception:  # noqa: BLE001
+                pass
 
     host = os.environ.get("GATEWAY_HOST", "0.0.0.0")
     port = int(os.environ.get("GATEWAY_PORT", "8080"))
