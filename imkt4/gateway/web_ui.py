@@ -39,18 +39,23 @@ h2:first-child { margin-top:0; }
 .worker .caps { color:var(--fg2); font-size:11px; margin-top:2px; }
 .worker .meta { color:var(--fg2); font-size:11px; margin-top:2px; }
 form { background:var(--bg2); padding:16px; border-radius:8px; border:1px solid var(--border); }
-form label { display:block; font-size:12px; color:var(--fg2); margin:8px 0 4px; }
+form label { display:block; font-size:12px; color:var(--fg2); margin:10px 0 4px;
+  display:flex; justify-content:space-between; align-items:center; }
+form label .hint { color:var(--fg2); font-weight:400; font-size:11px; font-style:italic; }
 form select, form input[type=text], form textarea {
   width:100%; background:var(--bg); color:var(--fg); border:1px solid var(--border);
   border-radius:5px; padding:8px 10px; font:inherit;
 }
-form textarea { font-family: ui-monospace,Consolas,monospace; font-size:12px; min-height:80px; resize:vertical; }
-form .row { display:flex; gap:10px; }
-form .row > * { flex:1; }
+form textarea.code { font-family: ui-monospace,Consolas,monospace; font-size:12px; min-height:80px; resize:vertical; }
+form textarea.text { font-size:14px; min-height:60px; resize:vertical; }
+form .row { display:flex; gap:10px; align-items:center; }
 button { background:var(--accent); color:#fff; border:0; padding:8px 16px; border-radius:5px;
   font:inherit; font-weight:600; cursor:pointer; }
 button:hover { filter:brightness(1.15); }
 button:disabled { opacity:.5; cursor:not-allowed; }
+button.ghost { background:transparent; color:var(--fg2); padding:4px 8px; font-size:11px;
+  font-weight:400; border:1px solid var(--border); }
+button.ghost:hover { color:var(--fg); background:var(--bg3); }
 .jobs { margin-top:16px; }
 .job { background:var(--bg2); border:1px solid var(--border); border-radius:8px;
   padding:12px 14px; margin:8px 0; }
@@ -67,14 +72,22 @@ button:disabled { opacity:.5; cursor:not-allowed; }
 .job img { max-width:100%; margin-top:10px; border-radius:6px; display:block; }
 .job audio { margin-top:10px; width:100%; }
 .err { color:var(--err); font-size:12px; margin-top:6px; }
-.examples { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
-.examples button { background:var(--bg3); color:var(--fg2); font-size:11px; font-weight:400;
-  padding:3px 8px; }
-.examples button:hover { color:var(--fg); }
 .tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:12px; }
 .tab { padding:8px 14px; cursor:pointer; color:var(--fg2); font-size:13px; border-bottom:2px solid transparent; }
 .tab.active { color:var(--fg); border-bottom-color:var(--accent); }
-.hint { color:var(--fg2); font-size:11px; margin-top:6px; font-style:italic; }
+.tab-hint { background:var(--bg2); border-left:3px solid var(--accent); padding:8px 12px;
+  margin-bottom:12px; font-size:12px; color:var(--fg2); border-radius:0 4px 4px 0; }
+.tab-hint strong { color:var(--fg); }
+.advanced { margin-top:10px; border-top:1px dashed var(--border); padding-top:10px; }
+.advanced-head { display:flex; justify-content:space-between; align-items:center; cursor:pointer;
+  user-select:none; color:var(--fg2); font-size:12px; }
+.advanced-head::before { content:"▸ "; margin-right:4px; }
+.advanced.open .advanced-head::before { content:"▾ "; }
+.advanced-body { display:none; margin-top:8px; }
+.advanced.open .advanced-body { display:block; }
+.recipe-stages { font-size:11px; color:var(--fg2); margin-top:4px; line-height:1.6; }
+.recipe-stages .st { display:inline-block; padding:1px 6px; margin:1px 2px;
+  background:var(--bg3); border-radius:3px; color:var(--fg); }
 </style>
 </head>
 <body>
@@ -103,27 +116,51 @@ button:disabled { opacity:.5; cursor:not-allowed; }
     </div>
 
     <div id="panel-job">
+      <div class="tab-hint">
+        <strong>Novo Job</strong> = executa UMA capability direto (ex.: gerar imagem, fazer pesquisa, TTS).
+        Rápido, sem aprovação, sem composição. Use pra tarefas simples.
+      </div>
       <form id="job-form">
-        <label>Capability</label>
+        <label>Capability
+          <span class="hint" id="cap-hint"></span>
+        </label>
         <select name="capability" id="cap-select"></select>
 
-        <label>Payload (JSON)</label>
-        <textarea name="payload" id="payload" rows="6">{}</textarea>
-        <div class="examples" id="examples"></div>
+        <label>Mensagem
+          <span class="hint" id="msg-hint">digite em português natural</span>
+        </label>
+        <textarea class="text" id="text-input" placeholder="ex.: um gato persa dormindo num sofá"></textarea>
 
-        <div style="margin-top:12px;">
+        <div class="advanced" id="advanced">
+          <div class="advanced-head" onclick="toggleAdvanced()">Payload avançado (JSON)</div>
+          <div class="advanced-body">
+            <textarea class="code" id="payload" rows="6">{}</textarea>
+            <div style="color:var(--fg2); font-size:11px; margin-top:4px;">
+              Gerado a partir da mensagem acima. Edite aqui pra ter controle total
+              (ex.: trocar <code>model</code>, <code>steps</code>, <code>width</code>).
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;">
           <button type="submit">Enviar Job</button>
         </div>
       </form>
     </div>
 
     <div id="panel-recipe" style="display:none;">
+      <div class="tab-hint">
+        <strong>Rodar Receita</strong> = executa um FLUXO COMPOSTO de vários jobs encadeados
+        (ex.: campanha inteira = pesquisa → brief → copy → imagens → vídeo → plataformas).
+        Dependências, paralelismo e aprovações vêm declarados no YAML em <code>recipes/</code>.
+      </div>
       <form id="recipe-form">
         <label>Receita</label>
         <select name="recipe" id="recipe-select"></select>
+        <div class="recipe-stages" id="recipe-stages"></div>
 
         <label>Input (JSON)</label>
-        <textarea name="input" id="recipe-input" rows="6">{}</textarea>
+        <textarea class="code" id="recipe-input" rows="6">{}</textarea>
 
         <div style="margin-top:12px;">
           <button type="submit">Rodar Receita</button>
@@ -138,43 +175,117 @@ button:disabled { opacity:.5; cursor:not-allowed; }
 <script>
 const API = window.location.origin;
 
-// ── examples per capability ────────────────────────────────────────
-const EXAMPLES = {
+// ── configuração por capability ────────────────────────────────────
+const CAP_CONFIG = {
   "research.market": {
-    "queries": ["tendências café gelado brasil 2026"],
-    "max_results_per_query": 3,
+    hint: "busca real no Tavily",
+    placeholder: "ex.: tendências café gelado brasil 2026",
+    buildPayload: (text) => ({
+      queries: [text],
+      max_results_per_query: 3,
+      depth: "basic",
+    }),
+  },
+  "research.tavily": {
+    hint: "alias de research.market",
+    placeholder: "ex.: concorrentes cold brew 2026",
+    buildPayload: (text) => ({ queries: [text], max_results_per_query: 3 }),
   },
   "image.generation": {
-    "model": "flux2-klein",
-    "prompt": "a happy capybara sipping iced coffee on a sunny beach",
-    "steps": 15, "width": 512, "height": 512,
+    hint: "gera PNG via inemaimg (flux2-klein/qwen-edit/ernie)",
+    placeholder: "ex.: um capivara tomando café gelado na praia",
+    buildPayload: (text) => ({
+      model: "flux2-klein",
+      prompt: text,
+      steps: 15,
+      width: 512, height: 512,
+    }),
   },
   "audio.tts": {
-    "text": "Olá, este é um teste do imkt4.",
-    "engine": "edge", "lang": "pt",
+    hint: "gera WAV/MP3 via inemavox",
+    placeholder: "ex.: olá, este é um teste",
+    buildPayload: (text) => ({ text, engine: "edge", lang: "pt" }),
+  },
+  "audio.dubbing": {
+    hint: "voice clone com áudio de referência (precisa ref_url)",
+    placeholder: "ex.: texto a ser dublado",
+    buildPayload: (text) => ({
+      text, ref_url: "https://exemplo.com/ref.wav",
+      engine: "chatterbox", lang: "pt",
+    }),
+  },
+  "audio.transcribe": {
+    hint: "Whisper — path de arquivo local",
+    placeholder: "ex.: /caminho/pro/video.mp4",
+    buildPayload: (text) => ({ input: text, format: "srt" }),
   },
   "review.auto": {
-    "criteria": ["texto em português", "menciona café"],
-    "artifacts": {"text": "Lançamento do café gelado cremoso."},
+    hint: "LLM decide approved/rejected — cole o texto a revisar",
+    placeholder: "ex.: Lançamento do café gelado cremoso, perfeito para o verão.",
+    buildPayload: (text) => ({
+      criteria: [
+        "o texto está em português",
+        "o texto tem pelo menos 20 caracteres",
+      ],
+      artifacts: { text },
+    }),
   },
 };
 
-// ── helpers ────────────────────────────────────────────────────────
+// ── state ─────────────────────────────────────────────────────────
+let bootstrapped = false;             // já completou o primeiro load?
+let advancedEdited = false;           // usuário editou o JSON manualmente?
+let currentRecipes = [];
+
+// ── helpers ───────────────────────────────────────────────────────
 async function jget(p) { const r = await fetch(API + p); return r.json(); }
 async function jpost(p, b) {
   const r = await fetch(API + p, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
+    method: "POST", headers: {"Content-Type": "application/json"},
     body: JSON.stringify(b),
   });
   return r.json();
 }
 
-// ── sidebar: workers, caps, recipes ────────────────────────────────
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[m]);
+}
+
+function timeAgo(iso) {
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 60) return Math.floor(s) + "s atrás";
+  if (s < 3600) return Math.floor(s/60) + "m atrás";
+  return Math.floor(s/3600) + "h atrás";
+}
+
+// ── payload rebuild ───────────────────────────────────────────────
+function rebuildPayload() {
+  if (advancedEdited) return;   // usuário tomou controle, respeita
+  const cap = document.getElementById("cap-select").value;
+  const text = document.getElementById("text-input").value.trim();
+  const cfg = CAP_CONFIG[cap];
+  const payload = (cfg && text) ? cfg.buildPayload(text) : {};
+  document.getElementById("payload").value = JSON.stringify(payload, null, 2);
+}
+
+function updateCapHint() {
+  const cap = document.getElementById("cap-select").value;
+  const cfg = CAP_CONFIG[cap];
+  document.getElementById("cap-hint").textContent = cfg ? cfg.hint : "";
+  document.getElementById("text-input").placeholder =
+    cfg ? cfg.placeholder : "digite sua mensagem...";
+}
+
+function toggleAdvanced() {
+  document.getElementById("advanced").classList.toggle("open");
+}
+
+// ── sidebar ───────────────────────────────────────────────────────
 async function loadSidebar() {
   const [workers, caps, recipes] = await Promise.all([
     jget("/workers"), jget("/capabilities"), jget("/recipes"),
   ]);
+  currentRecipes = recipes;
 
   document.getElementById("workers").innerHTML = workers.map(w => `
     <div class="worker ${w.health}">
@@ -185,34 +296,58 @@ async function loadSidebar() {
     </div>`).join("");
 
   document.getElementById("caps").innerHTML = Object.entries(caps)
-    .map(([c, ws]) => `<div><strong>${c}</strong> → ${ws.join(", ")}</div>`)
-    .join("");
+    .map(([c, ws]) => `<div><strong>${c}</strong> → ${ws.join(", ")}</div>`).join("");
 
   document.getElementById("recipes").innerHTML = recipes
-    .map(r => `<div><strong>${r.name}</strong> v${r.version} (${r.stages.length} stages)</div>`)
-    .join("");
+    .map(r => `<div><strong>${r.name}</strong> v${r.version} (${r.stages.length} stages)</div>`).join("");
 
-  // preenche selects
-  const capSel = document.getElementById("cap-select");
-  capSel.innerHTML = Object.keys(caps).sort()
-    .map(c => `<option value="${c}">${c}</option>`).join("");
-  capSel.value = "research.market";
-  updateExample();
+  // popula selects APENAS no primeiro load — não resetar depois
+  if (!bootstrapped) {
+    const capSel = document.getElementById("cap-select");
+    capSel.innerHTML = Object.keys(caps).sort()
+      .map(c => `<option value="${c}">${c}</option>`).join("");
+    if (Object.keys(caps).includes("image.generation")) {
+      capSel.value = "image.generation";
+    }
 
-  const recSel = document.getElementById("recipe-select");
-  recSel.innerHTML = recipes.map(r => `<option value="${r.name}">${r.name}</option>`).join("");
+    const recSel = document.getElementById("recipe-select");
+    recSel.innerHTML = recipes.map(r => `<option value="${r.name}">${r.name}</option>`).join("");
+    renderRecipeStages();
+
+    updateCapHint();
+    rebuildPayload();
+    bootstrapped = true;
+  }
 
   document.getElementById("env").textContent =
     `${workers.length} workers · ${Object.keys(caps).length} capabilities · ${recipes.length} recipes`;
 }
 
-function updateExample() {
-  const cap = document.getElementById("cap-select").value;
-  const ex = EXAMPLES[cap];
-  if (ex) document.getElementById("payload").value = JSON.stringify(ex, null, 2);
-  else    document.getElementById("payload").value = "{}";
+function renderRecipeStages() {
+  const name = document.getElementById("recipe-select").value;
+  const r = currentRecipes.find(x => x.name === name);
+  if (!r) { document.getElementById("recipe-stages").innerHTML = ""; return; }
+  document.getElementById("recipe-stages").innerHTML = "Stages: " +
+    r.stages.map(s => `<span class="st">${s.id}</span>`).join(" → ");
 }
-document.getElementById("cap-select").addEventListener("change", updateExample);
+
+// ── listeners ─────────────────────────────────────────────────────
+document.getElementById("cap-select").addEventListener("change", () => {
+  advancedEdited = false;          // nova capability = regenera payload do zero
+  updateCapHint();
+  rebuildPayload();
+});
+
+document.getElementById("text-input").addEventListener("input", () => {
+  advancedEdited = false;          // digitando novo texto = regenera
+  rebuildPayload();
+});
+
+document.getElementById("payload").addEventListener("input", () => {
+  advancedEdited = true;           // usuário tomou controle do JSON
+});
+
+document.getElementById("recipe-select").addEventListener("change", renderRecipeStages);
 
 // ── tabs ──────────────────────────────────────────────────────────
 document.querySelectorAll(".tab").forEach(t => {
@@ -228,16 +363,22 @@ document.querySelectorAll(".tab").forEach(t => {
 document.getElementById("job-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const capability = document.getElementById("cap-select").value;
-  let payload;
-  try { payload = JSON.parse(document.getElementById("payload").value); }
-  catch (err) { alert("payload não é JSON válido: " + err.message); return; }
+  const text = document.getElementById("text-input").value.trim();
 
-  const body = {
+  let payload;
+  if (advancedEdited) {
+    try { payload = JSON.parse(document.getElementById("payload").value); }
+    catch (err) { alert("payload JSON inválido: " + err.message); return; }
+  } else {
+    const cfg = CAP_CONFIG[capability];
+    if (!text) { alert("digite uma mensagem ou edite o payload avançado"); return; }
+    payload = cfg ? cfg.buildPayload(text) : { text };
+  }
+
+  const res = await jpost("/jobs", {
     tenant_id: "demo", user_id: "web",
-    capability, payload,
-    origin_channel: "web",
-  };
-  const res = await jpost("/jobs", body);
+    capability, payload, origin_channel: "web",
+  });
   console.log("job dispatched", res);
   refreshJobs();
 });
@@ -247,30 +388,26 @@ document.getElementById("recipe-form").addEventListener("submit", async (e) => {
   const name = document.getElementById("recipe-select").value;
   let input;
   try { input = JSON.parse(document.getElementById("recipe-input").value || "{}"); }
-  catch (err) { alert("input não é JSON válido: " + err.message); return; }
+  catch (err) { alert("input JSON inválido: " + err.message); return; }
   const res = await jpost(`/recipes/${name}/run`, {
     tenant_id: "demo", user_id: "web", input, origin_channel: "web",
   });
-  console.log("recipe run", res);
-  alert("Receita iniciada: run_id=" + res.run_id + "\nVeja console/API: GET /runs/" + res.run_id);
+  alert("Receita iniciada: run_id=" + res.run_id + "\nAcompanhe em GET /runs/" + res.run_id);
 });
 
-// ── jobs panel ────────────────────────────────────────────────────
+// ── jobs list ─────────────────────────────────────────────────────
 function renderJob(j) {
   const out = j.output || {};
   let preview = "";
 
-  // imagem
   const img = out.image_url || out.url;
-  if (img && (img.endsWith(".png") || img.endsWith(".jpg") || img.endsWith(".jpeg") || img.endsWith(".webp"))) {
+  if (img && /\.(png|jpe?g|webp)$/i.test(img)) {
     preview += `<img src="${img}" alt="imagem">`;
   }
-  // áudio
   const audio = out.audio_url;
-  if (audio && (audio.endsWith(".wav") || audio.endsWith(".mp3"))) {
+  if (audio && /\.(wav|mp3)$/i.test(audio)) {
     preview += `<audio controls src="${audio}"></audio>`;
   }
-  // genérico JSON
   if (!preview && (Object.keys(out).length || j.error)) {
     preview = `<pre>${escapeHtml(JSON.stringify(j.error ? {error: j.error} : out, null, 2))}</pre>`;
   }
@@ -288,16 +425,6 @@ function renderJob(j) {
   </div>`;
 }
 
-function escapeHtml(s) { return s.replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[m]); }
-
-function timeAgo(iso) {
-  const dt = new Date(iso);
-  const s = (Date.now() - dt.getTime()) / 1000;
-  if (s < 60) return Math.floor(s) + "s atrás";
-  if (s < 3600) return Math.floor(s/60) + "m atrás";
-  return Math.floor(s/3600) + "h atrás";
-}
-
 async function refreshJobs() {
   const jobs = await jget("/jobs?limit=30");
   document.getElementById("jobs-list").innerHTML = jobs.map(renderJob).join("");
@@ -307,7 +434,7 @@ async function refreshJobs() {
 loadSidebar();
 refreshJobs();
 setInterval(refreshJobs, 2000);
-setInterval(loadSidebar, 10000);
+setInterval(loadSidebar, 10000);  // agora não reseta nada (bootstrapped=true)
 </script>
 </body>
 </html>
