@@ -262,6 +262,7 @@ def main() -> None:
         jobs_store=jobs_store,
         agent=agent,
         memory=memory,
+        pg_pool=db,  # AuditSink.ensure_schema chama via .pool quando precisa
     )
 
     # boot: starta dispatcher + health refresh inicial
@@ -310,6 +311,13 @@ def main() -> None:
                 dispatcher._jobs_store = nonlocal_store
 
         await memory.init()
+        # audit schema no DB (se disponível)
+        try:
+            from imkt4.gateway.audit import AuditSink as _AuditSink
+            _sink = _AuditSink(pg_pool=db)
+            await _sink.ensure_schema()
+        except Exception as exc:  # noqa: BLE001
+            print(f"[boot] audit schema: {exc}")
         await dispatcher.start()
         try:
             await asyncio.wait_for(registry.refresh_health(), timeout=10.0)

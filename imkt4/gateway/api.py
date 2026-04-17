@@ -18,6 +18,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import json
 import uuid
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,8 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
 from imkt4.capabilities.registry import CapabilityRegistry
+from imkt4.gateway.audit import AuditSink, make_audit_middleware
+from imkt4.gateway.auth import Principal, current_principal, require
 from imkt4.gateway.jobs_store import JobsStore
 from imkt4.gateway.web_ui import UI_HTML
 from imkt4.recipes.runner import RecipeRunner
@@ -35,8 +38,23 @@ from imkt4.tools.run_recipe import StaticRecipeCatalog
 from imkt4.types.approvals import ApprovalDecision
 from imkt4.types.jobs import Job, JobPriority
 
+from fastapi import Depends
+
 
 ARTIFACT_ROOT = Path("./data/artifacts").resolve()
+
+
+def _resolve_pool(pg_pool: Any) -> Any:
+    """Destrincha wrapper Database → asyncpg.Pool, ou retorna direto."""
+    if pg_pool is None:
+        return None
+    # Database wrapper tem método pool() que lança se não conectado
+    if hasattr(pg_pool, "_pool"):
+        return getattr(pg_pool, "_pool", None)
+    # asyncpg.Pool tem .acquire()
+    if hasattr(pg_pool, "acquire"):
+        return pg_pool
+    return None
 
 
 class DispatchRequest(BaseModel):
@@ -81,6 +99,7 @@ def create_app(
     jobs_store: JobsStore | None = None,
     agent: Any | None = None,
     memory: Any | None = None,
+    pg_pool: Any | None = None,
 ) -> FastAPI:
     app = FastAPI(title="imkt4 Gateway", version="0.0.1")
 
@@ -92,6 +111,10 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Audit middleware — grava toda ação mutável (POST/PUT/PATCH/DELETE)
+    audit = AuditSink(pg_pool=pg_pool)
+    app.middleware("http")(make_audit_middleware(audit))
 
     store = jobs_store or JobsStore()
 
@@ -216,6 +239,64 @@ def create_app(
             run_id, req.stage_id, ApprovalDecision.REJECTED
         )
         return {"status": "ok"}
+
+    # ── audit (read-only) ─────────────────────────────────────────────
+    @app.get("/audit")
+    async def read_audit(
+        limit: int = 50,
+        tenant_id: str | None = None,
+        principal: Principal = Depends(current_principal),
+    ) -> list[dict[str, Any]]:
+        # só admins veem audit
+        if principal.roles == ("anon",):
+            # modo aberto: permitir leitura em dev
+            pass
+        else:
+            if not (
+                principal.is_admin_global()
+                or (tenant_id and principal.is_admin_of(tenant_id))
+            ):
+                raise HTTPException(403, "audit requer admin")
+
+        # resolve pool lazy (Database wrapper ou asyncpg.Pool direto)
+        pool = _resolve_pool(pg_pool)
+
+        if pool is None:
+            # lê do jsonl fallback
+            import json as _json
+            path = "logs/audit.jsonl"
+            if not Path(path).exists():
+                return []
+            lines = Path(path).read_text().strip().split("\n")
+            records = [_json.loads(l) for l in lines if l]
+            if tenant_id:
+                records = [r for r in records if r.get("actor_tenant") == tenant_id]
+            return records[-limit:][::-1]
+
+        async with pool.acquire() as conn:
+            if tenant_id:
+                rows = await conn.fetch(
+                    "SELECT audit_id, tenant_id, user_id, event_type, details, created_at "
+                    "FROM audit_log WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2",
+                    tenant_id, limit,
+                )
+            else:
+                rows = await conn.fetch(
+                    "SELECT audit_id, tenant_id, user_id, event_type, details, created_at "
+                    "FROM audit_log ORDER BY created_at DESC LIMIT $1", limit
+                )
+            out = []
+            for r in rows:
+                d = dict(r)
+                # details vem como string JSON do asyncpg quando decodificado default
+                if isinstance(d.get("details"), str):
+                    try:
+                        d["details"] = json.loads(d["details"])
+                    except Exception:  # noqa: BLE001
+                        pass
+                d["created_at"] = d["created_at"].isoformat() if d.get("created_at") else None
+                out.append(d)
+            return out
 
     # ── workers / capabilities ────────────────────────────────────────
     @app.get("/workers")
