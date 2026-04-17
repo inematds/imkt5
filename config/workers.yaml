@@ -111,6 +111,14 @@ workers:
     timeout_seconds: 120
     max_concurrent: 2
 
+  - name: ad-designer
+    capabilities: [design.ad_layout]
+    endpoint: http://localhost:8103
+    local: true
+    priority: 50
+    timeout_seconds: 180
+    max_concurrent: 2
+
   # # ── aprovação automática ─────────────────────────────────────────
   - name: auto-reviewer
     capabilities: [review.auto]
