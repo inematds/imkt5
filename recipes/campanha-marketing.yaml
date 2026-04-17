@@ -69,7 +69,7 @@ stages:
       lang: "pt"
     approval: {mode: none}
 
-  # ─── Video (scene plan) ──────────────────────────────────────────
+  # ─── Video plan (scene_plan JSON) ────────────────────────────────
   - id: video
     requires: video.cinematic
     needs: [ad_design, images, voiceover]
@@ -78,4 +78,12 @@ stages:
       copy: $.stages.copy.output.copy
       ads: $.stages.images.output.outputs[*].image_url
       voiceover_url: $.stages.voiceover.output.audio_url
+    approval: {mode: none}
+
+  # ─── Video render (MP4 real via ffmpeg) ──────────────────────────
+  - id: video_render
+    requires: video.render
+    needs: [video]
+    payload_from:
+      scene_plan: $.stages.video.output.scene_plan
     approval: {mode: none}

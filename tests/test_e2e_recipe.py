@@ -84,6 +84,7 @@ async def _make_handlers(payloads_seen: dict[str, list[dict]]):
         "image.generation": make("images", {"image_url": "img.png"}),
         "audio.tts": make("voiceover", {"audio_url": "a.mp3"}),
         "video.cinematic": make("video", {"scene_plan": {"scenes": []}}),
+        "video.render": make("video_render", {"video_url": "v.mp4", "duration_s": 15.0}),
         "platform.instagram": make("ig", {"post": "ig"}),
         "platform.youtube": make("yt", {"post": "yt"}),
         "platform.tiktok": make("tt", {"post": "tt"}),
@@ -205,6 +206,7 @@ async def test_dep_failure_cascades_through_skip():
     dispatcher.register_capability("image.generation", make_ok("images", {"image_url": "i"}))
     dispatcher.register_capability("audio.tts", make_ok("voiceover", {"audio_url": "a"}))
     dispatcher.register_capability("video.cinematic", make_ok("video", {"scene_plan": {}}))
+    dispatcher.register_capability("video.render", make_ok("video_render", {"video_url": "v.mp4"}))
 
     dispatcher.set_on_finish(
         lambda job_id, success, output, error:
@@ -227,11 +229,11 @@ async def test_dep_failure_cascades_through_skip():
     assert run.is_finished(), {sid: s.status.value for sid, s in run.stages.items()}
     assert run.stages["brief"].status.value == "failed"
     # descendentes devem estar SKIPPED (por dep_failed) — sem payload chamado
-    for sid in ("copy", "ad_design", "images", "voiceover", "video"):
+    for sid in ("copy", "ad_design", "images", "voiceover", "video", "video_render"):
         assert run.stages[sid].status.value == "skipped", sid
         assert run.stages[sid].error == "dep_failed", sid
     # nenhum worker descendente deve ter sido chamado
-    for name in ("copy", "ad_design", "images", "voiceover", "video"):
+    for name in ("copy", "ad_design", "images", "voiceover", "video", "video_render"):
         assert name not in payloads_seen, f"{name} rodou mesmo com brief failed"
 
 

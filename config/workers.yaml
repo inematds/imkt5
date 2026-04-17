@@ -120,7 +120,7 @@ workers:
     max_concurrent: 2
 
   # video-quick — planner (não renderiza). `video.cinematic` é alias
-  # temporário até portarmos video-pro/ffmpeg-local renderer.
+  # temporário até portarmos video-pro próprio.
   - name: video-quick
     capabilities: [video.plan, video.cinematic]
     endpoint: http://localhost:8104
@@ -128,6 +128,15 @@ workers:
     priority: 50
     timeout_seconds: 120
     max_concurrent: 2
+
+  # ffmpeg-local — renderer MVP (imagem estática + áudio, sem motion)
+  - name: ffmpeg-local
+    capabilities: [video.render]
+    endpoint: http://localhost:8105
+    local: true
+    priority: 100
+    timeout_seconds: 600
+    max_concurrent: 1
 
   # # ── aprovação automática ─────────────────────────────────────────
   - name: auto-reviewer
