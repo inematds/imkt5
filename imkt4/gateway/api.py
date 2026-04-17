@@ -437,10 +437,54 @@ def create_app(
     async def list_runs(
         limit: int = 50, tenant_id: str | None = None, recipe: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Últimas runs, mais recentes primeiro. Filtros opcionais."""
+        """Últimas runs, mais recentes primeiro. Junta memória + DB
+        (DB sobrevive restart, memória tem dados mais frescos)."""
         runs = runner.list_runs(limit=limit * 4 if recipe else limit, tenant_id=tenant_id)
         if recipe:
             runs = [r for r in runs if r.recipe.name == recipe][:limit]
+
+        # Se existe RunsRepo, mescla com registros do DB (evita duplicar
+        # os que já estão em memória).
+        repo = getattr(runner, "_runs_repo", None)
+        if repo is not None:
+            try:
+                db_rows = await repo.list(limit=limit * 2, tenant_id=tenant_id, recipe=recipe)
+                in_mem_ids = {r.run_id for r in runs}
+                out = []
+                for r in runs:
+                    stage_counts: dict[str, int] = {}
+                    for s in r.stages.values():
+                        stage_counts[s.status.value] = stage_counts.get(s.status.value, 0) + 1
+                    status = "failed" if r.has_failed() else ("running" if not r.is_finished() else "success")
+                    out.append({
+                        "run_id": r.run_id, "recipe": r.recipe.name,
+                        "tenant_id": r.tenant_id, "user_id": r.user_id,
+                        "created_at": r.created_at.isoformat() if r.created_at else None,
+                        "status": status, "stage_counts": stage_counts,
+                        "total_stages": len(r.stages),
+                    })
+                for row in db_rows:
+                    if row["run_id"] in in_mem_ids:
+                        continue
+                    stages = row.get("stages") or {}
+                    counts: dict[str, int] = {}
+                    for sd in stages.values():
+                        st = (sd or {}).get("status", "?")
+                        counts[st] = counts.get(st, 0) + 1
+                    status = "failed" if row.get("failed") else ("success" if row.get("finished") else "running")
+                    out.append({
+                        "run_id": row["run_id"], "recipe": row.get("recipe_name"),
+                        "tenant_id": row.get("tenant_id"), "user_id": row.get("user_id"),
+                        "created_at": row.get("created_at"),
+                        "status": status, "stage_counts": counts,
+                        "total_stages": len(stages),
+                    })
+                # Ordena por created_at desc e aplica limit
+                out.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+                return out[:limit]
+            except Exception as exc:  # noqa: BLE001
+                import logging
+                logging.getLogger("imkt4.api").warning("runs_repo.list falhou: %s", exc)
         out = []
         for r in runs:
             stage_counts: dict[str, int] = {}
@@ -530,8 +574,22 @@ def create_app(
     async def get_run(run_id: str) -> dict[str, Any]:
         try:
             run = runner.get_run(run_id)
-        except KeyError as exc:
-            raise HTTPException(404, f"run não encontrada: {run_id}") from exc
+        except KeyError:
+            # fallback DB — run pode estar persistida de uma sessão anterior
+            repo = getattr(runner, "_runs_repo", None)
+            if repo is not None:
+                row = await repo.get(run_id)
+                if row:
+                    stages = row.get("stages") or {}
+                    return {
+                        "run_id": row["run_id"],
+                        "recipe": row.get("recipe_name"),
+                        "tenant_id": row.get("tenant_id"),
+                        "finished": row.get("finished", False),
+                        "failed": row.get("failed", False),
+                        "stages": stages,
+                    }
+            raise HTTPException(404, f"run não encontrada: {run_id}")
         return {
             "run_id": run.run_id,
             "recipe": run.recipe.name,

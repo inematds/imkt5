@@ -121,6 +121,7 @@ class RecipeRunner:
         self,
         dispatcher: JobDispatcher,
         approval_gate: ApprovalGate,
+        runs_repo: Any | None = None,
     ) -> None:
         self._dispatcher = dispatcher
         self._approvals = approval_gate
@@ -128,6 +129,19 @@ class RecipeRunner:
         # job_id → (run_id, stage_id, slot_index)
         self._job_index: dict[str, tuple[str, str, int]] = {}
         self._lock = asyncio.Lock()
+        self._runs_repo = runs_repo
+
+    async def _persist(self, run: RecipeRun) -> None:
+        """Grava run no Postgres se repo disponível. Fail-silent."""
+        if self._runs_repo is None:
+            return
+        try:
+            await self._runs_repo.upsert(run)
+        except Exception as exc:  # noqa: BLE001
+            import logging
+            logging.getLogger("imkt4.runner").warning(
+                "runs_repo.upsert falhou: %s", exc,
+            )
 
     # ── public API ────────────────────────────────────────────────────
     async def start(
@@ -153,7 +167,9 @@ class RecipeRunner:
             stages={s.id: StageState(stage_id=s.id) for s in recipe.stages},
         )
         self._runs[run.run_id] = run
+        await self._persist(run)
         await self._advance(run)
+        await self._persist(run)
         return run
 
     def get_run(self, run_id: str) -> RecipeRun:
@@ -205,13 +221,13 @@ class RecipeRunner:
             stage_state.status = StageStatus.FAILED
             stage_state.finished_at = datetime.utcnow()
             await self._advance(run)
+            await self._persist(run)
             return
 
         stage = run.recipe.stage(stage_id)
         if stage.approval.mode != ApprovalMode.NONE:
-            # Trabalho pronto; agora pede aprovação. Stage fica
-            # AWAITING_APPROVAL até o callback de decisão.
             stage_state.status = StageStatus.AWAITING_APPROVAL
+            await self._persist(run)
             await self._approvals.request(
                 run=run,
                 stage=stage,
@@ -225,6 +241,7 @@ class RecipeRunner:
             stage_state.status = StageStatus.SUCCESS
             stage_state.finished_at = datetime.utcnow()
             await self._advance(run)
+            await self._persist(run)
 
     async def on_approval_decided(
         self,
@@ -241,12 +258,13 @@ class RecipeRunner:
             stage_state.status = StageStatus.SUCCESS
             stage_state.finished_at = datetime.utcnow()
             await self._advance(run)
+            await self._persist(run)
         elif decision in (ApprovalDecision.REJECTED, ApprovalDecision.EXPIRED):
             stage_state.status = StageStatus.FAILED
             stage_state.error = f"approval: {decision.value}"
             stage_state.finished_at = datetime.utcnow()
-            # Stages dependentes ficam SKIPPED quando o advance rodar
             await self._advance(run)
+            await self._persist(run)
 
     # ── internals ─────────────────────────────────────────────────────
     async def _advance(self, run: RecipeRun) -> None:

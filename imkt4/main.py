@@ -201,7 +201,15 @@ def main() -> None:
         on_decided=_on_decided,
         auto_gate=auto_gate,
     )
-    runner = RecipeRunner(dispatcher=dispatcher, approval_gate=approval_gate)
+    # Runs persistidos — sobrevive restart do gateway
+    runs_repo = None
+    if db is not None:
+        from imkt4.db.runs_repo import RunsRepo
+        runs_repo = RunsRepo(db)
+
+    runner = RecipeRunner(
+        dispatcher=dispatcher, approval_gate=approval_gate, runs_repo=runs_repo,
+    )
     runner_ref["runner"] = runner
 
     # Gates reais: user_gate usa o channels_registry compartilhado.
