@@ -146,12 +146,39 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
   <aside class="col">
     <div class="col-header">
       <h2 id="runs-header">Histórico</h2>
-      <span class="refresh-badge" id="refresh-badge"></span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span class="refresh-badge" id="refresh-badge"></span>
+        <button class="small" onclick="openNewRunDialog()" id="new-run-btn" style="display:none;">+ nova</button>
+      </div>
     </div>
     <div id="runs-list">
       <div class="empty">Selecione uma receita à esquerda</div>
     </div>
   </aside>
+
+  <!-- Modal: nova execução -->
+  <div id="new-run-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+       background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center;">
+    <div style="background:#161b22; border:1px solid #30363d; border-radius:10px; padding:24px;
+         max-width:560px; width:90%;">
+      <h3 style="margin:0 0 8px 0; font-size:16px;">Nova execução</h3>
+      <div style="color:#7d8590; font-size:13px; margin-bottom:14px;">
+        Receita: <b id="new-run-recipe-name"></b>
+      </div>
+      <label style="display:block;color:#7d8590;font-size:12px;margin-bottom:6px;">
+        Input
+        <a href="#" id="new-run-mode-toggle" style="margin-left:10px;font-size:11px;color:#1f6feb;text-decoration:none;">⚙ modo JSON</a>
+      </label>
+      <textarea id="new-run-input" rows="6"
+        placeholder="ex.: Curso IA pra empreendedores, 30 dias resultados"
+        style="width:100%; background:#0d1117; color:#e6edf3; border:1px solid #30363d;
+               padding:10px; border-radius:6px; font-size:13px; font-family:ui-monospace, monospace;"></textarea>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
+        <button class="ghost" onclick="closeNewRunDialog()">Cancelar</button>
+        <button onclick="submitNewRun()">▶ Rodar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Coluna 3: Detalhe -->
   <section class="col">
@@ -224,7 +251,67 @@ async function selectRecipe(name) {
   document.querySelectorAll('.recipe-row').forEach(r => {
     r.classList.toggle('active', r.dataset.name === name);
   });
+  document.getElementById('new-run-btn').style.display = 'inline-block';
   await loadRuns(name);
+}
+
+// ── Nova execução ─────────────────────────────────────────────
+let newRunMode = 'text';  // text | json
+function openNewRunDialog() {
+  if (!selectedRecipe) return;
+  document.getElementById('new-run-recipe-name').textContent = selectedRecipe;
+  document.getElementById('new-run-input').value = '';
+  newRunMode = 'text';
+  document.getElementById('new-run-mode-toggle').textContent = '⚙ modo JSON';
+  document.getElementById('new-run-modal').style.display = 'flex';
+}
+function closeNewRunDialog() {
+  document.getElementById('new-run-modal').style.display = 'none';
+}
+document.getElementById('new-run-mode-toggle').onclick = (e) => {
+  e.preventDefault();
+  const ta = document.getElementById('new-run-input');
+  const toggle = document.getElementById('new-run-mode-toggle');
+  if (newRunMode === 'text') {
+    newRunMode = 'json';
+    const cur = ta.value.trim();
+    if (cur && !cur.startsWith('{')) ta.value = JSON.stringify({brief: cur}, null, 2);
+    else if (!cur) ta.value = '{}';
+    ta.placeholder = '{"brief": "...", "with_research": false}';
+    toggle.textContent = '← texto simples';
+  } else {
+    newRunMode = 'text';
+    try {
+      const j = JSON.parse(ta.value);
+      if (j.brief && typeof j.brief === 'string') ta.value = j.brief;
+      else ta.value = '';
+    } catch(e) {}
+    ta.placeholder = 'ex.: Curso IA pra empreendedores, 30 dias resultados';
+    toggle.textContent = '⚙ modo JSON';
+  }
+};
+async function submitNewRun() {
+  const raw = document.getElementById('new-run-input').value.trim();
+  let input;
+  if (newRunMode === 'json' || raw.startsWith('{')) {
+    try { input = JSON.parse(raw || '{}'); }
+    catch (e) { alert('JSON inválido: ' + e.message); return; }
+  } else {
+    input = raw ? { brief: raw } : {};
+  }
+  const r = await fetch('/recipes/' + encodeURIComponent(selectedRecipe) + '/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: 'inema', user_id: 'nei',
+      input, origin_channel: 'runs-ui',
+    }),
+  });
+  if (!r.ok) { alert('Falhou: ' + r.status); return; }
+  const { run_id } = await r.json();
+  closeNewRunDialog();
+  await loadRuns(selectedRecipe);
+  selectRun(run_id);
 }
 
 async function loadRuns(recipeName) {

@@ -143,7 +143,10 @@ def create_app(
 
     @app.get("/ui", response_class=HTMLResponse)
     async def ui() -> Any:
-        return HTMLResponse(content=UI_HTML)
+        return HTMLResponse(
+            content=UI_HTML,
+            headers={"Cache-Control": "no-store, must-revalidate"},
+        )
 
     @app.get("/admin", response_class=HTMLResponse)
     async def admin_ui() -> Any:

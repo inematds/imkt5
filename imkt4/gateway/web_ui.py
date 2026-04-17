@@ -159,8 +159,12 @@ button.ghost:hover { color:var(--fg); background:var(--bg3); }
         <select name="recipe" id="recipe-select"></select>
         <div class="recipe-stages" id="recipe-stages"></div>
 
-        <label>Input (JSON)</label>
-        <textarea class="code" id="recipe-input" rows="6">{}</textarea>
+        <label>Input <span id="recipe-mode-label" style="color:var(--fg2);font-weight:normal;">(texto — vira <code>{"brief": ...}</code>)</span></label>
+        <textarea class="text" id="recipe-input" rows="5"
+          placeholder="ex.: Curso online de produtividade com IA pra empreendedores 30-45 anos. 30 dias para resultados."></textarea>
+        <div style="margin-top:6px;font-size:12px;">
+          <a href="#" id="recipe-mode-toggle" style="color:var(--fg2);">⚙ modo avançado (JSON)</a>
+        </div>
 
         <div style="margin-top:12px;">
           <button type="submit">Rodar Receita</button>
@@ -383,16 +387,54 @@ document.getElementById("job-form").addEventListener("submit", async (e) => {
   refreshJobs();
 });
 
+// modo do input da receita: "text" (default) | "json"
+let recipeInputMode = "text";
+document.getElementById("recipe-mode-toggle").addEventListener("click", (e) => {
+  e.preventDefault();
+  const ta = document.getElementById("recipe-input");
+  const label = document.getElementById("recipe-mode-label");
+  const toggle = document.getElementById("recipe-mode-toggle");
+  if (recipeInputMode === "text") {
+    recipeInputMode = "json";
+    ta.className = "code";
+    ta.placeholder = '{"brief": "...", "with_research": false}';
+    // se tinha texto, converte em {brief: texto}
+    const cur = ta.value.trim();
+    if (cur && !cur.startsWith("{")) ta.value = JSON.stringify({brief: cur}, null, 2);
+    else if (!cur) ta.value = "{}";
+    label.innerHTML = "(JSON bruto)";
+    toggle.textContent = "← voltar pra texto simples";
+  } else {
+    recipeInputMode = "text";
+    ta.className = "text";
+    ta.placeholder = "ex.: Curso online de produtividade com IA pra empreendedores 30-45 anos. 30 dias para resultados.";
+    // se tinha JSON, extrai o brief
+    try {
+      const j = JSON.parse(ta.value);
+      if (j.brief && typeof j.brief === "string") ta.value = j.brief;
+      else ta.value = "";
+    } catch(e) { /* mantém */ }
+    label.innerHTML = '(texto — vira <code>{"brief": ...}</code>)';
+    toggle.textContent = "⚙ modo avançado (JSON)";
+  }
+});
+
 document.getElementById("recipe-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = document.getElementById("recipe-select").value;
+  const raw = document.getElementById("recipe-input").value.trim();
   let input;
-  try { input = JSON.parse(document.getElementById("recipe-input").value || "{}"); }
-  catch (err) { alert("input JSON inválido: " + err.message); return; }
+  if (recipeInputMode === "json" || raw.startsWith("{")) {
+    try { input = JSON.parse(raw || "{}"); }
+    catch (err) { alert("input JSON inválido: " + err.message); return; }
+  } else {
+    // modo texto — vira {brief: texto}. Vazio → {}
+    input = raw ? { brief: raw } : {};
+  }
   const res = await jpost(`/recipes/${name}/run`, {
     tenant_id: "demo", user_id: "web", input, origin_channel: "web",
   });
-  alert("Receita iniciada: run_id=" + res.run_id + "\nAcompanhe em GET /runs/" + res.run_id);
+  alert("Receita iniciada: run_id=" + res.run_id + "\nAcompanhe em /runs-ui ou /runs/" + res.run_id);
 });
 
 // ── jobs list ─────────────────────────────────────────────────────
