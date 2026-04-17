@@ -1,12 +1,14 @@
-"""Runs Browser — histórico de execuções de receitas.
+"""Runs Browser — histórico por receita.
 
-Servido em GET /runs-ui. Mostra lista de runs recentes, e ao clicar
-numa, detalhe completo com cada stage (status, outputs). Permite:
-  - ▶ Rodar de novo (dispara /runs/{id}/rerun)
-  - ▶ Re-rodar a partir de um stage (rerun-from/{stage_id})
+Layout 3 colunas:
+  1. Receitas (com contador de runs)
+  2. Runs da receita selecionada (mais recente primeiro)
+  3. Detalhe da run (stages + ações)
+
+Ações disponíveis:
+  - ▶ Rodar de novo (mesma receita + input)
+  - ▶ Re-rodar a partir de um stage (copia anteriores da run original)
   - 📥 Baixar bundle.zip
-
-Separado da /ui, /admin, /recipes-ui.
 """
 
 RUNS_UI_HTML = r"""<!DOCTYPE html>
@@ -31,39 +33,56 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
                  border: 1px solid #30363d; color: #e6edf3; border-radius: 6px;
                  cursor: pointer; }
 
-  .body { display: grid; grid-template-columns: 380px 1fr;
+  /* 3 colunas */
+  .body { display: grid; grid-template-columns: 240px 340px 1fr;
           height: calc(100vh - 50px); }
 
-  .sidebar { background: #161b22; border-right: 1px solid #30363d;
-             overflow-y: auto; }
-  .sidebar .header { padding: 14px 16px; border-bottom: 1px solid #30363d;
-                     display: flex; justify-content: space-between; align-items: center; }
-  .sidebar .header h2 { margin: 0; font-size: 14px; color: #7d8590;
-                        text-transform: uppercase; letter-spacing: 0.5px; }
+  .col { background: #161b22; border-right: 1px solid #30363d; overflow-y: auto; }
+  .col:last-child { background: #0d1117; border-right: none; }
 
-  .run-row { padding: 12px 16px; cursor: pointer; border-left: 3px solid transparent;
-             border-bottom: 1px solid #21262d; transition: background 0.1s; }
+  .col-header { padding: 14px 16px; border-bottom: 1px solid #30363d;
+                display: flex; justify-content: space-between; align-items: center;
+                position: sticky; top: 0; background: #161b22; z-index: 5; }
+  .col-header h2 { margin: 0; font-size: 12px; color: #7d8590;
+                   text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Coluna 1: receitas */
+  .recipe-row { padding: 12px 16px; cursor: pointer; border-left: 3px solid transparent;
+                border-bottom: 1px solid #21262d; }
+  .recipe-row:hover { background: #21262d; }
+  .recipe-row.active { background: #21262d; border-left-color: #1f6feb; }
+  .recipe-row .name { font-weight: 600; font-size: 13px; }
+  .recipe-row .count { color: #7d8590; font-size: 11px; margin-top: 2px; }
+  .recipe-row .count b { color: #e6edf3; }
+
+  /* Coluna 2: runs */
+  .run-row { padding: 12px 14px; cursor: pointer; border-left: 3px solid transparent;
+             border-bottom: 1px solid #21262d; }
   .run-row:hover { background: #21262d; }
   .run-row.active { background: #21262d; border-left-color: #1f6feb; }
-  .run-row .top { display: flex; justify-content: space-between; align-items: center; }
-  .run-row .recipe { font-weight: 600; font-size: 14px; }
-  .run-row .meta { color: #7d8590; font-size: 11px; margin-top: 2px; }
-  .run-row .status-line { font-size: 11px; margin-top: 6px; }
+  .run-row .row-top { display: flex; justify-content: space-between; align-items: center;
+                      gap: 8px; }
+  .run-row .when { font-size: 12px; color: #e6edf3; font-weight: 500; }
+  .run-row .meta { color: #7d8590; font-size: 10px; margin-top: 4px;
+                   font-family: monospace; }
+  .run-row .summary { font-size: 10px; margin-top: 6px; display: flex;
+                      flex-wrap: wrap; gap: 4px; }
 
-  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px;
-          font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+  /* Coluna 3: detalhe */
+  .detail { padding: 20px 24px; }
+  .detail h2 { margin: 0 0 4px 0; font-size: 20px; }
+  .detail .run-meta { color: #7d8590; font-size: 13px; margin-bottom: 18px; }
+  .detail .toolbar { display: flex; gap: 8px; margin-bottom: 20px; }
+  .empty { padding: 60px 30px; text-align: center; color: #7d8590; font-size: 13px; }
+
+  .pill { display: inline-block; padding: 2px 7px; border-radius: 10px;
+          font-size: 9px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
   .pill.success { background: #238636; color: white; }
   .pill.running { background: #1f6feb; color: white; }
   .pill.failed  { background: #da3633; color: white; }
   .pill.skipped { background: #30363d; color: #7d8590; }
   .pill.awaiting_approval { background: #9e6a03; color: white; }
   .pill.pending { background: #30363d; color: #7d8590; }
-
-  .main { overflow-y: auto; padding: 20px 24px; }
-  .main .empty { padding: 80px; text-align: center; color: #7d8590; font-size: 14px; }
-  .main h2 { margin: 0 0 4px 0; font-size: 20px; }
-  .main .run-meta { color: #7d8590; font-size: 13px; margin-bottom: 18px; }
-  .main .toolbar { display: flex; gap: 8px; margin-bottom: 20px; }
 
   button { background: #1f6feb; color: white; border: none; padding: 7px 14px;
            border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
@@ -77,8 +96,7 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
   .stage-card .head { display: flex; justify-content: space-between; align-items: center; }
   .stage-card .sid { font-size: 14px; font-weight: 600; }
   .stage-card .sid .cap { color: #7d8590; font-weight: normal; font-family: monospace;
-                          font-size: 12px; margin-left: 8px; }
-  .stage-card .actions { display: flex; gap: 6px; }
+                          font-size: 11px; margin-left: 8px; }
   .stage-card .err { color: #f85149; font-size: 12px; font-family: monospace;
                      margin-top: 8px; background: #3b1519; padding: 8px;
                      border-radius: 4px; }
@@ -87,15 +105,15 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
                     overflow: auto; margin: 8px 0 0 0; white-space: pre-wrap;
                     word-break: break-word; }
   .stage-card details summary { cursor: pointer; color: #7d8590; font-size: 12px;
-                                margin-top: 6px; }
+                                margin-top: 6px; user-select: none; }
   .stage-card details summary:hover { color: #e6edf3; }
-
-  .art-link { color: #1f6feb; text-decoration: none; font-size: 12px; }
+  .art-link { color: #1f6feb; text-decoration: none; font-size: 12px;
+              word-break: break-all; }
   .art-link:hover { text-decoration: underline; }
   .art-img { max-width: 180px; max-height: 180px; border-radius: 4px;
              border: 1px solid #30363d; margin-right: 6px; margin-top: 6px; }
 
-  .refresh-badge { font-size: 11px; color: #3fb950; margin-left: 8px; }
+  .refresh-badge { font-size: 10px; color: #3fb950; margin-left: 8px; }
 </style>
 </head>
 <body>
@@ -115,21 +133,35 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
 </div>
 
 <div class="body">
-  <aside class="sidebar">
-    <div class="header">
-      <h2>Histórico <span class="refresh-badge" id="refresh-badge"></span></h2>
-      <button class="small ghost" onclick="loadRuns(true)">↻</button>
+  <!-- Coluna 1: Receitas -->
+  <aside class="col">
+    <div class="col-header">
+      <h2>Receitas</h2>
+      <button class="small ghost" onclick="loadRecipes(true)">↻</button>
     </div>
-    <div id="runs-list"></div>
+    <div id="recipes-list"></div>
   </aside>
 
-  <section class="main" id="main">
-    <div class="empty">Selecione uma run à esquerda</div>
+  <!-- Coluna 2: Runs da receita selecionada -->
+  <aside class="col">
+    <div class="col-header">
+      <h2 id="runs-header">Histórico</h2>
+      <span class="refresh-badge" id="refresh-badge"></span>
+    </div>
+    <div id="runs-list">
+      <div class="empty">Selecione uma receita à esquerda</div>
+    </div>
+  </aside>
+
+  <!-- Coluna 3: Detalhe -->
+  <section class="col">
+    <div class="detail" id="detail">
+      <div class="empty">Selecione uma run pra ver detalhes</div>
+    </div>
   </section>
 </div>
 
 <script>
-// ── auth (opcional — /runs público, mas rerun pode precisar) ─
 function getToken() { return localStorage.getItem('imkt4_admin_token') || ''; }
 function setToken() {
   const t = prompt('Token admin (Bearer):', getToken());
@@ -148,17 +180,63 @@ async function api(url, opts = {}) {
   return fetch(url, { ...opts, headers: h });
 }
 
+let selectedRecipe = null;
 let selectedRunId = null;
+let allRunsCache = [];  // cache das últimas 200 runs pra contar por receita
 
-// ── lista ─────────────────────────────────────────────────────
-async function loadRuns(flash) {
-  const r = await api('/runs?limit=100');
+// ── coluna 1: receitas ────────────────────────────────────────
+async function loadRecipes(flash) {
+  // lista receitas definidas + contadores das runs recentes
+  const [recipesResp, runsResp] = await Promise.all([
+    fetch('/recipes'), fetch('/runs?limit=200'),
+  ]);
+  const recipes = await recipesResp.json();
+  allRunsCache = await runsResp.json();
+
+  const counts = {};
+  allRunsCache.forEach(r => { counts[r.recipe] = (counts[r.recipe] || 0) + 1; });
+
+  const list = document.getElementById('recipes-list');
+  list.innerHTML = '';
+  recipes.forEach(r => {
+    const c = counts[r.name] || 0;
+    const row = document.createElement('div');
+    row.className = 'recipe-row';
+    row.dataset.name = r.name;
+    if (r.name === selectedRecipe) row.classList.add('active');
+    row.onclick = () => selectRecipe(r.name);
+    row.innerHTML = `
+      <div class="name">${r.name}</div>
+      <div class="count"><b>${c}</b> runs · ${r.stages.length} stages</div>
+    `;
+    list.appendChild(row);
+  });
+
+  if (flash) {
+    const b = document.getElementById('refresh-badge');
+    b.textContent = '↻'; setTimeout(() => { b.textContent = ''; }, 1200);
+  }
+}
+
+// ── coluna 2: runs da receita ─────────────────────────────────
+async function selectRecipe(name) {
+  selectedRecipe = name;
+  document.querySelectorAll('.recipe-row').forEach(r => {
+    r.classList.toggle('active', r.dataset.name === name);
+  });
+  await loadRuns(name);
+}
+
+async function loadRuns(recipeName) {
+  if (!recipeName) return;
+  document.getElementById('runs-header').textContent = 'Runs · ' + recipeName;
+  const r = await fetch('/runs?recipe=' + encodeURIComponent(recipeName) + '&limit=100');
   if (!r.ok) return;
   const runs = await r.json();
   const list = document.getElementById('runs-list');
   list.innerHTML = '';
   if (runs.length === 0) {
-    list.innerHTML = '<div class="empty" style="padding:30px;color:#7d8590;font-size:13px;">Nenhuma run ainda</div>';
+    list.innerHTML = '<div class="empty">Nenhuma run dessa receita ainda</div>';
     return;
   }
   runs.forEach(run => {
@@ -170,46 +248,40 @@ async function loadRuns(flash) {
 
     const when = run.created_at
       ? new Date(run.created_at).toLocaleString('pt-BR', {
-          day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'
+          day:'2-digit', month:'2-digit', year:'2-digit',
+          hour:'2-digit', minute:'2-digit', second:'2-digit'
         })
       : '';
-    const stageSummary = Object.entries(run.stage_counts || {})
-      .map(([k, v]) => `<span class="pill ${k}">${v} ${k}</span>`).join(' ');
+    const summary = Object.entries(run.stage_counts || {})
+      .map(([k, v]) => `<span class="pill ${k}">${v} ${k}</span>`).join('');
 
     row.innerHTML = `
-      <div class="top">
-        <div class="recipe">${run.recipe}</div>
+      <div class="row-top">
+        <span class="when">${when}</span>
         <span class="pill ${run.status}">${run.status}</span>
       </div>
-      <div class="meta">${when} · ${run.tenant_id}/${run.user_id || '-'}</div>
-      <div class="meta" style="font-family:monospace;font-size:10px;margin-top:4px;">${run.run_id.slice(0,8)}…</div>
-      <div class="status-line">${stageSummary}</div>
+      <div class="meta">${run.run_id.slice(0,8)}… · ${run.tenant_id}/${run.user_id || '-'}</div>
+      <div class="summary">${summary}</div>
     `;
     list.appendChild(row);
   });
-
-  if (flash) {
-    const b = document.getElementById('refresh-badge');
-    b.textContent = '↻ atualizado';
-    setTimeout(() => { b.textContent = ''; }, 1200);
-  }
 }
 
-// ── detalhe ───────────────────────────────────────────────────
+// ── coluna 3: detalhe da run ──────────────────────────────────
 async function selectRun(runId) {
   selectedRunId = runId;
   document.querySelectorAll('.run-row').forEach(r => {
     r.classList.toggle('active', r.dataset.runId === runId);
   });
-  renderDetail(runId);
+  await renderDetail(runId);
 }
 
 async function renderDetail(runId) {
-  const main = document.getElementById('main');
-  main.innerHTML = '<div class="empty">carregando…</div>';
+  const detail = document.getElementById('detail');
+  detail.innerHTML = '<div class="empty">carregando…</div>';
 
   const r = await api('/runs/' + runId);
-  if (!r.ok) { main.innerHTML = '<div class="empty">run não encontrada</div>'; return; }
+  if (!r.ok) { detail.innerHTML = '<div class="empty">run não encontrada</div>'; return; }
   const run = await r.json();
 
   const status = run.failed ? 'failed' : (run.finished ? 'success' : 'running');
@@ -236,7 +308,7 @@ async function renderDetail(runId) {
       <div class="stage-card">
         <div class="head">
           <div class="sid">${sid} <span class="pill ${stat}">${stat}</span></div>
-          <div class="actions">
+          <div>
             <button class="small ghost" onclick="rerunFrom('${run.run_id}','${sid}')">▶ re-rodar a partir</button>
           </div>
         </div>
@@ -247,9 +319,10 @@ async function renderDetail(runId) {
     `;
   }
   html += '</div>';
-  main.innerHTML = html;
+  detail.innerHTML = html;
 }
 
+// ── artefatos ─────────────────────────────────────────────────
 function extractArtifactUrls(outputs) {
   const urls = [];
   const walk = (v) => {
@@ -261,7 +334,6 @@ function extractArtifactUrls(outputs) {
   (outputs || []).forEach(walk);
   return urls;
 }
-
 function renderArtifact(url) {
   const lower = url.toLowerCase();
   const shortUrl = url.length > 60 ? url.slice(0, 30) + '…' + url.slice(-25) : url;
@@ -276,13 +348,11 @@ function renderArtifact(url) {
   }
   return `<a class="art-link" href="${url}" target="_blank">🔗 ${shortUrl}</a><br>`;
 }
-
 function renderOutputs(outputs) {
   if (!outputs || outputs.length === 0) return '';
   try { return `<pre>${escapeHtml(JSON.stringify(outputs.length === 1 ? outputs[0] : outputs, null, 2))}</pre>`; }
   catch (e) { return ''; }
 }
-
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -293,17 +363,16 @@ async function rerunAll(runId) {
   const r = await api('/runs/' + runId + '/rerun', { method: 'POST' });
   if (r.ok) {
     const { run_id } = await r.json();
-    await loadRuns();
+    await loadRuns(selectedRecipe);
     selectRun(run_id);
   } else alert('Falhou: ' + r.status);
 }
-
 async function rerunFrom(runId, stageId) {
   if (!confirm(`Re-rodar a partir do stage '${stageId}'? Stages anteriores serão copiados da run original (não re-executados).`)) return;
   const r = await api('/runs/' + runId + '/rerun-from/' + stageId, { method: 'POST' });
   if (r.ok) {
     const data = await r.json();
-    await loadRuns();
+    await loadRuns(selectedRecipe);
     selectRun(data.run_id);
   } else {
     const txt = await r.text();
@@ -311,13 +380,14 @@ async function rerunFrom(runId, stageId) {
   }
 }
 
-// ── init + polling de refresh quando runs ativas ──────────────
+// ── init + auto-refresh ───────────────────────────────────────
 updateAuthStatus();
-loadRuns();
+loadRecipes();
+
 setInterval(() => {
-  loadRuns();
+  loadRecipes();  // atualiza contadores
+  if (selectedRecipe) loadRuns(selectedRecipe);
   if (selectedRunId) {
-    // re-renderiza só se a run selecionada ainda está rodando
     fetch('/runs/' + selectedRunId).then(r => r.json()).then(run => {
       if (!run.finished) renderDetail(selectedRunId);
     }).catch(()=>{});

@@ -379,9 +379,13 @@ def create_app(
         ]
 
     @app.get("/runs")
-    async def list_runs(limit: int = 50, tenant_id: str | None = None) -> list[dict[str, Any]]:
-        """Últimas runs, mais recentes primeiro."""
-        runs = runner.list_runs(limit=limit, tenant_id=tenant_id)
+    async def list_runs(
+        limit: int = 50, tenant_id: str | None = None, recipe: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Últimas runs, mais recentes primeiro. Filtros opcionais."""
+        runs = runner.list_runs(limit=limit * 4 if recipe else limit, tenant_id=tenant_id)
+        if recipe:
+            runs = [r for r in runs if r.recipe.name == recipe][:limit]
         out = []
         for r in runs:
             stage_counts: dict[str, int] = {}
