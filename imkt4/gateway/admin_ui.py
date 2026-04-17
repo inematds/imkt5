@@ -76,6 +76,7 @@ ADMIN_HTML = r"""<!DOCTYPE html>
     <a href="/ui"         style="color:#7d8590;text-decoration:none;padding:6px 12px;border-radius:6px;">Workspace</a>
     <a href="/recipes-ui" style="color:#7d8590;text-decoration:none;padding:6px 12px;border-radius:6px;">Receitas</a>
     <a href="/runs-ui"    style="color:#7d8590;text-decoration:none;padding:6px 12px;border-radius:6px;">Execuções</a>
+    <a href="/workers-ui" style="color:#7d8590;text-decoration:none;padding:6px 12px;border-radius:6px;">Workers</a>
     <a href="/admin"      style="color:#1f6feb;text-decoration:none;padding:6px 12px;border-radius:6px;background:#21262d;font-weight:600;">Admin</a>
   </nav>
   <div style="width:1px;height:20px;background:#30363d;margin:0 8px;"></div>

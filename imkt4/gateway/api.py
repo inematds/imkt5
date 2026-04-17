@@ -33,6 +33,7 @@ from imkt4.capabilities.registry import CapabilityRegistry
 from imkt4.gateway.admin_ui import ADMIN_HTML
 from imkt4.gateway.recipes_ui import RECIPES_UI_HTML
 from imkt4.gateway.runs_ui import RUNS_UI_HTML
+from imkt4.gateway.workers_ui import WORKERS_UI_HTML
 from imkt4.gateway.audit import AuditSink, make_audit_middleware
 from imkt4.gateway.auth import Principal, current_principal, require
 from imkt4.gateway.jobs_store import JobsStore
@@ -167,6 +168,13 @@ def create_app(
     async def runs_ui() -> Any:
         return HTMLResponse(
             content=RUNS_UI_HTML,
+            headers={"Cache-Control": "no-store, must-revalidate"},
+        )
+
+    @app.get("/workers-ui", response_class=HTMLResponse)
+    async def workers_ui_page() -> Any:
+        return HTMLResponse(
+            content=WORKERS_UI_HTML,
             headers={"Cache-Control": "no-store, must-revalidate"},
         )
 
@@ -338,8 +346,30 @@ def create_app(
         return {"job_id": job.job_id}
 
     @app.get("/jobs")
-    async def list_jobs(limit: int = 50) -> list[dict[str, Any]]:
-        return [_job_rec_dict(r) for r in await store.recent(limit)]
+    async def list_jobs(
+        limit: int = 50,
+        worker_name: str | None = None,
+        capability: str | None = None,
+        tenant_id: str | None = None,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
+        # Busca uma janela maior quando precisa filtrar client-side
+        raw_limit = limit * 4 if (worker_name or capability or tenant_id or status) else limit
+        recs = await store.recent(raw_limit)
+        filtered = []
+        for r in recs:
+            if worker_name and r.worker_name != worker_name:
+                continue
+            if capability and r.capability != capability:
+                continue
+            if tenant_id and r.tenant_id != tenant_id:
+                continue
+            if status and r.status != status:
+                continue
+            filtered.append(r)
+            if len(filtered) >= limit:
+                break
+        return [_job_rec_dict(r) for r in filtered]
 
     @app.get("/jobs/{job_id}")
     async def get_job(job_id: str) -> dict[str, Any]:
