@@ -60,30 +60,31 @@ stages:
       negative_prompt: $.fanout_item.negative_prompt
     approval: {mode: none}
 
-  # ─── Voiceover: script curto do copy ─────────────────────────────
-  - id: voiceover
-    requires: audio.tts
-    needs: [copy]
-    payload_from:
-      text: $.stages.copy.output.copy.key_benefit
-      lang: "pt"
-    approval: {mode: none}
-
   # ─── Video plan (scene_plan JSON) ────────────────────────────────
+  # Emite full_narration concatenando todas as narrations por cena.
   - id: video
     requires: video.cinematic
-    needs: [ad_design, images, voiceover]
+    needs: [ad_design, images]
     payload_from:
       creative_brief: $.stages.brief.output.creative_brief
       copy: $.stages.copy.output.copy
       ads: $.stages.images.output.outputs[*].image_url
-      voiceover_url: $.stages.voiceover.output.audio_url
+    approval: {mode: none}
+
+  # ─── Voiceover: usa o roteiro completo do scene_plan ─────────────
+  - id: voiceover
+    requires: audio.tts
+    needs: [video]
+    payload_from:
+      text: $.stages.video.output.scene_plan.full_narration
+      lang: "pt"
     approval: {mode: none}
 
   # ─── Video render (MP4 real via ffmpeg) ──────────────────────────
   - id: video_render
     requires: video.render
-    needs: [video]
+    needs: [video, voiceover]
     payload_from:
       scene_plan: $.stages.video.output.scene_plan
+      narration_url: $.stages.voiceover.output.audio_url
     approval: {mode: none}

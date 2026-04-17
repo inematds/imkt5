@@ -101,10 +101,18 @@ class VideoQuickWorker(BaseWorker):
         if "scene_plan" not in data and "scenes" in data:
             data = {"scene_plan": data}
 
-        # Fallback: se LLM não usou o voiceover_url, injeta aqui
         sp = data.get("scene_plan", {})
         if voiceover_url and not sp.get("narration_file"):
             sp["narration_file"] = voiceover_url
+
+        # full_narration = concatenação das narrations de cada cena
+        # (consumido pelo stage voiceover depois do video plan).
+        narrations = [
+            sc.get("narration", "").strip()
+            for sc in sp.get("scenes", [])
+            if sc.get("narration")
+        ]
+        sp["full_narration"] = " ".join(narrations)
 
         return data
 
