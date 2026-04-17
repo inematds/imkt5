@@ -36,13 +36,19 @@ stages:
     approval: {mode: none}
 
   # ─── Ad Design: gera 3 variantes com background_prompt p/ SD ─────
+  # auto_reviewer ligado com critérios objetivos verificáveis.
   - id: ad_design
     requires: design.ad_layout
     needs: [copy]
     payload_from:
       creative_brief: $.stages.brief.output.creative_brief
       copy: $.stages.copy.output.copy
-    approval: {mode: none}
+    approval:
+      mode: auto_reviewer
+      criteria:
+        - "ad_design.variants tem exatamente 3 elementos"
+        - "cada variante tem background_prompt não vazio"
+      escalation: on_uncertain
 
   # ─── Imagens: fanout sobre variantes do ad-designer ──────────────
   - id: images

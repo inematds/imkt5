@@ -165,6 +165,76 @@ async def test_campanha_roda_completa():
     assert run.stages["video"].status.value == "success"
 
 
+async def test_dep_failure_cascades_through_skip():
+    """Se brief falha, descendentes (copy, ad_design, images, video) devem
+    ser SKIPPED com error='dep_failed' — NÃO devem tentar rodar com
+    payload vazio."""
+    dispatcher = InMemoryDispatcher()
+    runner = RecipeRunner(
+        dispatcher=dispatcher,
+        approval_gate=CompositeApprovalGate(
+            on_decided=runner.on_approval_decided if False else (lambda *a: None),  # stub
+            auto_gate=AlwaysApproveAuto(),
+        ),
+    )
+
+    # Tem que reconfigurar o callback do approval_gate apontando pro runner
+    gate = CompositeApprovalGate(
+        on_decided=runner.on_approval_decided,
+        auto_gate=AlwaysApproveAuto(),
+    )
+    runner._approvals = gate
+
+    payloads_seen: dict[str, list[dict]] = {}
+
+    def make_ok(name, out):
+        async def h(job):
+            payloads_seen.setdefault(name, []).append(job.payload)
+            return out
+        return h
+
+    async def failing(job):
+        payloads_seen.setdefault("brief", []).append(job.payload)
+        raise RuntimeError("brief explodiu")
+
+    dispatcher.register_capability("research.market", make_ok("research", {}))
+    dispatcher.register_capability("brief.strategic", failing)
+    # Os abaixo NÃO devem ser chamados por causa do cascade:
+    dispatcher.register_capability("copy.platform", make_ok("copy", {"copy": {"key_benefit": "x"}}))
+    dispatcher.register_capability("design.ad_layout", make_ok("ad_design", {"ad_design": {"variants": []}}))
+    dispatcher.register_capability("image.generation", make_ok("images", {"image_url": "i"}))
+    dispatcher.register_capability("audio.tts", make_ok("voiceover", {"audio_url": "a"}))
+    dispatcher.register_capability("video.cinematic", make_ok("video", {"scene_plan": {}}))
+
+    dispatcher.set_on_finish(
+        lambda job_id, success, output, error:
+        runner.on_job_finished(job_id, success=success, output=output, error=error)
+    )
+
+    await dispatcher.start()
+    run = await runner.start(
+        recipe=load_recipe("recipes/campanha-marketing.yaml"),
+        tenant_id="t1", user_id="u1",
+        input={"brief": "x", "with_research": False},
+        tenant_ctx={"profile": {}},
+        origin_channel="test", origin_channel_external_id="t",
+    )
+    for _ in range(500):
+        if run.is_finished(): break
+        await asyncio.sleep(0.01)
+    await dispatcher.stop()
+
+    assert run.is_finished(), {sid: s.status.value for sid, s in run.stages.items()}
+    assert run.stages["brief"].status.value == "failed"
+    # descendentes devem estar SKIPPED (por dep_failed) — sem payload chamado
+    for sid in ("copy", "ad_design", "images", "voiceover", "video"):
+        assert run.stages[sid].status.value == "skipped", sid
+        assert run.stages[sid].error == "dep_failed", sid
+    # nenhum worker descendente deve ter sido chamado
+    for name in ("copy", "ad_design", "images", "voiceover", "video"):
+        assert name not in payloads_seen, f"{name} rodou mesmo com brief failed"
+
+
 async def test_research_opt_out():
     """Se with_research=false, stage research é SKIPPED."""
     run, _ = await _run_recipe_to_completion(

@@ -253,7 +253,11 @@ class RecipeRunner:
                 if not self._deps_ready(run, stage):
                     continue
                 if self._any_dep_failed(run, stage):
+                    # Propaga cascada: marcamos com error="dep_failed" pra
+                    # stages descendentes também serem pulados em vez de
+                    # rodarem com payload vazio.
                     state.status = StageStatus.SKIPPED
+                    state.error = "dep_failed"
                     progressed = True
                     continue
                 # avalia `when`
@@ -269,7 +273,19 @@ class RecipeRunner:
         return all(run.stages[d].status in terminal for d in stage.needs)
 
     def _any_dep_failed(self, run: RecipeRun, stage: RecipeStage) -> bool:
-        return any(run.stages[d].status == StageStatus.FAILED for d in stage.needs)
+        # Um dep bloqueia descendentes quando FAILED OU quando foi SKIPPED
+        # em cascada (por dep_failed). SKIPPED por `when` não bloqueia —
+        # é intencional.
+        for d in stage.needs:
+            dep_state = run.stages[d]
+            if dep_state.status == StageStatus.FAILED:
+                return True
+            if (
+                dep_state.status == StageStatus.SKIPPED
+                and dep_state.error == "dep_failed"
+            ):
+                return True
+        return False
 
     async def _launch_stage(self, run: RecipeRun, stage: RecipeStage) -> None:
         state = run.stages[stage.id]
