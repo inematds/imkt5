@@ -30,6 +30,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
 from imkt4.capabilities.registry import CapabilityRegistry
+from imkt4.gateway.admin_ui import ADMIN_HTML
 from imkt4.gateway.audit import AuditSink, make_audit_middleware
 from imkt4.gateway.auth import Principal, current_principal, require
 from imkt4.gateway.jobs_store import JobsStore
@@ -133,6 +134,89 @@ def create_app(
     @app.get("/ui", response_class=HTMLResponse)
     async def ui() -> Any:
         return HTMLResponse(content=UI_HTML)
+
+    @app.get("/admin", response_class=HTMLResponse)
+    async def admin_ui() -> Any:
+        return HTMLResponse(content=ADMIN_HTML)
+
+    # ── admin: config/workers/recipes (textual) ──────────────────────
+    @app.get("/admin/config/defaults", response_class=HTMLResponse)
+    async def admin_cfg_get() -> Any:
+        p = Path("config/defaults.yaml")
+        if not p.exists():
+            return HTMLResponse("# sem defaults.yaml\n", media_type="text/plain")
+        return HTMLResponse(p.read_text(), media_type="text/plain")
+
+    @app.put("/admin/config/defaults")
+    async def admin_cfg_put(request: Any) -> dict[str, str]:
+        body = (await request.body()).decode()
+        Path("config/defaults.yaml").write_text(body)
+        return {"status": "ok"}
+
+    @app.get("/admin/config/tenant/{tenant_id}", response_class=HTMLResponse)
+    async def admin_tcfg_get(tenant_id: str) -> Any:
+        p = Path(f"profiles/{tenant_id}/config.yaml")
+        if not p.exists():
+            return HTMLResponse("# sem config.yaml pra este tenant\n", media_type="text/plain")
+        return HTMLResponse(p.read_text(), media_type="text/plain")
+
+    @app.put("/admin/config/tenant/{tenant_id}")
+    async def admin_tcfg_put(tenant_id: str, request: Any) -> dict[str, str]:
+        body = (await request.body()).decode()
+        folder = Path(f"profiles/{tenant_id}")
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "config.yaml").write_text(body)
+        return {"status": "ok"}
+
+    @app.post("/admin/workers/append")
+    async def admin_workers_append(request: Any) -> dict[str, str]:
+        body = (await request.body()).decode().rstrip()
+        path = Path("config/workers.yaml")
+        existing = path.read_text()
+        if not existing.endswith("\n"):
+            existing += "\n"
+        path.write_text(existing + "\n" + body + "\n")
+        return {"status": "ok"}
+
+    @app.get("/admin/recipes")
+    async def admin_recipes_list() -> list[str]:
+        folder = Path("recipes")
+        if not folder.exists():
+            return []
+        return sorted([p.stem for p in folder.glob("*.yaml")])
+
+    @app.get("/admin/recipes/{name}", response_class=HTMLResponse)
+    async def admin_recipe_get(name: str) -> Any:
+        # valida nome
+        if "/" in name or ".." in name:
+            raise HTTPException(400, "nome inválido")
+        p = Path(f"recipes/{name}.yaml")
+        if not p.exists():
+            raise HTTPException(404, f"recipe não encontrada: {name}")
+        return HTMLResponse(p.read_text(), media_type="text/plain")
+
+    @app.put("/admin/recipes/{name}")
+    async def admin_recipe_put(name: str, request: Any) -> dict[str, str]:
+        if "/" in name or ".." in name:
+            raise HTTPException(400, "nome inválido")
+        # valida YAML antes de gravar
+        body = (await request.body()).decode()
+        try:
+            import yaml
+            parsed = yaml.safe_load(body)
+            if not isinstance(parsed, dict) or "stages" not in parsed:
+                raise ValueError("receita precisa ter 'stages'")
+        except Exception as exc:
+            raise HTTPException(400, f"YAML inválido: {exc}") from exc
+        Path(f"recipes/{name}.yaml").write_text(body)
+        # recarrega catálogo em memória — o catálogo expõe um método reload?
+        if hasattr(catalog, "reload"):
+            try:
+                catalog.reload()
+            except Exception as exc:  # noqa: BLE001
+                log_msg = f"reload recipes: {exc}"
+                print(log_msg)
+        return {"status": "ok"}
 
     # ── jobs ──────────────────────────────────────────────────────────
     @app.post("/jobs")

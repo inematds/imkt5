@@ -157,7 +157,7 @@ def main() -> None:
 
     registry = CapabilityRegistry.from_yaml(workers_yaml)
     recipes = load_recipes_from_dir(recipes_dir) if Path(recipes_dir).exists() else {}
-    catalog = StaticRecipeCatalog(recipes)
+    catalog = StaticRecipeCatalog(recipes, source_dir=recipes_dir)
 
     # Jobs store: Postgres se POSTGRES_URL configurado, in-memory senão.
     # IMPORTANTE: conectar o pool SÓ no startup event (mesmo event loop do uvicorn).

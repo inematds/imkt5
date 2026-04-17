@@ -78,8 +78,9 @@ class RunRecipeTool(BaseTool):
 class StaticRecipeCatalog:
     """Catálogo simples backed por dict — útil em testes e single-node."""
 
-    def __init__(self, recipes: dict[str, Recipe]) -> None:
+    def __init__(self, recipes: dict[str, Recipe], source_dir: str | None = None) -> None:
         self._recipes = dict(recipes)
+        self._source_dir = source_dir
 
     def register(self, recipe: Recipe) -> None:
         self._recipes[recipe.name] = recipe
@@ -89,3 +90,10 @@ class StaticRecipeCatalog:
 
     def all(self) -> list[Recipe]:
         return list(self._recipes.values())
+
+    def reload(self) -> None:
+        """Re-lê `source_dir` — usado pelo admin UI ao editar receitas."""
+        if not self._source_dir:
+            return
+        from imkt4.recipes.loader import load_recipes_from_dir
+        self._recipes = dict(load_recipes_from_dir(self._source_dir))
