@@ -95,11 +95,13 @@ workers:
     local: true
     priority: 50
 
-  # - name: creative-brief
-  # capabilities: [brief.strategic]
-  # endpoint: http://localhost:8101
-  # local: true
-  # priority: 50
+  - name: creative-brief
+    capabilities: [brief.strategic]
+    endpoint: http://localhost:8101
+    local: true
+    priority: 50
+    timeout_seconds: 120
+    max_concurrent: 2
 
   # - name: copywriter
   # capabilities: [copy.narrative, copy.headlines]

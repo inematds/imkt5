@@ -136,6 +136,17 @@ class _AutoReviewGate:
 def main() -> None:
     _load_env()
 
+    # Logging: INFO em loggers internos do imkt4
+    import logging as _logging
+    _logging.basicConfig(
+        level=_logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    for n in ("imkt4.dispatcher", "imkt4.delivery", "imkt4.telegram",
+              "imkt4.agent", "imkt4.approvals", "imkt4.workers.llm"):
+        _logging.getLogger(n).setLevel(_logging.INFO)
+
     workers_yaml = os.environ.get("IMKT4_WORKERS_YAML", "config/workers.yaml")
     recipes_dir = os.environ.get("IMKT4_RECIPES_DIR", "recipes")
 
@@ -159,7 +170,19 @@ def main() -> None:
     else:
         jobs_store = JobsStore()
         print("[boot] usando JobsStore in-memory (POSTGRES_URL não setado)")
-    dispatcher = HttpDispatcher(registry=registry, jobs_store=jobs_store)
+
+    # Channel notifier: entrega resultado de jobs no canal de origem
+    # (Telegram, WhatsApp). Inicializa antes do dispatcher pra plugar ali.
+    from imkt4.channels.base import ChannelRegistry
+    from imkt4.gateway.delivery import ChannelNotifier
+    channels_registry = ChannelRegistry()
+    channel_notifier = ChannelNotifier(channels=channels_registry)
+
+    dispatcher = HttpDispatcher(
+        registry=registry,
+        jobs_store=jobs_store,
+        channel_notifier=channel_notifier,
+    )
 
     # Approval gate composto — montado depois que runner existe (callback ref)
     runner_ref = {"runner": None}
@@ -180,10 +203,8 @@ def main() -> None:
     runner = RecipeRunner(dispatcher=dispatcher, approval_gate=approval_gate)
     runner_ref["runner"] = runner
 
-    # Gates reais: user_gate pergunta no canal; human_reviewer idem pro reviewer.
-    from imkt4.channels.base import ChannelRegistry
+    # Gates reais: user_gate usa o channels_registry compartilhado.
     from imkt4.recipes.approvals.telegram_gates import UserApprovalGate, HumanReviewerGate
-    channels_registry = ChannelRegistry()
     user_gate = UserApprovalGate(channels=channels_registry, on_decided=_on_decided)
     human_reviewer_gate = HumanReviewerGate(
         user_gate=user_gate,

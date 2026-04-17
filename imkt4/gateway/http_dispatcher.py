@@ -44,6 +44,7 @@ class HttpDispatcher:
         max_pending: int | None = None,
         max_select_retries: int | None = None,
         jobs_store: Any | None = None,
+        channel_notifier: Any | None = None,
     ) -> None:
         from imkt4.config import load
         cfg = load().dispatcher
@@ -63,6 +64,7 @@ class HttpDispatcher:
         self._consumer_task: asyncio.Task[None] | None = None
         self._stopping = False
         self._jobs_store = jobs_store
+        self._notifier = channel_notifier
 
     def set_on_finish(self, cb: OnFinishCallback) -> None:
         self._on_finish = cb
@@ -129,6 +131,7 @@ class HttpDispatcher:
                     job.job_id, success=True, output=output, error=None,
                 )
             await self._notify(job.job_id, True, output, None)
+            await self._deliver_to_channel(job, output, None)
         except Exception as exc:  # noqa: BLE001
             err_str = f"worker={worker.name} err={type(exc).__name__}: {exc}"
             log.warning("job %s ✗ worker=%s err=%s", job.job_id, worker.name, exc)
@@ -137,9 +140,38 @@ class HttpDispatcher:
                     job.job_id, success=False, output=None, error=err_str,
                 )
             await self._notify(job.job_id, False, None, err_str)
+            await self._deliver_to_channel(job, None, err_str)
         finally:
             await self._registry.release(worker.name)
             self._pending.task_done()
+
+    async def _deliver_to_channel(self, job: Job, output, error) -> None:
+        """Notifica o canal de origem do job (Telegram/WA) com o resultado."""
+        # Stage de receita: runner já entrega no fim — pula intermediários.
+        if job.parent_job_id:
+            log.info("delivery: job %s é stage de receita (parent=%s); skip",
+                     job.job_id, job.parent_job_id)
+            return
+        if self._notifier is None:
+            log.info("delivery: notifier não configurado pro job %s", job.job_id)
+            return
+        log.info(
+            "delivery: tentando entregar job %s no canal '%s' chat='%s'",
+            job.job_id, job.origin_channel, job.origin_channel_external_id,
+        )
+        try:
+            await self._notifier.deliver(
+                job_id=job.job_id,
+                tenant_id=job.tenant_id,
+                user_id=job.user_id,
+                origin_channel=job.origin_channel,
+                origin_external_id=job.origin_channel_external_id,
+                output=output,
+                error=error,
+            )
+            log.info("delivery: job %s entregue", job.job_id)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("delivery falhou pro job %s: %s", job.job_id, exc)
 
     async def _select_with_retry(self, job):
         # Se saturado, espera um tick e tenta de novo.

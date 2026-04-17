@@ -31,6 +31,21 @@ OnMessage = Callable[[IncomingMessage], Awaitable[OutgoingMessage | None]]
 OnApproval = Callable[..., Awaitable[bool]]
 
 
+def _resolve_artifact_path(storage_path: str) -> str:
+    """file://... → /abs/path; /artifacts/... → ARTIFACT_ROOT + path."""
+    if storage_path.startswith("file://"):
+        return storage_path[len("file://"):]
+    if storage_path.startswith("/artifacts/"):
+        try:
+            from imkt4.config import load
+            root = load().storage.artifact_root
+        except Exception:   # noqa: BLE001
+            root = os.environ.get("IMKT4_ARTIFACT_ROOT", "./data/artifacts")
+        import os.path as op
+        return op.join(root, storage_path[len("/artifacts/"):])
+    return storage_path
+
+
 @dataclass(frozen=True)
 class TelegramIdentity:
     """Resolve telegram chat_id → (tenant_id, user_id)."""
@@ -84,12 +99,58 @@ class TelegramChannel(BaseChannel):
             raise RuntimeError("canal não iniciado")
         chat_id = int(message.channel_external_id)
         text = message.text or ""
-        # split >4000 chars em blocos (limite Telegram é 4096)
+
+        # Com anexos: envia cada como photo/video/audio/document.
+        if message.attachments:
+            caption = text if len(text) <= 1000 else ""
+            for att in message.attachments:
+                await self._send_one_attachment(chat_id, att, caption)
+                caption = ""
+            if caption == "" and text and len(text) > 1000:
+                await self._send_long_text(chat_id, text)
+            return
+
+        # Só texto
+        if not text:
+            return
+        await self._send_long_text(chat_id, text)
+
+    async def _send_long_text(self, chat_id: int, text: str) -> None:
         if len(text) <= 4000:
             await self._app.bot.send_message(chat_id=chat_id, text=text)
             return
         for i in range(0, len(text), 4000):
             await self._app.bot.send_message(chat_id=chat_id, text=text[i:i+4000])
+
+    async def _send_one_attachment(self, chat_id: int, att, caption: str) -> None:
+        from imkt4.types.messages import AttachmentKind
+        fp = _resolve_artifact_path(att.storage_path)
+        kind = att.kind
+        try:
+            with open(fp, "rb") as f:
+                if kind == AttachmentKind.IMAGE:
+                    await self._app.bot.send_photo(
+                        chat_id=chat_id, photo=f, caption=caption or None,
+                    )
+                elif kind == AttachmentKind.VIDEO:
+                    await self._app.bot.send_video(
+                        chat_id=chat_id, video=f, caption=caption or None,
+                    )
+                elif kind in (AttachmentKind.AUDIO, AttachmentKind.VOICE):
+                    await self._app.bot.send_audio(
+                        chat_id=chat_id, audio=f, caption=caption or None,
+                    )
+                else:
+                    await self._app.bot.send_document(
+                        chat_id=chat_id, document=f, caption=caption or None,
+                        filename=att.original_filename or None,
+                    )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("falhou enviar anexo %s: %s", fp, exc)
+            await self._app.bot.send_message(
+                chat_id=chat_id,
+                text=(caption + "\n\n" if caption else "") + f"(arquivo: {att.storage_path})",
+            )
 
     async def stop(self) -> None:
         if self._app is None:
