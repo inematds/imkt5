@@ -26,6 +26,7 @@ Output:
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 
@@ -33,6 +34,9 @@ import httpx
 
 from workers._base import BaseWorker
 from workers._base.storage import get_storage
+
+log = logging.getLogger("imkt4.workers.inemaimg")
+logging.basicConfig(level=logging.INFO)
 
 from imkt4.config import load as _load_cfg
 _CFG = _load_cfg().workers.inemaimg_adapter
@@ -48,8 +52,10 @@ class InemaimgAdapter(BaseWorker):
     async def handle(self, job) -> dict[str, Any]:
         payload = job.payload
         prompt = payload.get("prompt")
-        if not prompt:
-            raise ValueError("payload precisa de 'prompt'")
+        if not prompt or not isinstance(prompt, str) or not prompt.strip():
+            raise ValueError(
+                f"payload precisa de 'prompt' (string não-vazia). Recebido: {type(prompt).__name__}={prompt!r}"
+            )
 
         model = payload.get("model") or INEMAIMG_MODEL_DEFAULT
 
@@ -58,7 +64,6 @@ class InemaimgAdapter(BaseWorker):
             "model": model,
             "prompt": prompt,
         }
-        # passagens opcionais (passa se veio no payload)
         for k in (
             "images", "steps", "guidance_scale", "true_cfg_scale",
             "negative_prompt", "width", "height", "seed",
@@ -67,20 +72,41 @@ class InemaimgAdapter(BaseWorker):
             if k in payload:
                 body[k] = payload[k]
 
-        async with httpx.AsyncClient(timeout=INEMAIMG_TIMEOUT) as client:
-            resp = await client.post(f"{INEMAIMG_URL}/generate", json=body)
-            resp.raise_for_status()
-            data = resp.json()
+        log.info("job %s → upstream %s/generate model=%s prompt=%s",
+                 job.job_id[:8], INEMAIMG_URL, model, prompt[:80])
 
-        b64 = data["image"]
+        try:
+            async with httpx.AsyncClient(timeout=INEMAIMG_TIMEOUT) as client:
+                resp = await client.post(f"{INEMAIMG_URL}/generate", json=body)
+                if resp.status_code != 200:
+                    # loga o corpo do erro do upstream antes de propagar
+                    err_body = resp.text[:500] if resp.text else "(vazio)"
+                    log.warning("upstream %s → %s body=%s",
+                                INEMAIMG_URL, resp.status_code, err_body)
+                    raise RuntimeError(
+                        f"inemaimg upstream retornou {resp.status_code}: {err_body}"
+                    )
+                data = resp.json()
+        except httpx.HTTPError as exc:
+            log.warning("job %s httpx err: %s", job.job_id[:8], exc)
+            raise RuntimeError(f"httpx: {type(exc).__name__}: {exc}") from exc
+
+        b64 = data.get("image")
+        if not b64:
+            raise RuntimeError(f"upstream não retornou 'image'. keys={list(data.keys())}")
+
         filename = f"{model}-{job.job_id}.png"
-        storage = get_storage()
-        url = storage.save_base64(
-            tenant_id=job.tenant_id,
-            job_id=job.job_id,
-            filename=filename,
-            b64=b64,
-        )
+        try:
+            storage = get_storage()
+            url = storage.save_base64(
+                tenant_id=job.tenant_id,
+                job_id=job.job_id,
+                filename=filename,
+                b64=b64,
+            )
+        except Exception as exc:
+            log.warning("job %s storage err: %s", job.job_id[:8], exc)
+            raise RuntimeError(f"storage.save_base64: {type(exc).__name__}: {exc}") from exc
 
         return {
             "image_url": url,
