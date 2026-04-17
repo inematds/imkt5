@@ -113,12 +113,13 @@ RECIPES_UI_HTML = r"""<!DOCTYPE html>
 <body>
 
 <div class="topbar">
-  <h1>📜 recipes studio</h1>
-  <div class="nav">
-    <a href="/ui">/ui</a>
-    <a href="/admin">/admin</a>
-    <a href="/recipes-ui" class="active">/recipes-ui</a>
-  </div>
+  <h1>imkt4</h1>
+  <nav style="display:flex;gap:4px;font-size:13px;">
+    <a href="/ui"         style="color:#7d8590;text-decoration:none;padding:6px 12px;border-radius:6px;">Workspace</a>
+    <a href="/recipes-ui" style="color:#1f6feb;text-decoration:none;padding:6px 12px;border-radius:6px;background:#21262d;font-weight:600;">Receitas</a>
+    <a href="/runs-ui"    style="color:#7d8590;text-decoration:none;padding:6px 12px;border-radius:6px;">Execuções</a>
+    <a href="/admin"      style="color:#7d8590;text-decoration:none;padding:6px 12px;border-radius:6px;">Admin</a>
+  </nav>
   <div class="auth">
     <span id="auth-status">sem token</span>
     <button onclick="setToken()">token</button>

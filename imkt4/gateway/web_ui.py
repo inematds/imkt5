@@ -92,9 +92,15 @@ button.ghost:hover { color:var(--fg); background:var(--bg3); }
 </head>
 <body>
 
-<header>
-  <h1>imkt4 · gateway</h1>
-  <span class="env" id="env"></span>
+<header style="display:flex;align-items:center;gap:20px;">
+  <h1 style="margin:0;">imkt4</h1>
+  <nav style="display:flex;gap:4px;font-size:13px;">
+    <a href="/ui"         style="color:#1f6feb;text-decoration:none;padding:6px 12px;border-radius:6px;background:var(--bg3);font-weight:600;">Workspace</a>
+    <a href="/recipes-ui" style="color:var(--fg2);text-decoration:none;padding:6px 12px;border-radius:6px;">Receitas</a>
+    <a href="/runs-ui"    style="color:var(--fg2);text-decoration:none;padding:6px 12px;border-radius:6px;">Execuções</a>
+    <a href="/admin"      style="color:var(--fg2);text-decoration:none;padding:6px 12px;border-radius:6px;">Admin</a>
+  </nav>
+  <span class="env" id="env" style="margin-left:auto;"></span>
 </header>
 
 <main>
