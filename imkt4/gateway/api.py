@@ -188,6 +188,26 @@ def create_app(
             raise HTTPException(403, "requer admin-global ou admin-tenant")
         return p
 
+    async def _require_user(request: Any, tenant_id: str | None = None) -> Principal:
+        """Exige autenticação + enforcement de tenant.
+
+        Papéis aceitos: admin-global · admin-tenant:X · user:X · reviewer:X.
+        Se `tenant_id` é informado, verifica que o principal pode agir naquele
+        tenant. Modo anônimo é aceito quando IMKT4_AUTH_REQUIRED != 1 — isso
+        mantém o gateway utilizável em dev.
+        """
+        p = await current_principal(request, request.headers.get("authorization"))
+        # Em dev (sem IMKT4_AUTH_REQUIRED=1), anon pode tudo — é o padrão atual.
+        if p.roles == ("anon",):
+            import os as _os
+            if _os.environ.get("IMKT4_AUTH_REQUIRED", "0") != "1":
+                return p
+            raise HTTPException(401, "bearer token obrigatório")
+        # tem token: valida tenant boundary
+        if tenant_id and not p.can_act_in_tenant(tenant_id):
+            raise HTTPException(403, f"sem permissão no tenant {tenant_id}")
+        return p
+
     # ── admin: config/workers/recipes (textual) ──────────────────────
     @app.get("/admin/config/defaults", response_class=HTMLResponse)
     async def admin_cfg_get(request: Request) -> Any:
@@ -321,7 +341,8 @@ def create_app(
 
     # ── jobs ──────────────────────────────────────────────────────────
     @app.post("/jobs")
-    async def create_job(req: DispatchRequest) -> dict[str, str]:
+    async def create_job(req: DispatchRequest, request: Request) -> dict[str, str]:
+        await _require_user(request, tenant_id=req.tenant_id)
         if not req.capability and not req.worker_type:
             raise HTTPException(400, "capability ou worker_type obrigatório")
         job = Job(
@@ -380,7 +401,8 @@ def create_app(
 
     # ── recipes ───────────────────────────────────────────────────────
     @app.post("/recipes/{name}/run")
-    async def run_recipe(name: str, req: RunRecipeRequest) -> dict[str, str]:
+    async def run_recipe(name: str, req: RunRecipeRequest, request: Request) -> dict[str, str]:
+        await _require_user(request, tenant_id=req.tenant_id)
         try:
             recipe = catalog.get(name)
         except KeyError as exc:
@@ -442,12 +464,13 @@ def create_app(
         return out
 
     @app.post("/runs/{run_id}/rerun")
-    async def rerun(run_id: str) -> dict[str, str]:
+    async def rerun(run_id: str, request: Request) -> dict[str, str]:
         """Re-dispara a mesma receita com o mesmo input em uma nova run."""
         try:
             prev = runner.get_run(run_id)
         except KeyError as exc:
             raise HTTPException(404, f"run não encontrada: {run_id}") from exc
+        await _require_user(request, tenant_id=prev.tenant_id)
         new_run = await runner.start(
             recipe=prev.recipe,
             tenant_id=prev.tenant_id,
@@ -460,7 +483,7 @@ def create_app(
         return {"run_id": new_run.run_id, "source_run_id": run_id}
 
     @app.post("/runs/{run_id}/rerun-from/{stage_id}")
-    async def rerun_from_stage(run_id: str, stage_id: str) -> dict[str, Any]:
+    async def rerun_from_stage(run_id: str, stage_id: str, request: Request) -> dict[str, Any]:
         """Re-dispara uma nova run, pulando stages anteriores a `stage_id`
         (copia outputs dos stages anteriores da run original). Útil pra
         repetir só a partir de onde deu ruim."""
@@ -468,6 +491,7 @@ def create_app(
             prev = runner.get_run(run_id)
         except KeyError as exc:
             raise HTTPException(404, f"run não encontrada: {run_id}") from exc
+        await _require_user(request, tenant_id=prev.tenant_id)
         stage_ids = [s.id for s in prev.recipe.stages]
         if stage_id not in stage_ids:
             raise HTTPException(400, f"stage_id '{stage_id}' não existe na receita")
@@ -526,14 +550,24 @@ def create_app(
         }
 
     @app.post("/runs/{run_id}/approve")
-    async def approve(run_id: str, req: ApprovalRequest) -> dict[str, str]:
+    async def approve(run_id: str, req: ApprovalRequest, request: Request) -> dict[str, str]:
+        try:
+            prev = runner.get_run(run_id)
+            await _require_user(request, tenant_id=prev.tenant_id)
+        except KeyError:
+            pass  # 404 já sai em on_approval_decided
         await runner.on_approval_decided(
             run_id, req.stage_id, ApprovalDecision.APPROVED
         )
         return {"status": "ok"}
 
     @app.post("/runs/{run_id}/reject")
-    async def reject(run_id: str, req: ApprovalRequest) -> dict[str, str]:
+    async def reject(run_id: str, req: ApprovalRequest, request: Request) -> dict[str, str]:
+        try:
+            prev = runner.get_run(run_id)
+            await _require_user(request, tenant_id=prev.tenant_id)
+        except KeyError:
+            pass
         await runner.on_approval_decided(
             run_id, req.stage_id, ApprovalDecision.REJECTED
         )
@@ -611,7 +645,8 @@ def create_app(
         user_id: str = "u1"
 
     @app.post("/runs/{run_id}/publish")
-    async def publish_run(run_id: str, req: PublishReq) -> dict[str, Any]:
+    async def publish_run(run_id: str, req: PublishReq, request: Request) -> dict[str, Any]:
+        await _require_user(request, tenant_id=req.tenant_id)
         # Dispara um job platform.<req.platform>. Se worker não existe,
         # retorna 503 com lista de platforms disponíveis.
         capability = f"platform.{req.platform}"
@@ -723,7 +758,8 @@ def create_app(
         return out
 
     @app.post("/chat")
-    async def chat(req: ChatRequest) -> dict[str, Any]:
+    async def chat(req: ChatRequest, request: Request) -> dict[str, Any]:
+        await _require_user(request, tenant_id=req.tenant_id)
         """Agent loop — LLM decide entre responder direto OU disparar job/receita."""
         if agent is None:
             raise HTTPException(503, "agent loop não configurado")

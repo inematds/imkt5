@@ -102,7 +102,24 @@ button.ghost:hover { color:var(--fg); background:var(--bg3); }
     <a href="/admin"      style="color:var(--fg2);text-decoration:none;padding:6px 12px;border-radius:6px;">Admin</a>
   </nav>
   <span class="env" id="env" style="margin-left:auto;"></span>
+  <span id="tok-status" style="font-size:11px;color:var(--fg2);margin-left:12px;"></span>
+  <button onclick="setUserToken()" style="background:transparent;border:1px solid #30363d;color:var(--fg2);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">token</button>
 </header>
+<script>
+  function setUserToken() {
+    const cur = localStorage.getItem('imkt4_user_token') || '';
+    const t = prompt('Token de usuário (Bearer):', cur);
+    if (t !== null) { localStorage.setItem('imkt4_user_token', t.trim()); location.reload(); }
+  }
+  (function updateTok() {
+    const t = localStorage.getItem('imkt4_user_token') || localStorage.getItem('imkt4_admin_token') || '';
+    const el = document.getElementById('tok-status');
+    if (el) {
+      el.textContent = t ? 'auth ' + t.slice(0,6) + '…' : 'sem token';
+      el.style.color = t ? '#3fb950' : '#f85149';
+    }
+  })();
+</script>
 
 <main>
   <aside>
@@ -249,12 +266,25 @@ let advancedEdited = false;           // usuário editou o JSON manualmente?
 let currentRecipes = [];
 
 // ── helpers ───────────────────────────────────────────────────────
-async function jget(p) { const r = await fetch(API + p); return r.json(); }
+function _authHeaders(extra) {
+  const t = localStorage.getItem('imkt4_user_token') || localStorage.getItem('imkt4_admin_token') || '';
+  const h = { ...(extra || {}) };
+  if (t) h['Authorization'] = 'Bearer ' + t;
+  return h;
+}
+async function jget(p) { const r = await fetch(API + p, { headers: _authHeaders() }); return r.json(); }
 async function jpost(p, b) {
   const r = await fetch(API + p, {
-    method: "POST", headers: {"Content-Type": "application/json"},
+    method: "POST", headers: _authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(b),
   });
+  if (r.status === 401) {
+    if (confirm('Token ausente/inválido. Configurar agora?')) {
+      const t = prompt('Token:', localStorage.getItem('imkt4_user_token') || '');
+      if (t) { localStorage.setItem('imkt4_user_token', t.trim()); location.reload(); }
+    }
+    return null;
+  }
   return r.json();
 }
 

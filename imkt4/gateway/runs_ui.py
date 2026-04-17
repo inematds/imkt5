@@ -190,7 +190,12 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
 </div>
 
 <script>
-function getToken() { return localStorage.getItem('imkt4_admin_token') || ''; }
+// aceita user OU admin token
+function getToken() {
+  return localStorage.getItem('imkt4_user_token')
+      || localStorage.getItem('imkt4_admin_token')
+      || '';
+}
 function setToken() {
   const t = prompt('Token admin (Bearer):', getToken());
   if (t !== null) { localStorage.setItem('imkt4_admin_token', t.trim()); location.reload(); }
@@ -300,7 +305,7 @@ async function submitNewRun() {
   } else {
     input = raw ? { brief: raw } : {};
   }
-  const r = await fetch('/recipes/' + encodeURIComponent(selectedRecipe) + '/run', {
+  const r = await api('/recipes/' + encodeURIComponent(selectedRecipe) + '/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
