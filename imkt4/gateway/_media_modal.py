@@ -54,12 +54,32 @@ MEDIA_MODAL_HTML = r"""
   font-size: 11px; cursor: pointer;
 }
 #media-modal .bar button:hover { background: #21262d; }
+
+#media-modal .media-nav {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  background: rgba(13,17,23,0.85); color: #e6edf3;
+  border: 1px solid #30363d; border-radius: 50%;
+  width: 56px; height: 56px;
+  font-size: 36px; line-height: 1; font-weight: 300;
+  cursor: pointer; user-select: none;
+  display: none; align-items: center; justify-content: center;
+  transition: background 0.1s;
+}
+#media-modal .media-nav:hover { background: rgba(31,111,235,0.9); }
+#media-modal.open.multi .media-nav { display: flex; }
+#media-modal .media-nav.prev { left: 24px; }
+#media-modal .media-nav.next { right: 24px; }
+#media-modal .media-nav:disabled { opacity: 0.3; cursor: default; background: rgba(13,17,23,0.85) !important; }
 </style>
 
 <div id="media-modal" onclick="closeMediaModal(event)">
+  <button class="media-nav prev" id="media-prev-btn" onclick="event.stopPropagation(); mediaNav(-1);">‹</button>
+  <button class="media-nav next" id="media-next-btn" onclick="event.stopPropagation(); mediaNav(1);">›</button>
   <div class="inner" onclick="event.stopPropagation()">
     <div id="media-modal-body"></div>
     <div class="bar">
+      <span id="media-modal-counter" style="color:#7d8590;font-size:11px;"></span>
       <span id="media-modal-url" style="font-family:monospace;color:#7d8590;"></span>
       <a id="media-modal-download" download>baixar</a>
       <a id="media-modal-open-tab" target="_blank" rel="noopener">abrir em nova aba</a>
@@ -82,10 +102,34 @@ MEDIA_MODAL_HTML = r"""
     return null;
   }
 
-  window.openMediaModal = function(url) {
-    if (!url) return;
+  // Gallery state — lista de todas as mídias visíveis na página
+  let _mediaList = [];
+  let _mediaIdx = -1;
+
+  function collectMediaUrls() {
+    const seen = new Set();
+    const urls = [];
+    // <img>
+    document.querySelectorAll('img').forEach(img => {
+      if (img.closest('#media-modal')) return;
+      if (img.closest('.no-modal')) return;
+      if (img.src && !seen.has(img.src)) { seen.add(img.src); urls.push(img.src); }
+    });
+    // <a href="..."> de mídia
+    document.querySelectorAll('a').forEach(a => {
+      if (a.closest('#media-modal')) return;
+      if (a.href && mediaKind(a.href) && !seen.has(a.href)) {
+        seen.add(a.href); urls.push(a.href);
+      }
+    });
+    return urls;
+  }
+
+  function renderCurrent() {
     const modal = document.getElementById('media-modal');
     const body = document.getElementById('media-modal-body');
+    const url = _mediaList[_mediaIdx];
+    if (!url) return;
     body.innerHTML = '';
     const kind = mediaKind(url);
     let el;
@@ -100,11 +144,37 @@ MEDIA_MODAL_HTML = r"""
       el.src = url;
     }
     body.appendChild(el);
+
     document.getElementById('media-modal-url').textContent =
-      url.length > 80 ? url.slice(0,40) + '…' + url.slice(-35) : url;
+      url.length > 70 ? url.slice(0,35) + '…' + url.slice(-30) : url;
     document.getElementById('media-modal-download').href = url;
     document.getElementById('media-modal-open-tab').href = url;
-    modal.classList.add('open');
+
+    // Counter e botões nav
+    const multi = _mediaList.length > 1;
+    modal.classList.toggle('multi', multi);
+    document.getElementById('media-modal-counter').textContent =
+      multi ? `${_mediaIdx + 1} / ${_mediaList.length}` : '';
+    document.getElementById('media-prev-btn').disabled = _mediaIdx === 0;
+    document.getElementById('media-next-btn').disabled = _mediaIdx === _mediaList.length - 1;
+  }
+
+  window.openMediaModal = function(url) {
+    if (!url) return;
+    _mediaList = collectMediaUrls();
+    _mediaIdx = _mediaList.indexOf(url);
+    if (_mediaIdx === -1) {
+      _mediaList = [url]; _mediaIdx = 0;
+    }
+    document.getElementById('media-modal').classList.add('open');
+    renderCurrent();
+  };
+
+  window.mediaNav = function(delta) {
+    const next = _mediaIdx + delta;
+    if (next < 0 || next >= _mediaList.length) return;
+    _mediaIdx = next;
+    renderCurrent();
   };
 
   window.closeMediaModal = function(ev) {
@@ -116,7 +186,11 @@ MEDIA_MODAL_HTML = r"""
   };
 
   document.addEventListener('keydown', e => {
+    const modal = document.getElementById('media-modal');
+    if (!modal || !modal.classList.contains('open')) return;
     if (e.key === 'Escape') window.closeMediaModal();
+    else if (e.key === 'ArrowLeft') window.mediaNav(-1);
+    else if (e.key === 'ArrowRight') window.mediaNav(1);
   });
 
   // Delegated click: detecta img, video, audio OU anchor com url de mídia
