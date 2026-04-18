@@ -63,6 +63,26 @@ DEFAULT_PALETTE = {
     "text": "#FFFFFF",
 }
 
+# Style presets — traduzidos do video-art-direction/12_styles do timesmkt3.
+# Cada um entrega uma palette coerente. Escolha via input "style".
+STYLE_PRESETS: dict[str, dict[str, str]] = {
+    "neon_futurista":        {"primary": "#0099FF", "secondary": "#00FF88", "accent": "#FFD700", "background": "#0D0D0D", "text": "#FFFFFF"},
+    "warm_lifestyle":        {"primary": "#FF8A4C", "secondary": "#FFD166", "accent": "#EF476F", "background": "#2B1810", "text": "#FFF8E7"},
+    "corporate_clean":       {"primary": "#0052CC", "secondary": "#00B8D9", "accent": "#36B37E", "background": "#F4F5F7", "text": "#172B4D"},
+    "bold_pop":              {"primary": "#FF006E", "secondary": "#FFBE0B", "accent": "#8338EC", "background": "#000000", "text": "#FFFFFF"},
+    "minimal_zen":           {"primary": "#3D3D3D", "secondary": "#7A7A7A", "accent": "#B8860B", "background": "#FAFAF5", "text": "#1A1A1A"},
+    "dark_cinematic":        {"primary": "#E8B04B", "secondary": "#C04848", "accent": "#F2EFE9", "background": "#0A0A0A", "text": "#F2EFE9"},
+    "pastel_soft":           {"primary": "#FFB3C1", "secondary": "#C8B6FF", "accent": "#B5EAD7", "background": "#FFF5F7", "text": "#3F3D56"},
+    "retro_vintage":         {"primary": "#D96C35", "secondary": "#E9C46A", "accent": "#2A9D8F", "background": "#F4EDE4", "text": "#2B2118"},
+    "nature_organic":        {"primary": "#588157", "secondary": "#A3B18A", "accent": "#DDA15E", "background": "#283618", "text": "#FEFAE0"},
+    "urban_street":          {"primary": "#FF4D4D", "secondary": "#00FFF0", "accent": "#FFE933", "background": "#1A1A1A", "text": "#FFFFFF"},
+    "luxury_gold":           {"primary": "#D4AF37", "secondary": "#F2E394", "accent": "#C78B47", "background": "#0E0E0E", "text": "#F5F0E1"},
+    "editorial_documentary": {"primary": "#3C3B3B", "secondary": "#A8A8A8", "accent": "#C0392B", "background": "#F0EEE9", "text": "#1C1C1C"},
+}
+
+# Formatos canônicos — se user não passa `formats`, gera os 3.
+DEFAULT_FORMATS = ["1:1", "9:16", "16:9"]
+
 
 def _dims_from_ratio(r: str) -> tuple[int, int]:
     """Aceita '9:16', '1:1', '16:9' — retorna (width, height) em pixels
@@ -141,12 +161,19 @@ class CarouselDesignerWorker(BaseWorker):
             ]
 
         handle = payload.get("handle") or "@inema.tds"
-        palette = _derive_palette({**DEFAULT_PALETTE, **(payload.get("palette") or {})})
+
+        # Style preset (ex.: "neon_futurista") OU palette custom.
+        # Palette custom sobrescreve o preset parcialmente (merge).
+        style = (payload.get("style") or "neon_futurista").lower()
+        base_palette = STYLE_PRESETS.get(style, DEFAULT_PALETTE)
+        palette = _derive_palette({**base_palette, **(payload.get("palette") or {})})
         template_name = payload.get("template") or "editorial"
 
-        # Dimensões: aceita width/height único OU formats=['9:16','1:1','16:9'].
-        # Se formats presente, gera múltiplas versões por slide (fan-out visual).
-        formats = payload.get("formats") or []
+        # Formatos: se não vier `formats` nem `width/height`, gera os 3
+        # canônicos (1:1, 9:16, 16:9). Se `width/height` explícito, usa só ele.
+        formats = payload.get("formats")
+        if formats is None and not payload.get("width"):
+            formats = DEFAULT_FORMATS
         if formats:
             dims_list = [_dims_from_ratio(f) for f in formats]
         else:

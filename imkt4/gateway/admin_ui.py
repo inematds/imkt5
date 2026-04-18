@@ -10,6 +10,9 @@ Servido em GET /admin. Single-page com 4 abas:
 Tudo textual (YAML/JSON). Editor visual drag-and-drop (E#19) fica
 pra uma iteração separada — requer libs maiores (react-flow etc).
 """
+from imkt4.gateway._media_modal import MEDIA_MODAL_HTML as _MEDIA_MODAL_HTML
+
+
 
 ADMIN_HTML = r"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -460,3 +463,5 @@ loadConfig('global');
 </body>
 </html>
 """
+
+ADMIN_HTML = ADMIN_HTML.replace("</body>", _MEDIA_MODAL_HTML + "</body>")

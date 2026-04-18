@@ -10,6 +10,9 @@ Ações disponíveis:
   - ▶ Re-rodar a partir de um stage (copia anteriores da run original)
   - 📥 Baixar bundle.zip
 """
+from imkt4.gateway._media_modal import MEDIA_MODAL_HTML as _MEDIA_MODAL_HTML
+
+
 
 RUNS_UI_HTML = r"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -491,3 +494,5 @@ setInterval(() => {
 </body>
 </html>
 """
+
+RUNS_UI_HTML = RUNS_UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + "</body>")

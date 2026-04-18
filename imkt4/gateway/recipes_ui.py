@@ -11,6 +11,9 @@ Servido em GET /recipes-ui. Single-page:
 Reusa endpoints /admin/recipes (com token admin).
 Não interfere com a /ui existente.
 """
+from imkt4.gateway._media_modal import MEDIA_MODAL_HTML as _MEDIA_MODAL_HTML
+
+
 
 RECIPES_UI_HTML = r"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -410,3 +413,5 @@ loadRecipes();
 </body>
 </html>
 """
+
+RECIPES_UI_HTML = RECIPES_UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + "</body>")

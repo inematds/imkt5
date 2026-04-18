@@ -8,6 +8,9 @@ Layout 3 colunas (mesmo idioma do /runs-ui):
 Ações:
   - 🔁 Reprocessar (re-dispatch do mesmo payload)
 """
+from imkt4.gateway._media_modal import MEDIA_MODAL_HTML as _MEDIA_MODAL_HTML
+
+
 
 WORKERS_UI_HTML = r"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -451,3 +454,5 @@ setInterval(() => {
 </body>
 </html>
 """
+
+WORKERS_UI_HTML = WORKERS_UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + "</body>")

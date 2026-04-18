@@ -5,6 +5,9 @@ mas é outro "canal" (channel=web). Os artefatos gerados por jobs
 disparados no chat são renderizados inline (polling /jobs filtrado
 por origin_channel_external_id = session_id do chat).
 """
+from imkt4.gateway._media_modal import MEDIA_MODAL_HTML as _MEDIA_MODAL_HTML
+
+
 
 CHAT_UI_HTML = r"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -402,3 +405,5 @@ pollJobs();
 </body>
 </html>
 """
+
+CHAT_UI_HTML = CHAT_UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + "</body>")

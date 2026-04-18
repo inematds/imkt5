@@ -1,7 +1,13 @@
 name: carrossel-rico
-version: 1
+version: 2
 # Carrossel editorial estilo timesmkt3 (c0051, c0069...).
 # Usa o worker carousel-designer (Playwright + template HTML).
+#
+# Defaults (se nada passado):
+#   style:    "neon_futurista" (blue/green/gold cyberpunk)
+#   formats:  ["1:1", "9:16", "16:9"]  — gera os 3 formatos canônicos
+#   template: "editorial"
+#   handle:   "@inema.tds"
 #
 # Input obrigatório:
 #   slides: list — estrutura rica por slide
@@ -9,10 +15,14 @@ version: 1
 # Input opcional:
 #   bg_prompts: list — prompts SD pra gerar backgrounds (1 por slide).
 #                     Se vazio, slides usam só cor sólida do palette.
-#   handle: "@inema.tds"
+#   style: um dos 12 presets (neon_futurista, warm_lifestyle,
+#          corporate_clean, bold_pop, minimal_zen, dark_cinematic,
+#          pastel_soft, retro_vintage, nature_organic, urban_street,
+#          luxury_gold, editorial_documentary).
 #   palette: { primary, secondary, accent, background, text }
-#   formats: ["1:1", "9:16", "16:9"]  — um PNG por aspect
-#   template: "editorial" (default)
+#            — override parcial sobre o style preset.
+#   formats: ["1:1", "9:16", "16:9"] — subset pra gerar menos.
+#   template: "editorial" (default, único disponível hoje)
 #   image_model: "flux2-klein"
 #
 # Exemplo de `slides`:
@@ -47,6 +57,9 @@ stages:
       slides: $.input.slides
       images: $.stages.backgrounds.output.outputs[*].image_url
       handle: $.input.handle
+      # Se o user não passa style/palette/formats/template, o worker
+      # aplica defaults: style=neon_futurista, formats=[1:1, 9:16, 16:9].
+      style: $.input.style
       palette: $.input.palette
       formats: $.input.formats
       template: $.input.template

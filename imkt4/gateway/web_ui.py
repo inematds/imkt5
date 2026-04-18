@@ -4,6 +4,9 @@ HTML + CSS + JS inline — zero dependências externas, serve direto do
 FastAPI. Para interação rápida: chat-like, mostra workers disponíveis,
 input de prompt/payload, lista de jobs recentes com auto-refresh.
 """
+from imkt4.gateway._media_modal import MEDIA_MODAL_HTML as _MEDIA_MODAL_HTML
+
+
 
 UI_HTML = r"""<!DOCTYPE html>
 <html lang="pt-br">
@@ -519,3 +522,5 @@ setInterval(loadSidebar, 10000);  // agora não reseta nada (bootstrapped=true)
 </body>
 </html>
 """
+
+UI_HTML = UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + "</body>")
