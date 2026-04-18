@@ -166,17 +166,31 @@ async function api(url, opts = {}) {
 }
 
 // ── session ───────────────────────────────────────────────────
+// crypto.randomUUID() só existe em secure contexts (HTTPS ou localhost).
+// Fallback manual pra HTTP acessado por IP/hostname.
+function shortId() {
+  if (window.crypto && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().slice(0, 8);
+  }
+  if (window.crypto && typeof crypto.getRandomValues === 'function') {
+    const arr = new Uint8Array(4);
+    crypto.getRandomValues(arr);
+    return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+  }
+  // fallback inseguro, mas ok pra session id non-crypto
+  return Math.random().toString(36).slice(2, 10);
+}
 function getSession() {
   let s = localStorage.getItem('imkt4_chat_session');
   if (!s) {
-    s = 'chat-' + crypto.randomUUID().slice(0, 8);
+    s = 'chat-' + shortId();
     localStorage.setItem('imkt4_chat_session', s);
   }
   return s;
 }
 function newSession() {
   if (!confirm('Nova sessão? Histórico da conversa atual continua visível mas o agente perde contexto.')) return;
-  const s = 'chat-' + crypto.randomUUID().slice(0, 8);
+  const s = 'chat-' + shortId();
   localStorage.setItem('imkt4_chat_session', s);
   localStorage.removeItem('imkt4_chat_history');
   location.reload();
