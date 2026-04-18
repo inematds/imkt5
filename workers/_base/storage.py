@@ -32,6 +32,10 @@ class Storage(Protocol):
         self, *, tenant_id: str, job_id: str, filename: str, b64: str,
     ) -> str: ...
 
+    def get_cached(self, *, namespace: str, key: str) -> str | None: ...
+
+    def save_cached(self, *, namespace: str, key: str, data: bytes) -> str: ...
+
 
 class LocalStorage:
     """Salva em disco local sob ./data/artifacts/."""
@@ -71,6 +75,19 @@ class LocalStorage:
             tenant_id=tenant_id, job_id=job_id, filename=filename,
             data=base64.b64decode(b64),
         )
+
+    def get_cached(self, *, namespace: str, key: str) -> str | None:
+        path = self._root / "__cache__" / namespace / key
+        if path.exists():
+            return f"file://{path}"
+        return None
+
+    def save_cached(self, *, namespace: str, key: str, data: bytes) -> str:
+        folder = self._root / "__cache__" / namespace
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / key
+        path.write_bytes(data)
+        return f"file://{path}"
 
 
 class S3Storage:
@@ -146,6 +163,27 @@ class S3Storage:
             tenant_id=tenant_id, job_id=job_id, filename=filename,
             data=base64.b64decode(b64),
         )
+
+    def get_cached(self, *, namespace: str, key: str) -> str | None:
+        s3_key = f"__cache__/{namespace}/{key}"
+        try:
+            self._client.head_object(Bucket=self._bucket, Key=s3_key)
+        except Exception:
+            return None
+        if self._public_base:
+            return f"{self._public_base.rstrip('/')}/{self._bucket}/{s3_key}"
+        return f"/s3/{self._bucket}/{s3_key}"
+
+    def save_cached(self, *, namespace: str, key: str, data: bytes) -> str:
+        s3_key = f"__cache__/{namespace}/{key}"
+        import mimetypes
+        ctype = mimetypes.guess_type(key)[0] or "application/octet-stream"
+        self._client.put_object(
+            Bucket=self._bucket, Key=s3_key, Body=data, ContentType=ctype,
+        )
+        if self._public_base:
+            return f"{self._public_base.rstrip('/')}/{self._bucket}/{s3_key}"
+        return f"/s3/{self._bucket}/{s3_key}"
 
 
 def get_storage() -> Storage:

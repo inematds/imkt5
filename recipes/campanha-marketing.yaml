@@ -1,5 +1,5 @@
 name: campanha-marketing
-version: 8
+version: 9
 # Pipeline completo: brief → copy → ad-designer → imagens (fanout) →
 #                    voiceover → video (scene plan) → video_render (MP4).
 #
@@ -32,6 +32,9 @@ stages:
       query: $.input.brief
     approval: {mode: none}
 
+  # Item 7 — brief_strategic tem gate opcional (bifurcação: direção ruim
+  # é caríssima pra descobrir no fim). Default: none. Ativar via
+  # `approval_mode: "human"` (ou "auto") no input da run.
   - id: brief
     requires: brief.strategic
     needs: [research]
@@ -96,6 +99,8 @@ stages:
     approval: {mode: none}
 
   # Video scene plan. Recebe a direção de arte pra alinhar motion/hook.
+  # Item 7 — stage de maior leverage pra aprovação: cena ruim vale caro pra
+  # render. Default none; promove via approval_mode global.
   - id: video
     requires: video.cinematic
     needs: [ad_design, images, video_art_direction]
@@ -113,14 +118,20 @@ stages:
       art_direction_hook_pattern: $.stages.video_art_direction.output.hook_pattern
     approval: {mode: none}
 
+  # TTS por cena (mkt3-style): fanout sobre scenes → 1 mp3 por cena.
+  # ffmpeg-local mede duração de cada e sincroniza scene.duration com audio.
+  # Dedup (sha256) no inemavox-adapter evita regerar narrações idênticas
+  # entre runs similares (economia 40-60%).
   - id: voiceover
     requires: audio.tts
     needs: [video]
     when: $.input.skip_video != true && $.input.video_audio != "none"
+    fanout_over: $.stages.video.output.scene_plan.scenes
     payload_from:
-      text: $.stages.video.output.scene_plan.full_narration
+      text: $.fanout_item.narration
       lang: $.input.language
       engine: $.input.tts_provider
+      speed: $.input.narration_speed
     approval: {mode: none}
 
   - id: video_render
@@ -129,7 +140,7 @@ stages:
     when: $.input.skip_video != true
     payload_from:
       scene_plan: $.stages.video.output.scene_plan
-      narration_url: $.stages.voiceover.output.audio_url
+      narration_urls: $.stages.voiceover.output.outputs[*].audio_url
       use_brand_overlay: $.input.use_brand_overlay
       tenant_id: $.tenant.tenant_id
       # Repassa direção de arte pro renderer (música, SFX, hook, transição)
@@ -143,4 +154,13 @@ stages:
       video_mode: $.input.video_mode
       use_crossfade: $.input.use_crossfade
       use_color_grading: $.input.use_color_grading
+      # v4: narration_speed (atempo), hold_final, loop_visual, kinetic_presets,
+      # freeze_frames, use_parallax, depth_ai — todos opt-in via input
+      narration_speed: $.input.narration_speed
+      hold_final: $.input.hold_final
+      loop_visual: $.input.loop_visual
+      kinetic_presets: $.input.kinetic_presets
+      freeze_frames: $.input.freeze_frames
+      use_parallax: $.input.use_parallax
+      depth_ai: $.input.depth_ai
     approval: {mode: none}

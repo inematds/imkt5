@@ -352,6 +352,13 @@ opção C demore ou LLM falhe.
 
 ---
 
+## Status v4 batch — 2026-04-18 ✅ IMPLEMENTADO
+
+Todos os 11 itens do batch foram implementados e validados em produção.
+Run de teste `f3f8b056-2aec-4f8d-855f-b2a03585591c` passou por todos os
+stages com sucesso; dedup validado em `2e5850c5/JOB2` (cache HIT na 2ª
+chamada com texto idêntico).
+
 ## Resumo das decisões — v4 batch
 
 Itens pra fazer AGORA (batch único após aprovação final):

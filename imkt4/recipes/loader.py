@@ -85,13 +85,29 @@ class Recipe:
 def _parse_approval(d: dict[str, Any] | None) -> Approval:
     if not d:
         return Approval()
-    mode = ApprovalMode(d.get("mode", "none"))
+    # Item 7 — aliases amigáveis nas recipes:
+    #   human → user (pergunta no canal de origem)
+    #   auto → auto_reviewer (LLM genérico)
+    #   agent → auto_reviewer com reviewer_worker específico (mais contexto)
+    raw_mode = d.get("mode", "none")
+    alias_map = {
+        "human": "user",
+        "auto": "auto_reviewer",
+        "agent": "auto_reviewer",
+    }
+    mode_str = alias_map.get(raw_mode, raw_mode)
+    mode = ApprovalMode(mode_str)
     esc = d.get("escalation", "on_uncertain")
+    # Se era 'agent', força reviewer_worker específico do stage (ou default)
+    reviewer_worker = d.get("reviewer_worker")
+    if raw_mode == "agent" and not reviewer_worker:
+        reviewer_worker = d.get("agent_worker", "auto-reviewer")
+    reviewer_worker = reviewer_worker or "auto-reviewer"
     return Approval(
         mode=mode,
         timeout_seconds=int(d.get("timeout", 1800)),
         reviewer_role=d.get("reviewer_role"),
-        reviewer_worker=d.get("reviewer_worker", "auto-reviewer"),
+        reviewer_worker=reviewer_worker,
         criteria=tuple(d.get("criteria", [])),
         escalation=EscalationPolicy(esc),
     )

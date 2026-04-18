@@ -54,10 +54,29 @@ Você recebe via prompt:
 - 4-6 cenas, 2-4 segundos cada, total 10-20s.
 - Formato: `9:16` (1080x1920).
 - Cada cena usa imagem DIFERENTE de `ads`.
-- `narration` de cada cena = frase curta falada.
+- `narration` de cena = frase curta falada (DEVE estar presente).
 - `text_overlay` = versão resumida da narração (palavra-chave).
 - Se `voiceover_url` existir, use como `narration_file`. Senão, `null` —
   o renderer decide o que fazer.
+
+---
+
+## Campos OPCIONAIS pro renderer (usados pelos kinetic presets + freeze)
+
+Para ativar itens avançados do renderer (kinetic presets e freeze frame
+em revelações), marque nos scenes quando aplicável:
+
+- `emphasis: true` — cena é uma revelação importante (hook, solution com
+  dado, CTA final). O renderer aplica kinetic preset mais forte nessa
+  cena (se `kinetic_presets: true` no input).
+- `emphasis_word: "PALAVRA"` — palavra específica que merece destaque
+  visual. Se o whisper alinhar essa palavra no áudio, o freeze frame
+  acontece EXATAMENTE quando ela é dita.
+- `stat_a` / `stat_b` — quando a cena tem um dado numérico (ex: `"87%"`,
+  `"R$1.2mi"`). Isso dispara freeze automático em styles `data_viz` /
+  `editorial_documentary` / `corporate_clean`.
+
+Se a cena NÃO é emphasis, deixe esses campos de fora.
 
 ---
 

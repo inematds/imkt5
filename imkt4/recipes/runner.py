@@ -36,6 +36,41 @@ from imkt4.types.approvals import (
 from imkt4.types.jobs import Job, JobPriority
 
 
+def _apply_global_approval_override(
+    approval: Approval, run_input: dict[str, Any]
+) -> Approval:
+    """Item 7 — se run_input tem `approval_mode`, sobrescreve o mode
+    declarado na receita. Permite promover todos stages pra human
+    (casos premium) sem editar a receita.
+
+    Aceita aliases: `human`, `auto`, `agent`. `none` desliga todo gate.
+    """
+    override = run_input.get("approval_mode")
+    if not override:
+        return approval
+    alias_map = {
+        "human": ApprovalMode.USER,
+        "auto": ApprovalMode.AUTO_REVIEWER,
+        "agent": ApprovalMode.AUTO_REVIEWER,
+        "none": ApprovalMode.NONE,
+        "user": ApprovalMode.USER,
+        "auto_reviewer": ApprovalMode.AUTO_REVIEWER,
+        "human_reviewer": ApprovalMode.HUMAN_REVIEWER,
+    }
+    new_mode = alias_map.get(str(override).lower())
+    if new_mode is None:
+        return approval
+    # Recria Approval (frozen) com novo mode
+    return Approval(
+        mode=new_mode,
+        timeout_seconds=approval.timeout_seconds,
+        reviewer_role=approval.reviewer_role,
+        reviewer_worker=approval.reviewer_worker,
+        criteria=approval.criteria,
+        escalation=approval.escalation,
+    )
+
+
 class StageStatus(str, Enum):
     PENDING = "pending"
     SKIPPED = "skipped"
@@ -230,13 +265,14 @@ class RecipeRunner:
             return
 
         stage = run.recipe.stage(stage_id)
-        if stage.approval.mode != ApprovalMode.NONE:
+        approval = _apply_global_approval_override(stage.approval, run.input)
+        if approval.mode != ApprovalMode.NONE:
             stage_state.status = StageStatus.AWAITING_APPROVAL
             await self._persist(run)
             await self._approvals.request(
                 run=run,
                 stage=stage,
-                approval=stage.approval,
+                approval=approval,
                 artifacts={
                     "stage_output": stage_state.output,
                     "outputs": stage_state.outputs,

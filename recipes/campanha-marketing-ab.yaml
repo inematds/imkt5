@@ -1,0 +1,142 @@
+name: campanha-marketing-ab
+version: 1
+# Item 6 — A/B variants recipe-level.
+#
+# Gera N vídeos diferentes variando hook e CTA. Ideal pra testar qual
+# combinação performa melhor em Reels/TikTok/Shorts.
+#
+# Input extra (além dos campos de campanha-marketing):
+#   hook_variants    list   ex.: ["stat_shot", "question_abrupt", "pov"]
+#   cta_variants     list   ex.: ["Comece grátis", "Acesse INEMA.CLUB"]
+#
+# Pipeline:
+#   brief → copy → ad_design → images → video_art_direction
+#   → video_ab (fanout sobre hook×cta) — 1 scene_plan por variante
+#   → voiceover_ab (fanout_over variantes + fanout nas cenas de cada)
+#   → video_render_ab (fanout sobre variantes)
+#
+# Dedup de TTS (item 3) economiza 40-60% quando cenas do meio (solution/proof)
+# não mudam entre variantes — só hook[0] e CTA[N-1] são variables.
+
+stages:
+
+  - id: research
+    requires: research.market
+    when: $.input.with_research == true
+    payload_from:
+      query: $.input.brief
+    approval: {mode: none}
+
+  - id: brief
+    requires: brief.strategic
+    needs: [research]
+    payload_from:
+      brief: $.input.brief
+      research: $.stages.research.output
+      language: $.input.language
+      platform_targets: $.input.platform_targets
+    approval: {mode: none}
+
+  - id: copy
+    requires: copy.platform
+    needs: [brief]
+    payload_from:
+      creative_brief: $.stages.brief.output.creative_brief
+      research: $.stages.research.output
+      language: $.input.language
+      platform_targets: $.input.platform_targets
+    approval: {mode: none}
+
+  - id: ad_design
+    requires: design.ad_layout
+    needs: [copy]
+    payload_from:
+      creative_brief: $.stages.brief.output.creative_brief
+      copy: $.stages.copy.output.copy
+      image_count: $.input.image_count
+      image_formats: $.input.image_formats
+      platform_targets: $.input.platform_targets
+      language: $.input.language
+    approval: {mode: none}
+
+  - id: images
+    requires: image.generation
+    needs: [ad_design]
+    when: $.input.skip_image != true
+    fanout_over: $.stages.ad_design.output.ad_design.variants
+    payload_from:
+      prompt: $.fanout_item.background_prompt
+      negative_prompt: $.fanout_item.negative_prompt
+      model: $.input.image_model
+    approval: {mode: none}
+
+  - id: video_art_direction
+    requires: video.art_direction
+    when: $.input.video_style == null
+    needs: [copy]
+    payload_from:
+      brief: $.input.brief
+      copy: $.stages.copy.output.copy
+      brand_profile: $.tenant.profile
+    approval: {mode: none}
+
+  # A/B — fanout sobre hook_variants (cada hook vira 1 scene_plan próprio)
+  # Nota: CTA varia via override no render; hook varia via prompt do planner.
+  # Em v5 pode refatorar pra fanout_over hook×cta direto.
+  - id: video_ab
+    requires: video.cinematic
+    needs: [ad_design, images, video_art_direction]
+    when: $.input.skip_video != true
+    fanout_over: $.input.hook_variants
+    payload_from:
+      creative_brief: $.stages.brief.output.creative_brief
+      copy: $.stages.copy.output.copy
+      ads: $.stages.images.output.outputs[*].image_url
+      language: $.input.language
+      art_direction_style: $.stages.video_art_direction.output.style
+      art_direction_motion: $.stages.video_art_direction.output.motion_preset
+      art_direction_transition: $.stages.video_art_direction.output.transition
+      # Hook pattern atual da iteração (vem do fanout)
+      art_direction_hook_pattern: $.fanout_item
+    approval: {mode: none}
+
+  # Narração por cena pra CADA variante de hook.
+  # outputs[*].scene_plan.scenes[*].narration => lista achatada
+  # Nota: simplificação v4 — geramos 1 voiceover dedicado por variante
+  # (todas as cenas de todas variantes concatenadas). O renderer corta.
+  - id: voiceover_ab
+    requires: audio.tts
+    needs: [video_ab]
+    when: $.input.skip_video != true && $.input.video_audio != "none"
+    fanout_over: $.stages.video_ab.output.outputs[*].scene_plan.full_narration
+    payload_from:
+      text: $.fanout_item
+      lang: $.input.language
+      engine: $.input.tts_provider
+      speed: $.input.narration_speed
+    approval: {mode: none}
+
+  # Render das N variantes
+  - id: video_render_ab
+    requires: video.render
+    needs: [video_ab, voiceover_ab, video_art_direction]
+    when: $.input.skip_video != true
+    fanout_over: $.stages.video_ab.output.outputs
+    payload_from:
+      scene_plan: $.fanout_item.scene_plan
+      tenant_id: $.tenant.tenant_id
+      style: $.stages.video_art_direction.output.style
+      music_genre: $.stages.video_art_direction.output.music_genre
+      hook_pattern: $.stages.video_art_direction.output.hook_pattern
+      transition: $.stages.video_art_direction.output.transition
+      use_sfx: $.input.use_sfx
+      use_karaoke: $.input.use_karaoke
+      video_mode: $.input.video_mode
+      narration_speed: $.input.narration_speed
+      hold_final: $.input.hold_final
+      loop_visual: $.input.loop_visual
+      kinetic_presets: $.input.kinetic_presets
+      freeze_frames: $.input.freeze_frames
+      use_parallax: $.input.use_parallax
+      depth_ai: $.input.depth_ai
+    approval: {mode: none}

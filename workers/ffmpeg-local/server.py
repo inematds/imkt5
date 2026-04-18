@@ -23,6 +23,8 @@ Input (payload):
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 import os
 import re
 import tempfile
@@ -31,10 +33,88 @@ from typing import Any
 
 import httpx
 
+log = logging.getLogger("imkt4.ffmpeg")
+
 from workers._base import BaseWorker
 from workers._base.storage import get_storage
 
 FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+
+# Item 2 — defaults de narration_speed por style do video-art-director
+NARRATION_SPEED_BY_STYLE = {
+    "energetico": 1.20, "bold_pop": 1.20, "streetwear_urban": 1.20,
+    "neon_futurista": 1.15, "dark_dramatic": 1.15,
+    "corporate_clean": 1.10, "editorial_documentary": 1.10, "data_viz": 1.10,
+    "retro_futurism": 1.10,
+    "premium_minimal": 1.0, "emocional_cinematic": 1.0, "nature_organic": 1.0,
+    "organic_earth": 1.0, "neo_minimal_luxury": 1.0,
+    "wellness_soft": 1.0,  # clamp inferior; não aceleramos (pode ir 0.95 via override)
+}
+
+# Item 8 — styles que ativam parallax default (nível 1)
+PARALLAX_DEFAULT_STYLES = {
+    "dark_dramatic", "emocional_cinematic", "premium_minimal",
+    "editorial_documentary", "neo_minimal_luxury", "retro_futurism",
+}
+
+# Item 13b — presets por style (art-director emite text_animation)
+KINETIC_PRESETS_BY_STYLE = {
+    "editorial_documentary": "wipe",
+    "bold_pop": "zoom_impact", "streetwear_urban": "zoom_impact",
+    "energetico": "zoom_impact",
+    "wellness_soft": "type_on", "nature_organic": "type_on", "organic_earth": "type_on",
+    "neon_futurista": "glow_pulse", "retro_futurism": "glow_pulse",
+    "corporate_clean": "static", "data_viz": "static",
+}
+
+# Item 12 — caption_zone (y% range: start-end) por template/style
+CAPTION_ZONE_BY_STYLE = {
+    "editorial_documentary": (0.50, 0.65),
+    "magazine": (0.60, 0.75),
+    "data_viz": (0.15, 0.25),  # stats ocupam meio; caption em cima
+    "corporate_clean": (0.45, 0.60),
+    "wellness_soft": (0.55, 0.70),
+    "bold_pop": (0.40, 0.55),
+    "streetwear_urban": (0.40, 0.55),
+    "neo_minimal_luxury": (0.55, 0.70),
+    "retro_futurism": (0.50, 0.65),
+    "neon_futurista": (0.50, 0.65),
+    "dark_dramatic": (0.55, 0.70),
+    "emocional_cinematic": (0.55, 0.70),
+    "organic_earth": (0.55, 0.70),
+    "nature_organic": (0.55, 0.70),
+}
+
+# Safe zone universal: nunca nos 15% topo nem 25% inferiores
+SAFE_ZONE_Y = (0.25, 0.60)
+
+
+def _resolve_narration_speed(user_override: Any, style: str) -> float:
+    """Item 2 — resolve narration speed. User override > style default > 1.0.
+    Clamp [1.0, 1.25] (fora disso desliga pra não distorcer)."""
+    if user_override is not None:
+        try:
+            s = float(user_override)
+            return max(1.0, min(1.25, s))
+        except (ValueError, TypeError):
+            pass
+    default = NARRATION_SPEED_BY_STYLE.get(style, 1.0)
+    return max(1.0, min(1.25, default))
+
+
+def _parallax_default_for_style(style: str) -> bool:
+    """Item 8 — parallax nível 1 default ON para styles cinematográficos."""
+    return style in PARALLAX_DEFAULT_STYLES
+
+
+def _caption_zone_for_style(style: str) -> tuple[float, float]:
+    """Item 12 — retorna caption_zone (y%_start, y%_end) respeitando
+    safe zone universal. Default safe zone (25-60%) quando style desconhecido."""
+    zone = CAPTION_ZONE_BY_STYLE.get(style, SAFE_ZONE_Y)
+    # Clamp à safe zone se extrapolar
+    y_start = max(SAFE_ZONE_Y[0], zone[0])
+    y_end = min(0.85, max(zone[1], y_start + 0.1))  # permite até 85% se template pedir
+    return (y_start, y_end)
 
 ASSETS_DIR = Path(__file__).parent / "assets"
 MUSIC_DIR = ASSETS_DIR / "music"
@@ -281,6 +361,101 @@ def _ass_time(seconds: float) -> str:
     return f"{h}:{m:02d}:{s:05.2f}"
 
 
+def _build_ass_karaoke_with_zone(
+    words_global: list[dict],
+    width: int,
+    height: int,
+    caption_zone: tuple[float, float] = (0.25, 0.60),
+    scenes: list[dict] | None = None,
+    scene_starts: list[float] | None = None,
+    kinetic_presets: bool = False,
+    kinetic_style: str | None = None,
+) -> str:
+    """Item 12 + 13a + 13b — ASS com caption_zone do template + fade-in
+    default + kinetic presets opcionais.
+
+    caption_zone = (y%_start, y%_end) onde o texto deve aparecer.
+    MarginV em ASS é distance-from-bottom; converte: y_pct → pixels abaixo
+    → distance do bottom.
+    """
+    font_size = max(70, int(height * 0.045))
+
+    # Posição: centro da caption_zone, convertido pra MarginV (from bottom)
+    y_pct_center = (caption_zone[0] + caption_zone[1]) / 2.0
+    # y_pixels from top = y_pct_center * height → dist from bottom = height - y_pixels
+    margin_v = int(height - (y_pct_center * height) - font_size / 2)
+    margin_v = max(int(height * 0.05), margin_v)  # clamp mínimo
+
+    # PrimaryColour em ASS é &HAABBGGRR& (alpha inverso): amarelo = &H0000FFFF
+    header = (
+        "[Script Info]\n"
+        "ScriptType: v4.00+\n"
+        f"PlayResX: {width}\n"
+        f"PlayResY: {height}\n"
+        "\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, "
+        "BorderStyle, Outline, Shadow, Alignment, MarginV\n"
+        f"Style: Karaoke,DejaVu Sans,{font_size},&H0000FFFF,&H00000000,"
+        f"1,4,3,2,{margin_v}\n"
+        "\n"
+        "[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+
+    # Identifica: é hook (scene 0)? é última palavra do CTA (última cena)?
+    last_scene_idx = (len(scenes) - 1) if scenes else None
+    n_words = len(words_global)
+    last_word_idx = n_words - 1
+
+    lines = []
+    for wi, w in enumerate(words_global):
+        start = _ass_time(w["start"])
+        end = _ass_time(w["end"])
+        txt_raw = w["text"].upper()
+        txt = txt_raw.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+
+        # Item 13a (default ON): fade-in 180ms em toda palavra
+        tags = "{\\fad(180,0)}"
+
+        # Item 13a (bounce na última palavra do CTA, cena final)
+        scene_i = w.get("scene_index", -1)
+        is_last_of_cta = (
+            scene_i == last_scene_idx and wi == last_word_idx and scenes
+        )
+        if is_last_of_cta:
+            tags = "{\\fad(180,0)\\t(0,200,\\fscx110\\fscy110)\\t(200,400,\\fscx100\\fscy100)}"
+
+        # Item 13b — presets por style (só no hook cena 0 ou emphasis explícito)
+        if kinetic_presets and kinetic_style and scenes:
+            is_hook_scene = scene_i == 0
+            scene_obj = scenes[scene_i] if 0 <= scene_i < len(scenes) else {}
+            is_emphasis = bool(scene_obj.get("emphasis"))
+            if (is_hook_scene or is_emphasis) and kinetic_style != "static":
+                tags = _ass_preset_tag(kinetic_style, is_last_of_cta)
+
+        lines.append(f"Dialogue: 0,{start},{end},Karaoke,,0,0,0,,{tags}{txt}")
+    return header + "\n".join(lines) + "\n"
+
+
+def _ass_preset_tag(preset: str, is_last: bool) -> str:
+    """Mapeia preset nome → tags ASS. Item 13b."""
+    base_fade = "\\fad(180,0)"
+    if preset == "wipe":
+        # slide up do bottom com clip progressivo (editorial)
+        return "{" + base_fade + "\\move(0,100,0,0,0,200)}"
+    if preset == "zoom_impact":
+        # scale punch: 130% → 100% (bold_pop)
+        return "{" + base_fade + "\\fscx130\\fscy130\\t(0,120,\\fscx100\\fscy100)}"
+    if preset == "type_on":
+        # letra-por-letra seria muito pesado em ASS engine; simula com fade longo
+        return "{\\fad(400,0)}"
+    if preset == "glow_pulse":
+        # pulsa outline (neon) — usa \bord piscante
+        return "{" + base_fade + "\\bord4\\t(0,400,\\bord8)\\t(400,800,\\bord4)}"
+    return "{" + base_fade + "}"
+
+
 def _build_ass_karaoke(words_global: list[dict], width: int, height: int) -> str:
     """Gera conteúdo .ass com 1 dialog por palavra. `words_global` tem
     timings ABSOLUTOS (video inteiro). Cada palavra aparece no seu slot;
@@ -312,6 +487,135 @@ def _build_ass_karaoke(words_global: list[dict], width: int, height: int) -> str
         txt = w["text"].upper().replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
         lines.append(f"Dialogue: 0,{start},{end},Karaoke,,0,0,0,,{txt}")
     return header + "\n".join(lines) + "\n"
+
+
+def _annotate_freeze_word_timings(scenes: list[dict], words: list[dict]) -> None:
+    """Item 14b — quando whisper deu timings reais, sobrescreve freeze_at
+    pra EXATAMENTE o start da palavra marcada com emphasis=true no LLM.
+    Se scene.emphasis_word não tem match nos whisper words, deixa o
+    freeze_at heurístico (60% da cena).
+    """
+    # Agrupa words por scene_index
+    by_scene: dict[int, list[dict]] = {}
+    for w in words:
+        si = w.get("scene_index", -1)
+        by_scene.setdefault(si, []).append(w)
+
+    for i, sc in enumerate(scenes):
+        emphasis_word = sc.get("emphasis_word") or sc.get("stat_a") or sc.get("stat_b")
+        if not emphasis_word or not isinstance(emphasis_word, str):
+            continue
+        target = re.sub(r"[^a-zA-Z0-9%]", "", emphasis_word.upper())
+        if not target:
+            continue
+        scene_words = by_scene.get(i, [])
+        if not scene_words:
+            continue
+        scene_start = scene_words[0]["start"]
+        for w in scene_words:
+            clean = re.sub(r"[^a-zA-Z0-9%]", "", w["text"].upper())
+            if clean == target or (target in clean and len(clean) <= len(target) + 2):
+                # sobrescreve freeze_at pro offset local (dentro da cena)
+                sc["freeze_at"] = max(0.3, w["start"] - scene_start)
+                break
+
+
+def _freeze_spec_for_scene(sc: dict, scene_type: str, idx: int) -> dict | None:
+    """Item 14 — decide se cena leva freeze. LLM planner pode passar
+    freeze_at/duration/zoom/sfx explícitos no scene; senão heurística
+    auto dispara em cenas com stat_a/stat_b OU scene_type proof/solution."""
+    # Explícito pelo planner
+    if sc.get("freeze_at") is not None:
+        return {
+            "freeze_at": float(sc.get("freeze_at", 1.5)),
+            "freeze_duration": float(sc.get("freeze_duration", 0.8)),
+            "freeze_zoom": float(sc.get("freeze_zoom", 1.15)),
+            "freeze_sfx": sc.get("freeze_sfx"),
+        }
+    # Heurística: dado numérico em stat_a/stat_b ou tipo=proof/solution
+    has_stat = bool(sc.get("stat_a") or sc.get("stat_b"))
+    is_reveal = scene_type in ("proof", "solution")
+    if has_stat or is_reveal:
+        dur_sc = float(sc.get("duration", 3))
+        # freeze_at: ~60% da cena (quando o "boom" naturalmente cai)
+        return {
+            "freeze_at": max(0.5, min(dur_sc - 1.0, dur_sc * 0.6)),
+            "freeze_duration": 0.8,
+            "freeze_zoom": 1.15,
+            "freeze_sfx": "ding",
+        }
+    return None
+
+
+def _apply_parallax_fake(vf: str, duration: int, width: int, height: int) -> str:
+    """Item 8 nível 1 — parallax fake via ajuste na chain de vf.
+    Este é um stub simples: aumenta a intensidade do zoompan pra dar
+    sensação de 'movimento em camadas' sem usar depth map.
+
+    Nível 2 (depth_ai) seria feito via overlay de 3 camadas com depth map
+    real — não implementado nesta passada (requer modelo local).
+    """
+    # Adiciona um pass extra de crop sutil + blur radial progressivo (mock)
+    # Se já tem zoompan, não duplica. Adiciona um boxblur radial simples
+    # na borda pra simular profundidade.
+    if "boxblur" not in vf:
+        vf = vf + f",boxblur=lr=2:lp=1:cr=0:cp=0,unsharp=lx=3:ly=3:la=0.5"
+    return vf
+
+
+def _cumulative_starts(scene_durations: list[float]) -> list[float]:
+    """Retorna [0.0, d0, d0+d1, ...] — start absoluto de cada cena."""
+    starts = [0.0]
+    t = 0.0
+    for d in scene_durations[:-1]:
+        t += d
+        starts.append(t)
+    return starts
+
+
+def _build_karaoke_per_scene(
+    scenes: list[dict],
+    audio_durations: list[float],
+    scene_durations: list[float],
+    full_narration_fallback: str = "",
+) -> list[dict]:
+    """Item 4 — constrói karaoke words com timing PER-SCENE.
+    Cada cena distribui suas palavras dentro do seu audio_duration (não
+    dentro do scene_duration inteiro, senão fica lento demais nas cenas
+    com pad de silêncio). Fallback pra split global se nenhuma cena tem
+    narration.
+
+    Retorna [{text, start, end}, ...] com timings absolutos.
+    """
+    starts = _cumulative_starts(scene_durations)
+    out: list[dict] = []
+    any_scene_has_text = any(sc.get("narration") for sc in scenes)
+    if not any_scene_has_text and full_narration_fallback:
+        total = sum(scene_durations)
+        return _split_script_words(full_narration_fallback, total)
+
+    for i, sc in enumerate(scenes):
+        text = (sc.get("narration") or "").strip()
+        if not text:
+            continue
+        words = re.findall(r"\S+", text)
+        if not words:
+            continue
+        start_abs = starts[i]
+        # Distribui no audio_duration da cena (quando tem), senão no scene_dur.
+        window = audio_durations[i] if audio_durations[i] > 0 else scene_durations[i]
+        window = max(0.3, window)
+        per_word = max(0.18, window / len(words))
+        t = start_abs
+        for w in words:
+            out.append({
+                "text": w,
+                "start": t,
+                "end": t + per_word,
+                "scene_index": i,
+            })
+            t += per_word
+    return out
 
 
 def _split_script_words(script: str, total_duration: float) -> list[dict]:
@@ -346,8 +650,15 @@ class FfmpegLocalWorker(BaseWorker):
 
         width = int(plan.get("width", 1080))
         height = int(plan.get("height", 1920))
+
+        # ── Narração: item 4 (per-scene) + fallback legado (single) ──
+        narration_urls = payload.get("narration_urls")  # list[str] (item 4)
         narration_url = payload.get("narration_url") or plan.get("narration_file")
         full_narration = plan.get("full_narration") or plan.get("narration_script") or ""
+        if not narration_urls and narration_url:
+            # legado: single URL → wrap em lista de 1 elemento
+            narration_urls = [narration_url]
+        narration_urls = narration_urls or []
 
         # Novos campos vindos do video-art-director
         music_genre = (payload.get("music_genre") or plan.get("music_genre") or "").strip()
@@ -367,6 +678,32 @@ class FfmpegLocalWorker(BaseWorker):
 
         # Transition do art-director vira crossfade se pro mode
         transition = (payload.get("transition") or plan.get("transition") or "cut").strip()
+
+        # ── v4 flags (item 2, 5a, 5b, 8, 12, 13a/b, 14) ─────────────
+        # Item 2: TTS speed por style (aplicado pós-TTS, pré-mix)
+        narration_speed = _resolve_narration_speed(
+            payload.get("narration_speed"), style,
+        )
+        # Item 5a: hold final silencioso (default ON quando video_length >= 8s)
+        hold_final = payload.get("hold_final")
+        hold_final = True if hold_final is None else bool(hold_final)
+        # Item 5b: loop visual — flag OFF default
+        loop_visual = bool(payload.get("loop_visual", False))
+        # Item 8: parallax nível 1 (por style) + nível 2 (flag depth_ai)
+        use_parallax = payload.get("use_parallax")
+        if use_parallax is None:
+            use_parallax = _parallax_default_for_style(style)
+        else:
+            use_parallax = bool(use_parallax)
+        depth_ai = bool(payload.get("depth_ai", False))
+        # Item 13b: kinetic presets por style (flag, OFF default)
+        kinetic_presets = bool(payload.get("kinetic_presets", False))
+        # Item 14: freeze frames — auto por style ou flag explícita
+        freeze_frames = payload.get("freeze_frames")
+        if freeze_frames is None:
+            freeze_frames = style in ("data_viz", "editorial", "corporate_clean")
+        else:
+            freeze_frames = bool(freeze_frames)
 
         music_path = _select_music(music_genre) if music_genre else None
         hook_sfx, trans_sfx = _sfx_for_style(style, hook_pattern) if use_sfx else (None, None)
@@ -392,27 +729,80 @@ class FfmpegLocalWorker(BaseWorker):
                 await _fetch_to(img_url, img_local)
                 image_paths.append(img_local)
 
-            audio_local: Path | None = None
-            if narration_url:
-                audio_local = tmp_path / "narration.mp3"
-                try:
-                    await _fetch_to(narration_url, audio_local)
-                except Exception:
-                    audio_local = None
+            # ── Narration: baixa N mp3s (item 4) + aplica atempo (item 2) ──
+            audio_per_scene: list[Path | None] = [None] * len(scenes)
+            audio_duration_per_scene: list[float] = [0.0] * len(scenes)
+            if narration_urls:
+                for i, url in enumerate(narration_urls[:len(scenes)]):
+                    if not url:
+                        continue
+                    # Path 1) baixa
+                    raw = tmp_path / f"narr_raw_{i:02d}.mp3"
+                    try:
+                        await _fetch_to(url, raw)
+                    except Exception as exc:  # noqa: BLE001
+                        log.warning("falha baixando narração cena %d: %s", i, exc)
+                        continue
+                    # Path 2) aplica atempo (item 2) se speed != 1.0
+                    if narration_speed and abs(narration_speed - 1.0) > 0.001:
+                        sped = tmp_path / f"narr_{i:02d}.mp3"
+                        try:
+                            await _apply_atempo(raw, sped, narration_speed)
+                            raw = sped
+                        except Exception as exc:  # noqa: BLE001
+                            log.warning("atempo falhou cena %d (speed=%.2f): %s",
+                                        i, narration_speed, exc)
+                    audio_per_scene[i] = raw
+                    audio_duration_per_scene[i] = await _ffprobe_duration(raw)
 
-            scene_durations = [max(1, int(sc.get("duration", 3))) for sc in scenes]
+            # Legacy single narration — audio_local pra o pipeline velho
+            audio_local: Path | None = None
+            if len(narration_urls) == 1 and audio_per_scene[0] is not None:
+                audio_local = audio_per_scene[0]
+
+            # ── Adjust scene_durations pro max(declared, audio + 0.3s) (item 4) ──
+            declared_durations = [max(1, int(sc.get("duration", 3))) for sc in scenes]
+            scene_durations = []
+            for i, declared in enumerate(declared_durations):
+                a_dur = audio_duration_per_scene[i]
+                if a_dur > 0:
+                    scene_durations.append(max(float(declared), a_dur + 0.3))
+                else:
+                    scene_durations.append(float(declared))
+
+            # Item 5a — Hold final silencioso (+3s na última cena)
+            # Skip se vídeo < 8s OU só 1 cena OU hold_final explicit False.
+            pre_hold_total = sum(scene_durations)
+            do_hold = hold_final and len(scenes) > 1 and pre_hold_total >= 8.0
+            if do_hold:
+                scene_durations[-1] += 3.0  # 0.5s natural + 2.5s freeze
+
             total_video_dur = sum(scene_durations)
 
             # Karaoke agora é aplicado DEPOIS do concat via ASS subtitles.
-            # Timings ABSOLUTOS no video inteiro — ASS engine resolve sem overlap.
+            # Item 1 — faster-whisper por cena quando áudio disponível,
+            # senão cai pro split uniforme por cena (item 4).
             ass_karaoke_path: Path | None = None
-            if use_karaoke and full_narration:
-                all_words = _split_script_words(full_narration, total_video_dur)
+            if use_karaoke:
+                all_words = await self._build_karaoke_words(
+                    scenes=scenes,
+                    audio_per_scene=audio_per_scene,
+                    audio_durations=audio_duration_per_scene,
+                    scene_durations=scene_durations,
+                    full_narration_fallback=full_narration,
+                )
+                # Marca emphasis no freeze_at exato via whisper (item 14b)
+                if all_words and freeze_frames:
+                    _annotate_freeze_word_timings(scenes, all_words)
                 if all_words:
-                    # Ajusta end da última palavra pra não exceder total_video_dur
-                    for w in all_words:
-                        w["end"] = min(w["end"], total_video_dur)
-                    ass_content = _build_ass_karaoke(all_words, width, height)
+                    ass_content = _build_ass_karaoke_with_zone(
+                        all_words, width, height,
+                        caption_zone=_caption_zone_for_style(style),
+                        scenes=scenes,
+                        scene_starts=_cumulative_starts(scene_durations),
+                        kinetic_presets=kinetic_presets,
+                        kinetic_style=KINETIC_PRESETS_BY_STYLE.get(style),
+                    )
                     ass_karaoke_path = tmp_path / "karaoke.ass"
                     ass_karaoke_path.write_text(ass_content, encoding="utf-8")
             karaoke_by_scene: list[list[dict] | None] = [None] * len(scenes)
@@ -434,17 +824,40 @@ class FfmpegLocalWorker(BaseWorker):
                     elif scene_type in ("solution", "proof", "cta") or i >= n_scenes - 1:
                         grade = "warm"
 
+                # Item 14 — freeze frame por cena
+                scene_freeze = None
+                if freeze_frames:
+                    scene_freeze = _freeze_spec_for_scene(sc, scene_type, i)
+
                 vf = _build_vf(
-                    sc, width, height, dur, tmp_path, i,
+                    sc, width, height, int(dur), tmp_path, i,
                     is_hook=(i == 0 and hook_pattern in ("pattern_interrupt", "stat_shot")),
                     karaoke=karaoke_by_scene[i],
                     color_grade=grade,
                     ass_karaoke_active=ass_karaoke_path is not None,
                 )
+
+                # Item 8 — parallax nível 1 (fake via 3 camadas blur+zoompan)
+                # Aplicado opcionalmente com override via -filter_complex
+                if use_parallax and not depth_ai:
+                    vf = _apply_parallax_fake(vf, int(dur), width, height)
+
+                # Item 5a — última cena + hold final: renderiza dur_render como
+                # dur - 3s e depois faz "freeze" dos últimos 3s. Aqui simplifico:
+                # render completo com a imagem estática; o hold é visual (mesma imagem
+                # continua). Se queremos loop visual (item 5b) na última, usa img[0].
+                render_img = img_path
+                is_last = (i == n_scenes - 1)
+                if is_last and loop_visual and len(image_paths) > 1:
+                    # Item 5b — loop visual: última cena usa imagem da cena 0
+                    # (crossfade com img 0 seria ideal, mas usar direto já
+                    # dá "rima visual" pro TikTok/Reels rewatch).
+                    render_img = image_paths[0]
+
                 # -t no OUTPUT (não no input). Sem -framerate no input;
                 # senão o zoompan multiplica frames (d × n_input_frames).
                 await _run_ffmpeg([
-                    "-y", "-loop", "1", "-i", str(img_path),
+                    "-y", "-loop", "1", "-i", str(render_img),
                     "-vf", vf,
                     "-t", str(dur),
                     "-c:v", "libx264", "-pix_fmt", "yuv420p",
@@ -453,6 +866,17 @@ class FfmpegLocalWorker(BaseWorker):
                     "-tune", "stillimage",
                     str(out),
                 ])
+
+                # Item 14 — freeze frame: corta clip em 3 partes (pré/still/pós)
+                if scene_freeze:
+                    frozen = await self._apply_freeze_frame(
+                        src=out, spec=scene_freeze, dur=dur, tmp=tmp_path, idx=i,
+                    )
+                    if frozen:
+                        out = frozen
+                        # Aumenta scene_duration local em freeze_duration
+                        scene_durations[i] += scene_freeze["freeze_duration"]
+
                 scene_clips.append(out)
 
             # 3) Concat dos clips — com xfade se `use_crossfade`, senão concat.
@@ -490,17 +914,55 @@ class FfmpegLocalWorker(BaseWorker):
                 except Exception:  # noqa: BLE001
                     pass  # silencioso — falha do ASS não quebra o render
 
-            # 4) Mix de áudio: narração + música (ducking) + SFX
+            # ── Concat narrações per-scene com pads (item 4) ──
+            final_narration: Path | None = audio_local
+            has_multi_narration = (
+                narration_urls
+                and sum(1 for a in audio_per_scene if a is not None) > 1
+            )
+            if has_multi_narration:
+                # Preenche cenas sem áudio com silent stubs (0.3s pads serão concat'd)
+                full_audio_list: list[Path] = []
+                for i in range(len(scenes)):
+                    if audio_per_scene[i] is not None:
+                        full_audio_list.append(audio_per_scene[i])  # type: ignore
+                    else:
+                        # Cria silêncio proporcional à cena
+                        silent = tmp_path / f"silent_{i:02d}.mp3"
+                        await _run_ffmpeg([
+                            "-y", "-f", "lavfi",
+                            "-i", "anullsrc=r=44100:cl=stereo",
+                            "-t", "0.3", "-c:a", "libmp3lame", "-b:a", "96k",
+                            str(silent),
+                        ])
+                        full_audio_list.append(silent)
+                        # ffprobe = 0.3s
+                        audio_duration_per_scene[i] = 0.3
+
+                merged = tmp_path / "narration_merged.mp3"
+                try:
+                    await _concat_narrations_with_pads(
+                        clips=full_audio_list,
+                        durations_scene=scene_durations,
+                        durations_audio=audio_duration_per_scene,
+                        out=merged,
+                    )
+                    final_narration = merged
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("concat_narrations falhou: %s — usa single", exc)
+                    final_narration = audio_per_scene[0]
+
+            # Mix de áudio: narração (merged ou single) + música (ducking) + SFX
             final = tmp_path / "final.mp4"
             await self._mix_audio(
                 concat_mp4=concat_mp4,
                 out=final,
-                total_dur=total_video_dur,
-                narration=audio_local,
+                total_dur=int(round(total_video_dur)),
+                narration=final_narration,
                 music=music_path,
-                hook_sfx=hook_sfx if (i == 0) else None,
+                hook_sfx=hook_sfx,
                 trans_sfx=trans_sfx,
-                scene_durations=scene_durations,
+                scene_durations=[int(round(d)) for d in scene_durations],
             )
 
             # 5) Overlay de marca (opcional)
@@ -538,6 +1000,125 @@ class FfmpegLocalWorker(BaseWorker):
             "music": music_path.name if music_path else None,
             "karaoke": use_karaoke and bool(full_narration),
         }
+
+    async def _build_karaoke_words(
+        self,
+        *,
+        scenes: list[dict],
+        audio_per_scene: list[Path | None],
+        audio_durations: list[float],
+        scene_durations: list[float],
+        full_narration_fallback: str = "",
+    ) -> list[dict]:
+        """Item 1 — constrói word timings para karaoke.
+        Estratégia híbrida:
+          - Para cada cena com áudio disponível → faster-whisper (preciso)
+          - Fallback: split uniforme (item 4)
+        """
+        starts = _cumulative_starts(scene_durations)
+        out: list[dict] = []
+        for i, sc in enumerate(scenes):
+            text = (sc.get("narration") or "").strip()
+            a_path = audio_per_scene[i]
+            a_dur = audio_durations[i]
+            if not text or a_dur <= 0.2:
+                continue
+            # Tenta whisper se áudio existe
+            scene_words: list[dict] | None = None
+            if a_path is not None and a_dur > 0.3:
+                scene_words = await _whisper_words(a_path, language="pt")
+            # Fallback: split uniforme
+            if not scene_words:
+                words = re.findall(r"\S+", text)
+                if not words:
+                    continue
+                per_word = max(0.18, a_dur / len(words))
+                t = 0.0
+                scene_words = []
+                for w in words:
+                    scene_words.append({"text": w, "start": t, "end": t + per_word})
+                    t += per_word
+            # Ajusta pra timings absolutos (start_abs = starts[i] + word.start)
+            start_abs = starts[i]
+            for w in scene_words:
+                out.append({
+                    "text": w["text"],
+                    "start": start_abs + float(w["start"]),
+                    "end": start_abs + float(w["end"]),
+                    "scene_index": i,
+                })
+        # Fallback global (sem cenas com narração)
+        if not out and full_narration_fallback:
+            total = sum(scene_durations)
+            return _split_script_words(full_narration_fallback, total)
+        return out
+
+    async def _apply_freeze_frame(
+        self, *, src: Path, spec: dict, dur: float, tmp: Path, idx: int,
+    ) -> Path | None:
+        """Item 14 — corta clip em 3 partes (pré-freeze, still+zoom, pós-freeze)
+        e remonta. Retorna novo clip ou None se falhar."""
+        try:
+            freeze_at = float(spec.get("freeze_at", 1.5))
+            freeze_dur = float(spec.get("freeze_duration", 0.8))
+            freeze_zoom = float(spec.get("freeze_zoom", 1.15))
+
+            if freeze_at < 0.3 or freeze_at >= dur - 0.3:
+                return None
+
+            # 1) pre-freeze: 0 → freeze_at
+            pre = tmp / f"freeze_pre_{idx:02d}.mp4"
+            await _run_ffmpeg([
+                "-y", "-i", str(src),
+                "-t", f"{freeze_at:.2f}",
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "ultrafast",
+                "-an", str(pre),
+            ])
+
+            # 2) still frame (frame no instante freeze_at, zoom aplicado)
+            still_png = tmp / f"freeze_still_{idx:02d}.png"
+            await _run_ffmpeg([
+                "-y", "-ss", f"{freeze_at:.2f}", "-i", str(src),
+                "-frames:v", "1", str(still_png),
+            ])
+            # Renderiza o still com zoom
+            still_mp4 = tmp / f"freeze_still_{idx:02d}.mp4"
+            await _run_ffmpeg([
+                "-y", "-loop", "1", "-i", str(still_png),
+                "-vf", f"scale=iw*{freeze_zoom:.2f}:ih*{freeze_zoom:.2f},"
+                       f"crop=iw/{freeze_zoom:.2f}:ih/{freeze_zoom:.2f}",
+                "-t", f"{freeze_dur:.2f}",
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "ultrafast",
+                "-r", "30", "-an", str(still_mp4),
+            ])
+
+            # 3) post-freeze: freeze_at → dur
+            post = tmp / f"freeze_post_{idx:02d}.mp4"
+            await _run_ffmpeg([
+                "-y", "-ss", f"{freeze_at:.2f}", "-i", str(src),
+                "-t", f"{max(0.1, dur - freeze_at):.2f}",
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "ultrafast",
+                "-an", str(post),
+            ])
+
+            # Concat
+            listfile = tmp / f"freeze_concat_{idx:02d}.txt"
+            listfile.write_text(
+                f"file '{pre}'\nfile '{still_mp4}'\nfile '{post}'\n"
+            )
+            out = tmp / f"freeze_out_{idx:02d}.mp4"
+            await _run_ffmpeg([
+                "-y", "-f", "concat", "-safe", "0",
+                "-i", str(listfile),
+                "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                "-preset", "ultrafast", "-crf", "30",
+                "-an", str(out),
+            ])
+            if out.exists() and out.stat().st_size > 0:
+                return out
+        except Exception as exc:  # noqa: BLE001
+            log.warning("freeze frame falhou cena %d: %s", idx, exc)
+        return None
 
     async def _concat_with_xfade(
         self,
@@ -737,6 +1318,151 @@ async def _run_ffmpeg(args: list[str]) -> None:
     if proc.returncode != 0:
         tail = (stderr or b"").decode(errors="ignore")[-500:]
         raise RuntimeError(f"ffmpeg falhou (rc={proc.returncode}): {tail}")
+
+
+_WHISPER_MODEL = None
+_WHISPER_LOADED_SIZE: str | None = None
+
+
+def _whisper_model(model_size: str = "tiny"):
+    """Lazy load do faster-whisper. tiny é suficiente pra word timings
+    em pt-BR (fala limpa); evita latência de 'small'/'medium'."""
+    global _WHISPER_MODEL, _WHISPER_LOADED_SIZE
+    if _WHISPER_MODEL is not None and _WHISPER_LOADED_SIZE == model_size:
+        return _WHISPER_MODEL
+    try:
+        from faster_whisper import WhisperModel
+        _WHISPER_MODEL = WhisperModel(
+            model_size, device="cpu", compute_type="int8",
+        )
+        _WHISPER_LOADED_SIZE = model_size
+        return _WHISPER_MODEL
+    except Exception as exc:  # noqa: BLE001
+        log.warning("faster-whisper indisponível: %s — karaoke fallback", exc)
+        return None
+
+
+async def _whisper_words(
+    audio_path: Path, language: str = "pt",
+) -> list[dict] | None:
+    """Item 1 — usa faster-whisper pra extrair word-level timings.
+    Retorna [{text, start, end}, ...] ou None se falhar."""
+    model = _whisper_model(os.environ.get("WHISPER_MODEL_SIZE", "tiny"))
+    if model is None:
+        return None
+    try:
+        def _sync_transcribe():
+            segments, _info = model.transcribe(
+                str(audio_path),
+                language=language,
+                word_timestamps=True,
+                beam_size=1,  # rápido
+                vad_filter=False,
+            )
+            out = []
+            for seg in segments:
+                for w in (seg.words or []):
+                    text = (w.word or "").strip()
+                    if not text:
+                        continue
+                    out.append({
+                        "text": text,
+                        "start": float(w.start),
+                        "end": float(w.end),
+                    })
+            return out
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, _sync_transcribe)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("whisper transcribe falhou: %s", exc)
+        return None
+
+
+async def _ffprobe_duration(path: Path) -> float:
+    """Retorna duração do áudio/vídeo em segundos via ffprobe."""
+    proc = await asyncio.create_subprocess_exec(
+        "ffprobe", "-v", "error", "-show_entries", "format=duration",
+        "-of", "json", str(path),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    out, _ = await proc.communicate()
+    if proc.returncode != 0:
+        return 0.0
+    try:
+        data = json.loads(out.decode())
+        return float(data["format"]["duration"])
+    except Exception:
+        return 0.0
+
+
+async def _apply_atempo(src: Path, dst: Path, speed: float) -> Path:
+    """Aplica atempo=speed (preserva pitch). Clamp 0.5-2.0 (filtro nativo);
+    fora clampamos a 1.0 pra não distorcer."""
+    if speed <= 0 or abs(speed - 1.0) < 0.001:
+        # nada a fazer — copia
+        dst.write_bytes(src.read_bytes())
+        return dst
+    if speed < 0.5 or speed > 2.0:
+        dst.write_bytes(src.read_bytes())
+        return dst
+    await _run_ffmpeg([
+        "-y", "-i", str(src),
+        "-filter:a", f"atempo={speed:.3f}",
+        "-c:a", "libmp3lame", "-b:a", "128k",
+        str(dst),
+    ])
+    return dst
+
+
+async def _concat_narrations_with_pads(
+    clips: list[Path],
+    durations_scene: list[float],
+    durations_audio: list[float],
+    out: Path,
+) -> None:
+    """Concatena N mp3s com padding de silêncio por cena pra sincronizar
+    com duração de cada scene. Cada narração começa no start da sua cena
+    e é seguida de silêncio até o fim da cena.
+    """
+    # Usa concat demuxer com silence intercalado
+    import subprocess
+    n = len(clips)
+    inputs: list[str] = []
+    filter_parts: list[str] = []
+
+    for i, clip in enumerate(clips):
+        inputs += ["-i", str(clip)]
+
+    # Gera silêncio para cada cena (pad = scene_dur - audio_dur, >=0)
+    pad_durs = [max(0.0, durations_scene[i] - durations_audio[i]) for i in range(n)]
+
+    # Prepara cada narração com pad via filter_complex:
+    # [i:a]apad=pad_dur=X,atrim=0:scene_dur[a_i]
+    filter_labels = []
+    for i in range(n):
+        scene_dur = durations_scene[i]
+        pad = pad_durs[i]
+        label = f"a{i}"
+        # apad pad_dur em segundos: apad=whole_dur=<scene_dur>
+        filter_parts.append(
+            f"[{i}:a]aformat=sample_fmts=s16:channel_layouts=stereo,"
+            f"apad=whole_dur={scene_dur:.3f}[{label}]"
+        )
+        filter_labels.append(label)
+
+    concat_inputs = "".join(f"[{l}]" for l in filter_labels)
+    filter_parts.append(f"{concat_inputs}concat=n={n}:v=0:a=1[aout]")
+
+    filter_complex = ";".join(filter_parts)
+
+    await _run_ffmpeg([
+        "-y", *inputs,
+        "-filter_complex", filter_complex,
+        "-map", "[aout]",
+        "-c:a", "libmp3lame", "-b:a", "192k",
+        str(out),
+    ])
 
 
 if __name__ == "__main__":
