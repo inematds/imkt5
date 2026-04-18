@@ -64,6 +64,31 @@ class CarouselOutlineWorker(BaseWorker):
         if not slides:
             raise RuntimeError(f"LLM não gerou slides. keys={list(data.keys())}")
 
+        # O primeiro slide (cover) sempre reaproveita o TEXTO ORIGINAL
+        # do usuário como headline — preserva a ideia como âncora.
+        # Se o topic é muito longo, usa as primeiras 60 chars como
+        # headline e joga o restante no `context`.
+        original_headline = topic
+        original_context = ""
+        if len(topic) > 60:
+            # Quebra numa pontuação próxima do limite pra não cortar palavra
+            cut = 60
+            for stop in ("—", " — ", ". ", "! ", "? ", ": ", ", "):
+                idx = topic.rfind(stop, 0, 80)
+                if idx > 30:
+                    cut = idx + len(stop.rstrip())
+                    break
+            original_headline = topic[:cut].rstrip(" —,:.!?-")
+            original_context = topic[cut:].lstrip(" —,:.!?-").strip()
+
+        slide0 = dict(slides[0])
+        slide0["headline"] = original_headline
+        # Se o LLM já gerou context, preserva só se tiver conteúdo útil.
+        # Preferimos o resto do texto original (que é o que o user escreveu).
+        if original_context:
+            slide0["context"] = original_context
+        slides[0] = slide0
+
         return {
             "slides": slides,
             "title": data.get("title") or topic[:60],
