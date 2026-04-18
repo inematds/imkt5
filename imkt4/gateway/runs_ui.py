@@ -421,10 +421,11 @@ async function renderDetail(runId) {
 
 // ── artefatos ─────────────────────────────────────────────────
 function extractArtifactUrls(outputs) {
+  const seen = new Set();
   const urls = [];
   const walk = (v) => {
     if (typeof v === 'string' && (v.startsWith('http') || v.startsWith('/artifacts/') || v.startsWith('/s3/') || v.startsWith('file://'))) {
-      urls.push(v);
+      if (!seen.has(v)) { seen.add(v); urls.push(v); }
     } else if (Array.isArray(v)) v.forEach(walk);
     else if (v && typeof v === 'object') Object.values(v).forEach(walk);
   };
