@@ -57,7 +57,7 @@ Usuário pode ativar humanos via `with_user_approval: true` no input.
 - `clip` já era auto_reviewer com critérios de duração e fala ✓
 - `publish` era `none` ✓
 
-### `simple-carrossel.yaml`
+### `carrossel-simples.yaml`
 - Tudo `none` (stages triviais) ✓
 
 ## Critérios padrão sugeridos

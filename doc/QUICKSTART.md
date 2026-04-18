@@ -161,10 +161,10 @@ curl -s -X POST http://localhost:8080/jobs \
 
 ## 4. Receitas — fluxos compostos
 
-### a) `simple-carrossel` (gera 2 imagens em paralelo)
+### a) `carrossel-simples` (gera 2 imagens em paralelo)
 
 ```bash
-curl -s -X POST http://localhost:8080/recipes/simple-carrossel/run \
+curl -s -X POST http://localhost:8080/recipes/carrossel-simples/run \
   -H "Content-Type: application/json" \
   -d '{
     "tenant_id": "demo",

@@ -90,5 +90,5 @@ Mesmo sem platform-*, ainda dá pra fazer:
 
 - Geração individual de imagem / áudio / vídeo
 - Pesquisa + brief + copy + ads + vídeo (stage `platforms` fica pending, depois manual)
-- Receita `simple-carrossel`
+- Receita `carrossel-simples`
 - Receita `yt-clip-publish` (não passa por platform-*, usa `yt-publish` direto)

@@ -280,7 +280,7 @@ async def test_yt_clip_publish_fanout():
 
 async def test_simple_carrossel():
     run, payloads = await _run_recipe_to_completion(
-        "recipes/simple-carrossel.yaml",
+        "recipes/carrossel-simples.yaml",
         input={
             "prompt": "minimalist coffee shop",
             "model": "flux2-klein",

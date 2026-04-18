@@ -290,7 +290,43 @@ function loadHistory() {
   const ctr = document.getElementById('messages');
   ctr.innerHTML = '';
   if (h.length === 0) {
-    ctr.innerHTML = '<div class="hint">Digite uma mensagem — o agente decide responder direto ou disparar um job/receita.</div>';
+    // Welcome inicial do bot + sugestões clicáveis
+    const welcome = document.createElement('div');
+    welcome.className = 'msg bot';
+    welcome.innerHTML = `
+      <div class="bubble">
+        👋 Oi! Sou o agente do imkt4. Posso <b>responder diretamente</b>,
+        <b>gerar imagens/vídeos/áudio</b>, ou <b>disparar receitas completas</b>
+        (campanha, curso, carrossel...).
+        <div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;">
+          <a class="suggestion" data-text="Gera uma imagem de um castelo moderno ao entardecer">💡 Gera uma imagem de um castelo moderno ao entardecer</a>
+          <a class="suggestion" data-text="Roda uma campanha de lançamento do curso de IA">📣 Roda uma campanha de lançamento do curso de IA</a>
+          <a class="suggestion" data-text="Cria um carrossel educativo com 5 slides sobre Claude Code">📚 Cria um carrossel educativo com 5 slides sobre Claude Code</a>
+          <a class="suggestion" data-text="Faz um áudio TTS lendo esse texto: Olá mundo!">🎙 Faz um áudio TTS lendo esse texto: Olá mundo!</a>
+        </div>
+      </div>
+      <div class="ts">agora</div>
+    `;
+    ctr.appendChild(welcome);
+    // Click nas sugestões preenche o input
+    welcome.querySelectorAll('.suggestion').forEach(a => {
+      a.style.cursor = 'pointer';
+      a.style.color = '#1f6feb';
+      a.style.textDecoration = 'none';
+      a.style.padding = '6px 10px';
+      a.style.background = 'rgba(31,111,235,0.08)';
+      a.style.border = '1px solid rgba(31,111,235,0.2)';
+      a.style.borderRadius = '6px';
+      a.style.fontSize = '13px';
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        const input = document.getElementById('composer-input');
+        input.value = a.dataset.text;
+        input.focus();
+        input.style.height = 'auto';
+        input.style.height = Math.min(200, input.scrollHeight) + 'px';
+      });
+    });
     return;
   }
   h.forEach(m => addMessage(m.role, m.text, { artifacts: m.artifacts || [], persist: false }));

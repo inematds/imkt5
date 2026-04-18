@@ -1,5 +1,5 @@
-name: simple-carrossel
-version: 3
+name: carrossel-simples
+version: 4
 # Carrossel mínimo: gera N imagens coesas com mesmo prompt + compõe
 # texto (título/captions/CTA) sobre elas estilo IG.
 #
