@@ -17,6 +17,28 @@
     font-family: 'Space Grotesk', 'Inter', sans-serif;
   }
 
+  /* Aspect-specific layout tweaks
+     aspect: 'portrait' (9:16), 'square' (1:1), 'landscape' (16:9) */
+  {% if aspect == 'portrait' %}
+  .container { padding: 88px 72px; }
+  .main { gap: 48px; }
+  .headline { font-size: {{ (headline_size * 1.15) | int }}px; }
+  .split-stats { flex-direction: column; }
+  .stat-block.left { border-radius: 16px 16px 0 0; }
+  .stat-block.right { border-radius: 0 0 16px 16px; border: 1px solid {{ palette.primary_border }}; border-top: none; }
+  .divider { width: 100%; height: 2px; background: linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent); }
+  .stat-number { font-size: 180px; }
+  .context { font-size: 34px; }
+  .question { font-size: 32px; }
+  .badge { font-size: 24px; padding: 12px 28px; }
+  {% elif aspect == 'landscape' %}
+  .container { padding: 48px 88px; }
+  .main { gap: 28px; }
+  .headline { font-size: {{ (headline_size * 0.92) | int }}px; }
+  .stat-number { font-size: 120px; }
+  .context { font-size: 26px; max-width: 90%; }
+  {% endif %}
+
   .bg-image {
     position: absolute;
     inset: 0;

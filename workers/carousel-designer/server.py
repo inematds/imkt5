@@ -64,6 +64,38 @@ DEFAULT_PALETTE = {
 }
 
 
+def _dims_from_ratio(r: str) -> tuple[int, int]:
+    """Aceita '9:16', '1:1', '16:9' — retorna (width, height) em pixels
+    escalado pra 1080 no menor lado."""
+    r = r.replace("x", ":").strip()
+    if ":" not in r:
+        return (1080, 1080)
+    a, b = r.split(":", 1)
+    try:
+        na, nb = int(a), int(b)
+    except ValueError:
+        return (1080, 1080)
+    # Normaliza pra 1080 no menor lado
+    if na <= nb:   # portrait ou square
+        return (1080, int(1080 * nb / na))
+    else:          # landscape
+        return (int(1080 * na / nb), 1080)
+
+
+def _aspect_name(w: int, h: int) -> str:
+    ratio = w / h
+    if abs(ratio - 1) < 0.05:
+        return "square"
+    return "portrait" if ratio < 1 else "landscape"
+
+
+def _ratio_tag(w: int, h: int) -> str:
+    """Convert (1080, 1920) → '9x16'. Usado no filename."""
+    from math import gcd
+    g = gcd(w, h)
+    return f"{w // g}x{h // g}"
+
+
 def _derive_palette(p: dict[str, str]) -> dict[str, str]:
     """Gera variações (soft, border, glow, shadow, primary_text) a partir
     de primary/secondary pro CSS. Aceita hex #RRGGBB."""
@@ -111,8 +143,16 @@ class CarouselDesignerWorker(BaseWorker):
         handle = payload.get("handle") or "@inema.tds"
         palette = _derive_palette({**DEFAULT_PALETTE, **(payload.get("palette") or {})})
         template_name = payload.get("template") or "editorial"
-        width = int(payload.get("width") or 1080)
-        height = int(payload.get("height") or 1080)
+
+        # Dimensões: aceita width/height único OU formats=['9:16','1:1','16:9'].
+        # Se formats presente, gera múltiplas versões por slide (fan-out visual).
+        formats = payload.get("formats") or []
+        if formats:
+            dims_list = [_dims_from_ratio(f) for f in formats]
+        else:
+            width = int(payload.get("width") or 1080)
+            height = int(payload.get("height") or 1080)
+            dims_list = [(width, height)]
 
         total = max(len(slides), len(images))
         composed_urls: list[str] = []
@@ -137,63 +177,78 @@ class CarouselDesignerWorker(BaseWorker):
 
             tmpl = _jinja.get_template(f"{template_name}.html")
 
-            # Playwright: 1 browser, N páginas (reuso acelera 5x)
             from playwright.async_api import async_playwright
             async with async_playwright() as pw:
                 browser = await pw.chromium.launch(args=["--no-sandbox"])
-                ctx = await browser.new_context(
-                    viewport={"width": width, "height": height},
-                    device_scale_factor=1,
-                )
+                # Render todos os slides × todos os formatos
                 for i in range(total):
                     slide = slides[i] if i < len(slides) else {}
                     bg_path = local_images[i] if i < len(local_images) else None
                     bg_url = f"file://{bg_path}" if bg_path else ""
 
-                    # Ajusta headline_size baseado no comprimento
                     headline = (slide.get("headline") or "").strip()
                     h_len = len(headline)
                     headline_size = 60 if h_len < 50 else (52 if h_len < 90 else 42)
 
-                    html = tmpl.render(
-                        width=width, height=height,
-                        palette=palette,
-                        bg_image=bg_url,
-                        headline=headline,
-                        headline_size=headline_size,
-                        context=slide.get("context", ""),
-                        stat_a=slide.get("stat_a"),
-                        stat_b=slide.get("stat_b"),
-                        question=slide.get("question", ""),
-                        handle=handle,
-                        badge=slide.get("badge", "INEMA"),
-                        slide_label=slide.get("slide_label", f"{i+1:02d} / {total:02d}"),
-                    )
+                    slide_formats: list[dict[str, Any]] = []
+                    for (w, h) in dims_list:
+                        aspect = _aspect_name(w, h)
+                        ratio_tag = _ratio_tag(w, h)
 
-                    html_file = tmp_path / f"slide_{i:02d}.html"
-                    html_file.write_text(html, encoding="utf-8")
+                        html = tmpl.render(
+                            width=w, height=h,
+                            aspect=aspect,
+                            palette=palette,
+                            bg_image=bg_url,
+                            headline=headline,
+                            headline_size=headline_size,
+                            context=slide.get("context", ""),
+                            stat_a=slide.get("stat_a"),
+                            stat_b=slide.get("stat_b"),
+                            question=slide.get("question", ""),
+                            handle=handle,
+                            badge=slide.get("badge", "INEMA"),
+                            slide_label=slide.get(
+                                "slide_label", f"{i+1:02d} / {total:02d}",
+                            ),
+                        )
+                        html_file = tmp_path / f"slide_{i:02d}_{ratio_tag}.html"
+                        html_file.write_text(html, encoding="utf-8")
 
-                    page = await ctx.new_page()
-                    await page.goto(f"file://{html_file}", wait_until="networkidle")
-                    png_path = tmp_path / f"slide_{i:02d}.png"
-                    await page.screenshot(
-                        path=str(png_path),
-                        clip={"x": 0, "y": 0, "width": width, "height": height},
-                        omit_background=False,
-                    )
-                    await page.close()
+                        ctx = await browser.new_context(
+                            viewport={"width": w, "height": h},
+                            device_scale_factor=1,
+                        )
+                        page = await ctx.new_page()
+                        await page.goto(f"file://{html_file}", wait_until="networkidle")
+                        png_path = tmp_path / f"slide_{i:02d}_{ratio_tag}.png"
+                        await page.screenshot(
+                            path=str(png_path),
+                            clip={"x": 0, "y": 0, "width": w, "height": h},
+                        )
+                        await ctx.close()
 
-                    storage = get_storage()
-                    url = storage.save_bytes(
-                        tenant_id=job.tenant_id,
-                        job_id=job.job_id,
-                        filename=f"slide_{i:02d}.png",
-                        data=png_path.read_bytes(),
-                    )
-                    composed_urls.append(url)
+                        storage = get_storage()
+                        url = storage.save_bytes(
+                            tenant_id=job.tenant_id,
+                            job_id=job.job_id,
+                            filename=f"slide_{i:02d}_{ratio_tag}.png",
+                            data=png_path.read_bytes(),
+                        )
+                        slide_formats.append({
+                            "ratio": ratio_tag.replace("x", ":"),
+                            "width": w, "height": h, "image": url,
+                        })
+                        # Default: usa o primeiro formato como image principal
+                        if len(slide_formats) == 1:
+                            composed_urls.append(url)
+
                     out_slides.append({
-                        "index": i, "image": url,
-                        "caption": headline, "is_cover": i == 0,
+                        "index": i,
+                        "image": slide_formats[0]["image"],
+                        "caption": headline,
+                        "is_cover": i == 0,
+                        "formats": slide_formats,
                     })
                 await browser.close()
 
