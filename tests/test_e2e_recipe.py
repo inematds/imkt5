@@ -308,6 +308,7 @@ def _add_carousel_handler(monkeypatch):
             return {"carrossel_url": "c.pdf"}
 
         h["design.carousel"] = carousel
+        h["design.carousel_rich"] = carousel   # carrossel-simples usa rich agora
         return h
 
     monkeypatch.setattr("tests.test_e2e_recipe._make_handlers", wrapped)

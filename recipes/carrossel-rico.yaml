@@ -22,6 +22,8 @@ version: 3
 #   template: "editorial"
 #   handle:   "@inema.tds"
 #   slide_count (modo 1): 5
+#   slide_count (modo 2): 7
+#   slide_count (modo 3): 10
 
 stages:
 

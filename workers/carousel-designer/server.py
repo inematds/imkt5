@@ -109,6 +109,25 @@ def _aspect_name(w: int, h: int) -> str:
     return "portrait" if ratio < 1 else "landscape"
 
 
+def _magazine_headline_size(text: str, w: int, h: int, aspect: str) -> int:
+    """Tamanho de fonte magazine: grande, escala pelo comprimento do texto
+    e pelo aspect. Serif (Playfair Display) precisa de mais espaço vertical."""
+    chars = max(1, len(text.strip()))
+    # Base: 12% da altura (slide quadrado 1080 → 130px)
+    if aspect == "portrait":
+        base = int(h * 0.11)
+    elif aspect == "landscape":
+        base = int(h * 0.15)
+    else:
+        base = int(h * 0.12)
+    # Reduz pra textos longos
+    if chars > 80:
+        base = int(base * 0.75)
+    elif chars > 40:
+        base = int(base * 0.88)
+    return max(48, min(base, 180))
+
+
 def _ratio_tag(w: int, h: int) -> str:
     """Convert (1080, 1920) → '9x16'. Usado no filename."""
     from math import gcd
@@ -230,13 +249,21 @@ class CarouselDesignerWorker(BaseWorker):
                         aspect = _aspect_name(w, h)
                         ratio_tag = _ratio_tag(w, h)
 
+                        # Magazine style: tipografia grande serif, 1 mensagem,
+                        # sem stats/question. Escala o headline pelo aspect.
+                        mag_hsize = _magazine_headline_size(headline, w, h, aspect) if template_name == "magazine" else headline_size
+                        pad_v = int(h * (0.10 if aspect != "landscape" else 0.08))
+                        pad_h = int(w * (0.12 if aspect != "landscape" else 0.10))
+
                         html = tmpl.render(
                             width=w, height=h,
                             aspect=aspect,
                             palette=palette,
                             bg_image=bg_url,
                             headline=headline,
-                            headline_size=headline_size,
+                            headline_size=mag_hsize,
+                            pad_v=pad_v, pad_h=pad_h,
+                            slide_num=f"{i+1:02d}",
                             context=slide.get("context", ""),
                             stat_a=slide.get("stat_a"),
                             stat_b=slide.get("stat_b"),
@@ -299,21 +326,33 @@ class CarouselDesignerWorker(BaseWorker):
         }
 
     def _slides_from_basic(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
-        """Monta slides a partir de title/captions/cta (modo simples)."""
-        title = payload.get("title", "")
-        captions = payload.get("captions") or []
-        cta = payload.get("cta", "")
+        """Monta slides a partir de title/captions/cta (modo simples).
+
+        Template magazine: cada slide tem UMA frase só no headline —
+        nada de stats, question, context. Visual limpo estilo revista.
+        """
+        title = (payload.get("title") or "").strip()
+        captions = [c for c in (payload.get("captions") or []) if c and c.strip()]
+        cta = (payload.get("cta") or "").strip()
         images = payload.get("images") or []
         total = max(len(images), 1)
+
+        # Constrói lista de frases: title + captions + cta (só as não-vazias)
+        phrases: list[str] = []
+        if title: phrases.append(title)
+        phrases.extend(captions)
+        if cta and cta != (phrases[-1] if phrases else ""):
+            phrases.append(cta)
+        if not phrases:
+            phrases = [""]
+
         slides: list[dict[str, Any]] = []
         for i in range(total):
-            if i == 0:
-                slides.append({"headline": title, "badge": "INEMA"})
-            elif i == total - 1 and cta:
-                slides.append({"headline": cta, "question": cta})
-            else:
-                cap = captions[i] if i < len(captions) else (captions[0] if captions else "")
-                slides.append({"headline": cap, "context": ""})
+            text = phrases[i] if i < len(phrases) else phrases[-1]
+            slides.append({
+                "headline": text,
+                "slide_label": "Capa" if i == 0 else ("Fim" if i == total - 1 else ""),
+            })
         return slides
 
 

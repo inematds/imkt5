@@ -1,15 +1,19 @@
 name: carrossel-simples
-version: 4
-# Carrossel mínimo: gera N imagens coesas com mesmo prompt + compõe
-# texto (título/captions/CTA) sobre elas estilo IG.
+version: 5
+# Carrossel mínimo estilo "revista": 1 mensagem por slide em tipografia
+# serif grande (Playfair Display) sobre imagem com gradient.
+#
+# Cada slide tem UM texto (headline). Sem stats, sem question, sem CTA
+# extra. Visual limpo e elegante.
 #
 # Input:
-#   prompt      string  — descrição da imagem base
-#   count       int     — número de slides (default 2)
+#   prompt      string  — descrição da imagem de background
+#   title       string  — texto da capa (slide 1)
+#   captions    list    — texto de cada slide intermediário
+#   cta         string  — texto do último slide
 #   model       string  — modelo SD (default flux2-klein)
-#   title       string  — texto no slide 1
-#   captions    list    — texto dos slides intermediários
-#   cta         string  — texto no último slide
+#   palette     object  — override opcional de cores
+#   formats     list    — default [1:1, 9:16, 16:9]
 
 stages:
   - id: images
@@ -24,7 +28,7 @@ stages:
     approval: {mode: none}
 
   - id: carrossel
-    requires: design.carousel
+    requires: design.carousel_rich
     needs: [images]
     payload_from:
       images: $.stages.images.output.outputs[*].image_url
@@ -32,4 +36,6 @@ stages:
       captions: $.input.captions
       cta: $.input.cta
       palette: $.input.palette
+      formats: $.input.formats
+      template: "magazine"
     approval: {mode: none}
