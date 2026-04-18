@@ -1,5 +1,5 @@
 name: campanha-marketing
-version: 7
+version: 8
 # Pipeline completo: brief → copy → ad-designer → imagens (fanout) →
 #                    voiceover → video (scene plan) → video_render (MP4).
 #
@@ -81,12 +81,24 @@ stages:
       images: $.input.image_reference
     approval: {mode: none}
 
-  # Video scene plan. Usa a capability `video.cinematic` — com video-quick
-  # registrado, ou video-pro com alias. Pra trocar pra pro, mude a
-  # capability aqui pra `video.cinematic_pro` (ou reordene workers.yaml).
+  # Video art direction — escolhe style+motion+transition+music+hook.
+  # Roda se user não passou style/template explicitamente.
+  - id: video_art_direction
+    requires: video.art_direction
+    when: $.input.video_style == null && $.input.skip_video != true
+    needs: [copy]
+    payload_from:
+      brief: $.input.brief
+      copy: $.stages.copy.output.copy
+      audience: $.input.audience
+      platform: $.input.platform
+      brand_profile: $.tenant.profile
+    approval: {mode: none}
+
+  # Video scene plan. Recebe a direção de arte pra alinhar motion/hook.
   - id: video
     requires: video.cinematic
-    needs: [ad_design, images]
+    needs: [ad_design, images, video_art_direction]
     when: $.input.skip_video != true
     payload_from:
       creative_brief: $.stages.brief.output.creative_brief
@@ -94,6 +106,11 @@ stages:
       ads: $.stages.images.output.outputs[*].image_url
       language: $.input.language
       video_template: $.input.video_template
+      # Art direction: hook pattern + style guiam o LLM planner
+      art_direction_style: $.stages.video_art_direction.output.style
+      art_direction_motion: $.stages.video_art_direction.output.motion_preset
+      art_direction_transition: $.stages.video_art_direction.output.transition
+      art_direction_hook_pattern: $.stages.video_art_direction.output.hook_pattern
     approval: {mode: none}
 
   - id: voiceover
@@ -108,11 +125,22 @@ stages:
 
   - id: video_render
     requires: video.render
-    needs: [video, voiceover]
+    needs: [video, voiceover, video_art_direction]
     when: $.input.skip_video != true
     payload_from:
       scene_plan: $.stages.video.output.scene_plan
       narration_url: $.stages.voiceover.output.audio_url
       use_brand_overlay: $.input.use_brand_overlay
       tenant_id: $.tenant.tenant_id
+      # Repassa direção de arte pro renderer (música, SFX, hook, transição)
+      style: $.stages.video_art_direction.output.style
+      music_genre: $.stages.video_art_direction.output.music_genre
+      hook_pattern: $.stages.video_art_direction.output.hook_pattern
+      transition: $.stages.video_art_direction.output.transition
+      use_sfx: $.input.use_sfx
+      use_karaoke: $.input.use_karaoke
+      # Fase 2: video_mode="pro" ativa crossfade + color grading.
+      video_mode: $.input.video_mode
+      use_crossfade: $.input.use_crossfade
+      use_color_grading: $.input.use_color_grading
     approval: {mode: none}

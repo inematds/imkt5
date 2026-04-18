@@ -64,6 +64,12 @@ class VideoQuickWorker(BaseWorker):
         language = payload.get("language") or "pt-BR"
         video_template = payload.get("video_template") or "auto"
 
+        # Direção de arte (do video-art-director, se presente)
+        art_style = payload.get("art_direction_style") or "generic"
+        art_motion = payload.get("art_direction_motion") or "varied"
+        art_transition = payload.get("art_direction_transition") or "cut"
+        art_hook_pattern = payload.get("art_direction_hook_pattern") or "pattern_interrupt"
+
         knowledge = load_tenant_knowledge(
             job.tenant_id,
             files=["brand_identity.md"],
@@ -75,7 +81,27 @@ class VideoQuickWorker(BaseWorker):
             f"{knowledge or '(sem knowledge configurado)'}\n\n"
             f"## REGRAS DESTA RUN\n\n"
             f"- Idioma das narrations e text_overlays: {language}.\n"
-            f"- Template solicitado: {video_template} (use como guia do estilo — 'auto' = livre).\n"
+            f"- Template: {video_template} (use como guia do estilo — 'auto' = livre).\n"
+            f"\n## DIREÇÃO DE ARTE (seguir à risca)\n"
+            f"- Style: {art_style}\n"
+            f"- Motion preset dominante: {art_motion}\n"
+            f"- Transition preferida: {art_transition}\n"
+            f"- Hook pattern (PRIMEIRA cena): {art_hook_pattern}\n"
+            f"\n## REGRA DO HOOK\n"
+            f"A cena[0] É O HOOK e tem regras especiais:\n"
+            f"- Duração 1.5-2s\n"
+            f"- motion: {{'type': 'hard_zoom', 'zoom_start': 1.0, 'zoom_end': 1.15, 'intensity': 'strong'}}\n"
+            f"- text_overlay: máximo 4 palavras, tipo gancho\n"
+            f"- Baseado no hook_pattern '{art_hook_pattern}':\n"
+            f"  * stat_shot: dado/%  provocativo gigante\n"
+            f"  * question_abrupt: pergunta direta ao leitor\n"
+            f"  * pattern_interrupt: imagem + frase quebra expectativa\n"
+            f"  * pov: começa com 'POV:'\n"
+            f"  * value_bomb: entrega o benefício sem rodeio\n"
+            f"  * contrast: antes/depois\n"
+            f"\n## MOTION DAS CENAS SEGUINTES\n"
+            f"Use variações do preset '{art_motion}'; não repita o mesmo motion em 2 cenas consecutivas.\n"
+            f"Cada scene.motion DEVE ter: type, zoom_start (1.0-1.05), zoom_end (1.05-1.12), intensity.\n"
         )
 
         user_parts = [

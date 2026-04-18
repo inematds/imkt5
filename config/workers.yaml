@@ -262,6 +262,16 @@ workers:
     timeout_seconds: 60
     max_concurrent: 2
 
+  # video-art-director — escolhe style+motion+transition+music+hook pro
+  # video-quick/video-pro. Catálogo dos 12 styles canônicos do mkt3.
+  - name: video-art-director
+    capabilities: [video.art_direction]
+    endpoint: http://localhost:8114
+    local: true
+    priority: 50
+    timeout_seconds: 60
+    max_concurrent: 2
+
   # # ── plataformas (da absorção do timesmkt3) ───────────────────────
   # - name: platform-instagram
   # capabilities: [platform.instagram]

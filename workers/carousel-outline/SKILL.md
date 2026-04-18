@@ -44,7 +44,8 @@ Responda APENAS JSON:
       "stat_a": {"number": "70%", "label": "Temem<br>o impacto da IA"},
       "stat_b": {"number": "39%", "label": "Temem pelo<br>próprio cargo"},
       "question": "Você consegue ver? 🧠",
-      "slide_label": "Dados · 2026"
+      "slide_label": "Dados · 2026",
+      "bg_prompt": "dark abstract tech visualization, neural network lines, cinematic lighting, depth of field, 8k"
     },
     ...
   ],
@@ -63,6 +64,12 @@ Responda APENAS JSON:
 - `<br>` no label dos stats é OK (quebra de linha visual).
 - Headline max ~60 chars.
 - Context max ~150 chars.
+- `bg_prompt` **obrigatório** em todos os slides — descreve a imagem de
+  fundo em inglês, estilo prompt de Stable Diffusion. Traduza o conceito
+  do slide pra uma cena visual (não literal). Prefira: fotografia
+  cinematográfica, atmosférica, com atmosfera/mood que case com o tema.
+  Ex.: "minimalist workspace, laptop glowing, warm evening light,
+  bokeh, shallow depth of field, editorial photography". Max ~150 chars.
 
 ## Suggested style
 
