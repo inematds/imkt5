@@ -45,7 +45,8 @@ def _select_music(genre: str | None) -> Path | None:
     """Retorna trilha local pra um mood. Fallbacks progressivos."""
     if not genre:
         return None
-    g = genre.lower().strip()
+    # Normaliza espaços/hifens: "piano solo" → "piano_solo"
+    g = genre.lower().strip().replace(" ", "_").replace("-", "_")
     # aliases mais comuns
     aliases = {
         "synthwave": "synthwave", "synth": "synthwave", "retro": "synthwave",
@@ -138,6 +139,7 @@ def _build_vf(
     is_hook: bool = False,
     karaoke: list[dict] | None = None,
     color_grade: str | None = None,  # "cool" | "warm" | None
+    ass_karaoke_active: bool = False,  # se True, pula text_overlay pesado
 ) -> str:
     """Monta -vf: crop → motion → color grading → (karaoke | text overlay)."""
     fps = 30
@@ -170,10 +172,12 @@ def _build_vf(
     elif color_grade == "warm":
         vf = f"{vf},colorchannelmixer=rr=1.08:gg=1.02:bb=0.92,eq=saturation=1.08"
 
-    # Karaoke ganha prioridade sobre text_overlay simples
+    # Karaoke por cena (LEGADO — ASS chain é aplicado após concat).
     if karaoke:
         vf = f"{vf},{_build_karaoke_draw(karaoke, duration, width, height)}"
-    elif (scene.get("text_overlay") or "").strip():
+    elif not ass_karaoke_active and (scene.get("text_overlay") or "").strip():
+        # text_overlay (drawbox+drawtext) só quando ASS não está ativo —
+        # evita conflito visual entre título estático + karaoke fluindo.
         vf = f"{vf},{_build_text_overlay(scene, width, height, tmp, idx)}"
 
     return vf
@@ -240,17 +244,16 @@ def _escape_drawtext(text: str) -> str:
 
 
 def _build_karaoke_draw(words: list[dict], duration: int, width: int, height: int) -> str:
-    """Renderiza palavras uma por uma via drawtext encadeado, cada uma com
-    `enable='between(t,start,end)'`. `words` = [{text, start, end}, ...] (tempos relativos à cena).
-    Palavra ativa em amarelo brilhante, fundo preto semi-transparente sob a linha.
+    """LEGADO — via drawtext encadeado. Mantido como fallback mas o fluxo
+    principal agora usa ASS subtitles (ver _build_ass_karaoke). ASS evita
+    overlap em narrações densas que ocorria com o drawtext chain.
     """
     if not words:
         return ""
     font_size = max(70, int(height * 0.045))
-    y_pos = int(height * 0.72)  # parte inferior mas com margem
+    y_pos = int(height * 0.72)
     box_y = y_pos - int(font_size * 0.3)
     box_h = int(font_size * 1.6)
-
     parts = [
         f"drawbox=x=0:y={box_y}:w={width}:h={box_h}:"
         f"color=black@0.45:t=fill:"
@@ -268,6 +271,47 @@ def _build_karaoke_draw(words: list[dict], duration: int, width: int, height: in
             f"enable='between(t,{w['start']:.2f},{w['end']:.2f})'"
         )
     return ",".join(parts)
+
+
+def _ass_time(seconds: float) -> str:
+    """Formata float seconds pro formato ASS: H:MM:SS.cc"""
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = seconds % 60
+    return f"{h}:{m:02d}:{s:05.2f}"
+
+
+def _build_ass_karaoke(words_global: list[dict], width: int, height: int) -> str:
+    """Gera conteúdo .ass com 1 dialog por palavra. `words_global` tem
+    timings ABSOLUTOS (video inteiro). Cada palavra aparece no seu slot;
+    ASS engine garante zero overlap mesmo com narração densa."""
+    font_size = max(70, int(height * 0.045))
+    # PrimaryColour em ASS é &HAABBGGRR& (alpha inverso): amarelo = &H0000FFFF
+    # OutlineColour preto; Alignment 2 = bottom center; MarginV = distância ao bottom
+    margin_v = int(height * 0.22)
+    header = (
+        "[Script Info]\n"
+        "ScriptType: v4.00+\n"
+        "PlayResX: " + str(width) + "\n"
+        "PlayResY: " + str(height) + "\n"
+        "\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, "
+        "BorderStyle, Outline, Shadow, Alignment, MarginV\n"
+        f"Style: Karaoke,DejaVu Sans,{font_size},&H0000FFFF,&H00000000,"
+        f"1,4,3,2,{margin_v}\n"
+        "\n"
+        "[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+    lines = []
+    for w in words_global:
+        start = _ass_time(w["start"])
+        end = _ass_time(w["end"])
+        # Escape de {}, \ e , no texto ASS
+        txt = w["text"].upper().replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+        lines.append(f"Dialogue: 0,{start},{end},Karaoke,,0,0,0,,{txt}")
+    return header + "\n".join(lines) + "\n"
 
 
 def _split_script_words(script: str, total_duration: float) -> list[dict]:
@@ -356,28 +400,22 @@ class FfmpegLocalWorker(BaseWorker):
                 except Exception:
                     audio_local = None
 
-            # Timings de karaoke — divide palavras do full_narration pelo total de duração.
             scene_durations = [max(1, int(sc.get("duration", 3))) for sc in scenes]
             total_video_dur = sum(scene_durations)
-            karaoke_by_scene: list[list[dict] | None] = [None] * len(scenes)
+
+            # Karaoke agora é aplicado DEPOIS do concat via ASS subtitles.
+            # Timings ABSOLUTOS no video inteiro — ASS engine resolve sem overlap.
+            ass_karaoke_path: Path | None = None
             if use_karaoke and full_narration:
                 all_words = _split_script_words(full_narration, total_video_dur)
-                # distribui palavras proporcionalmente por cena baseada em duração
-                t = 0.0
-                idx_w = 0
-                for si, dur in enumerate(scene_durations):
-                    scene_end = t + dur
-                    scene_words = []
-                    while idx_w < len(all_words) and all_words[idx_w]["start"] < scene_end:
-                        w = all_words[idx_w]
-                        scene_words.append({
-                            "text": w["text"],
-                            "start": max(0.0, w["start"] - t),
-                            "end": min(dur, w["end"] - t),
-                        })
-                        idx_w += 1
-                    karaoke_by_scene[si] = scene_words if scene_words else None
-                    t = scene_end
+                if all_words:
+                    # Ajusta end da última palavra pra não exceder total_video_dur
+                    for w in all_words:
+                        w["end"] = min(w["end"], total_video_dur)
+                    ass_content = _build_ass_karaoke(all_words, width, height)
+                    ass_karaoke_path = tmp_path / "karaoke.ass"
+                    ass_karaoke_path.write_text(ass_content, encoding="utf-8")
+            karaoke_by_scene: list[list[dict] | None] = [None] * len(scenes)
 
             # 2) Renderiza cada cena como mp4 parcial
             scene_clips: list[Path] = []
@@ -401,6 +439,7 @@ class FfmpegLocalWorker(BaseWorker):
                     is_hook=(i == 0 and hook_pattern in ("pattern_interrupt", "stat_shot")),
                     karaoke=karaoke_by_scene[i],
                     color_grade=grade,
+                    ass_karaoke_active=ass_karaoke_path is not None,
                 )
                 # -t no OUTPUT (não no input). Sem -framerate no input;
                 # senão o zoompan multiplica frames (d × n_input_frames).
@@ -432,6 +471,24 @@ class FfmpegLocalWorker(BaseWorker):
                     "-preset", "ultrafast", "-crf", "30",
                     str(concat_mp4),
                 ])
+
+            # 3.5) Se karaoke via ASS: aplica após concat (antes do audio mix).
+            # Subtítulos ASS ficam por cima do vídeo concatenado, sem overlap.
+            if ass_karaoke_path is not None:
+                subbed = tmp_path / "with_subs.mp4"
+                try:
+                    await _run_ffmpeg([
+                        "-y", "-i", str(concat_mp4),
+                        "-vf", f"subtitles='{ass_karaoke_path}'",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                        "-preset", "ultrafast", "-crf", "30",
+                        "-c:a", "copy",
+                        str(subbed),
+                    ])
+                    if subbed.exists() and subbed.stat().st_size > 0:
+                        concat_mp4 = subbed
+                except Exception:  # noqa: BLE001
+                    pass  # silencioso — falha do ASS não quebra o render
 
             # 4) Mix de áudio: narração + música (ducking) + SFX
             final = tmp_path / "final.mp4"
