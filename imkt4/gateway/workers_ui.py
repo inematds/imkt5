@@ -9,6 +9,7 @@ Ações:
   - 🔁 Reprocessar (re-dispatch do mesmo payload)
 """
 from imkt4.gateway._media_modal import MEDIA_MODAL_HTML as _MEDIA_MODAL_HTML
+from imkt4.gateway._modal_close import UNIVERSAL_MODAL_HTML as _UNIVERSAL_MODAL_HTML
 
 
 
@@ -118,6 +119,55 @@ WORKERS_UI_HTML = r"""<!DOCTYPE html>
   .filter-row button { font-size: 10px; padding: 3px 8px; background: transparent;
                        border: 1px solid #30363d; color: #7d8590; }
   .filter-row button.active { background: #21262d; color: #e6edf3; border-color: #1f6feb; }
+
+  /* tabs do detalhe */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid #30363d; margin-bottom: 16px; }
+  .tabs button { background: transparent; border: none; color: #7d8590;
+                 padding: 8px 14px; cursor: pointer; border-radius: 0;
+                 font-size: 12px; border-bottom: 2px solid transparent; }
+  .tabs button.active { color: #e6edf3; border-bottom-color: #1f6feb; }
+  .tabs button:hover { color: #e6edf3; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* Backlog #21 — recipes list */
+  .recipe-item { background: #0d1117; border-radius: 6px; padding: 10px 12px;
+                 margin-bottom: 8px; border: 1px solid #21262d; }
+  .recipe-item .r-name { font-weight: 600; color: #1f6feb; font-size: 13px; }
+  .recipe-item .r-ver { color: #7d8590; font-size: 11px; margin-left: 6px; }
+  .recipe-item .r-stages { margin-top: 6px; font-size: 11px; font-family: monospace;
+                           color: #7d8590; }
+  .recipe-item .r-stage { padding: 2px 6px; background: #21262d;
+                          border-radius: 3px; margin-right: 4px; margin-bottom: 3px;
+                          display: inline-block; }
+  .recipe-item .r-stage.fanout::after { content: ' ⚡'; color: #f0883e; }
+
+  /* Backlog #21 — skill.md markdown */
+  .skill-md { background: #0d1117; padding: 14px 16px; border-radius: 6px;
+              border: 1px solid #21262d; max-height: 500px; overflow: auto;
+              font-size: 12px; line-height: 1.6; }
+  .skill-md h1, .skill-md h2, .skill-md h3 {
+    color: #e6edf3; margin-top: 14px; margin-bottom: 6px; }
+  .skill-md h1 { font-size: 16px; } .skill-md h2 { font-size: 14px; }
+  .skill-md h3 { font-size: 13px; color: #1f6feb; }
+  .skill-md code { background: #21262d; padding: 1px 4px; border-radius: 3px;
+                   font-size: 11px; }
+  .skill-md pre { background: #21262d; padding: 8px; border-radius: 4px;
+                  overflow: auto; font-size: 11px; }
+  .skill-md ul, .skill-md ol { padding-left: 20px; }
+  .skill-md table { border-collapse: collapse; margin: 8px 0; font-size: 11px; }
+  .skill-md table td, .skill-md table th {
+    border: 1px solid #30363d; padding: 4px 8px; }
+  .skill-md table th { background: #21262d; }
+
+  /* Backlog #22 — modal close button universal */
+  .modal-close { position: absolute; top: 14px; right: 18px;
+                 background: rgba(0,0,0,0.5); color: white;
+                 border: 1px solid rgba(255,255,255,0.3);
+                 border-radius: 50%; width: 32px; height: 32px;
+                 font-size: 16px; line-height: 1; cursor: pointer;
+                 z-index: 10000; }
+  .modal-close:hover { background: rgba(220, 50, 50, 0.8); border-color: white; }
 </style>
 </head>
 <body>
@@ -281,9 +331,121 @@ async function selectWorker(name) {
     r.classList.toggle('active', r.dataset.name === name);
   });
   document.getElementById('filter-row').style.display = 'flex';
-  document.getElementById('detail').innerHTML =
-    '<div class="empty">Selecione um job pra ver detalhes</div>';
+  await renderWorkerDetail(name);  // Backlog #21 — mostra SKILL + recipes por default
   await loadJobs();
+}
+
+// Backlog #21 — detalhe read-only do worker (SKILL.md + recipes)
+async function renderWorkerDetail(name) {
+  const main = document.getElementById('detail');
+  main.innerHTML = '<div class="empty">carregando detalhe do worker…</div>';
+  const r = await fetch('/workers/' + encodeURIComponent(name));
+  if (!r.ok) {
+    main.innerHTML = '<div class="empty">worker não encontrado</div>';
+    return;
+  }
+  const d = await r.json();
+  const caps = (d.capabilities || []).map(c => `<code>${c}</code>`).join(' ');
+  const recipesHtml = (d.used_in_recipes || []).length
+    ? (d.used_in_recipes).map(r => `
+        <div class="recipe-item">
+          <div>
+            <a class="r-name" href="/recipes-ui?name=${encodeURIComponent(r.recipe)}" target="_blank">${r.recipe}</a>
+            <span class="r-ver">v${r.version}</span>
+          </div>
+          <div class="r-stages">
+            ${r.stages.map(s => `<span class="r-stage ${s.fanout ? 'fanout' : ''}" title="${s.requires}${s.fanout ? ' (fanout)' : ''}">${s.stage_id}</span>`).join('')}
+          </div>
+        </div>
+      `).join('')
+    : '<div style="color:#7d8590;font-size:12px;">Nenhuma recipe chama esse worker (pode ser via quick-dispatch).</div>';
+
+  const siblingsHtml = (d.siblings || []).length
+    ? (d.siblings).map(s => `
+        <div class="recipe-item">
+          <a class="r-name" href="#" onclick="selectWorker('${s.name}');return false;">${s.name}</a>
+          <span class="pill ${s.health}" style="margin-left:8px;">${s.health}</span>
+          <div class="r-stages">compartilham: ${s.shared_capabilities.map(c=>'<code>'+c+'</code>').join(' ')}</div>
+        </div>
+      `).join('')
+    : '<div style="color:#7d8590;font-size:12px;">Sem outros workers oferecendo as mesmas capabilities.</div>';
+
+  const skillHtml = d.skill_md
+    ? `<div class="skill-md">${renderMarkdown(d.skill_md)}</div>`
+    : '<div style="color:#7d8590;font-size:12px;">Worker não tem SKILL.md.</div>';
+
+  main.innerHTML = `
+    <h2>${d.name} <span class="pill ${d.health}">${d.health}</span></h2>
+    <div class="meta">${caps} · priority=${d.priority} · max_concurrent=${d.max_concurrent} · ${d.endpoint}</div>
+    ${d.last_error ? '<div class="section" style="border-color:#da3633;"><h3 style="color:#f85149;">Último erro</h3><div class="err">'+escapeHtml(d.last_error)+'</div></div>' : ''}
+
+    <div class="tabs" id="wd-tabs">
+      <button data-tab="overview" class="active" onclick="switchTab('overview')">Overview</button>
+      <button data-tab="skill" onclick="switchTab('skill')">SKILL.md</button>
+      <button data-tab="recipes" onclick="switchTab('recipes')">Recipes (${(d.used_in_recipes||[]).length})</button>
+      <button data-tab="siblings" onclick="switchTab('siblings')">Siblings (${(d.siblings||[]).length})</button>
+      <button data-tab="jobs" onclick="switchTab('jobs')">Jobs</button>
+    </div>
+
+    <div class="tab-pane active" data-pane="overview">
+      <div class="section"><h3>Capabilities</h3>${caps}</div>
+      <div class="section"><h3>Endpoint</h3><code>${d.endpoint}</code></div>
+      <div class="section"><h3>Stats</h3>
+        <div>Jobs em voo agora: <b>${d.in_flight}</b></div>
+      </div>
+    </div>
+    <div class="tab-pane" data-pane="skill">${skillHtml}</div>
+    <div class="tab-pane" data-pane="recipes">${recipesHtml}</div>
+    <div class="tab-pane" data-pane="siblings">${siblingsHtml}</div>
+    <div class="tab-pane" data-pane="jobs">
+      <div style="color:#7d8590;font-size:12px;">Selecione um job na coluna do meio para ver detalhes.</div>
+    </div>
+  `;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('#wd-tabs button').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  document.querySelectorAll('.tab-pane').forEach(p => {
+    p.classList.toggle('active', p.dataset.pane === tab);
+  });
+}
+
+// Markdown renderer minimalista (sem dependência externa)
+function renderMarkdown(md) {
+  if (!md) return '';
+  let h = escapeHtml(md);
+  // Code blocks ```lang
+  h = h.replace(/```(\w*)\n([\s\S]*?)```/g, (m, lang, code) => `<pre><code>${code}</code></pre>`);
+  // Headers
+  h = h.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  h = h.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  h = h.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  // Bold / italic
+  h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  h = h.replace(/(?<![*\w])\*([^*\n]+?)\*(?![*\w])/g, '<i>$1</i>');
+  // Inline code
+  h = h.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  // Lists
+  h = h.replace(/^- (.+)$/gm, '<li>$1</li>');
+  h = h.replace(/(<li>[^<]*<\/li>\n?)+/g, m => '<ul>' + m + '</ul>');
+  // Tables
+  h = h.replace(/(\|.+\|\n\|[-:\s|]+\|\n(?:\|.+\|\n?)+)/g, tbl => {
+    const rows = tbl.trim().split('\n').filter(r => !/^\|[-:\s|]+\|$/.test(r));
+    if (!rows.length) return tbl;
+    const header = rows[0].slice(1, -1).split('|').map(c => `<th>${c.trim()}</th>`).join('');
+    const body = rows.slice(1).map(r =>
+      '<tr>' + r.slice(1, -1).split('|').map(c => `<td>${c.trim()}</td>`).join('') + '</tr>'
+    ).join('');
+    return `<table><tr>${header}</tr>${body}</table>`;
+  });
+  // Newlines → paragraphs
+  h = h.split(/\n\n+/).map(p => {
+    if (/^<(h\d|ul|ol|pre|table|div)/.test(p.trim())) return p;
+    return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
+  }).join('');
+  return h;
 }
 
 function setStatusFilter(st) {
@@ -345,7 +507,13 @@ async function selectJob(jobId) {
 }
 
 async function renderDetail(jobId) {
-  const main = document.getElementById('detail');
+  // Backlog #21 — se há worker selecionado, renderiza o job DENTRO da tab "jobs"
+  // em vez de sobrescrever o detalhe do worker.
+  const jobsPane = document.querySelector('.tab-pane[data-pane="jobs"]');
+  const main = jobsPane || document.getElementById('detail');
+  if (jobsPane) {
+    switchTab('jobs');
+  }
   main.innerHTML = '<div class="empty">carregando…</div>';
 
   const r = await fetch('/jobs/' + jobId);
@@ -456,4 +624,4 @@ setInterval(() => {
 </html>
 """
 
-WORKERS_UI_HTML = WORKERS_UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + "</body>")
+WORKERS_UI_HTML = WORKERS_UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + _UNIVERSAL_MODAL_HTML + "</body>")

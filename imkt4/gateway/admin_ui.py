@@ -11,6 +11,7 @@ Tudo textual (YAML/JSON). Editor visual drag-and-drop (E#19) fica
 pra uma iteração separada — requer libs maiores (react-flow etc).
 """
 from imkt4.gateway._media_modal import MEDIA_MODAL_HTML as _MEDIA_MODAL_HTML
+from imkt4.gateway._modal_close import UNIVERSAL_MODAL_HTML as _UNIVERSAL_MODAL_HTML
 
 
 
@@ -464,4 +465,4 @@ loadConfig('global');
 </html>
 """
 
-ADMIN_HTML = ADMIN_HTML.replace("</body>", _MEDIA_MODAL_HTML + "</body>")
+ADMIN_HTML = ADMIN_HTML.replace("</body>", _MEDIA_MODAL_HTML + _UNIVERSAL_MODAL_HTML + "</body>")

@@ -6,6 +6,7 @@ disparados no chat são renderizados inline (polling /jobs filtrado
 por origin_channel_external_id = session_id do chat).
 """
 from imkt4.gateway._media_modal import MEDIA_MODAL_HTML as _MEDIA_MODAL_HTML
+from imkt4.gateway._modal_close import UNIVERSAL_MODAL_HTML as _UNIVERSAL_MODAL_HTML
 
 
 
@@ -443,4 +444,4 @@ pollJobs();
 </html>
 """
 
-CHAT_UI_HTML = CHAT_UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + "</body>")
+CHAT_UI_HTML = CHAT_UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + _UNIVERSAL_MODAL_HTML + "</body>")

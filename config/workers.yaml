@@ -272,6 +272,17 @@ workers:
     timeout_seconds: 60
     max_concurrent: 2
 
+  # video-ab-suggest — Item 6c: LLM sugere hook_variants/cta_variants/
+  # combinations pra auto-popular campanha-marketing-ab quando user passa
+  # flag `ab_ai_suggest: true`.
+  - name: video-ab-suggest
+    capabilities: [video.ab_suggest]
+    endpoint: http://localhost:8115
+    local: true
+    priority: 50
+    timeout_seconds: 60
+    max_concurrent: 2
+
   # # ── plataformas (da absorção do timesmkt3) ───────────────────────
   # - name: platform-instagram
   # capabilities: [platform.instagram]

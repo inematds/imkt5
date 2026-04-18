@@ -5,6 +5,7 @@ FastAPI. Para interação rápida: chat-like, mostra workers disponíveis,
 input de prompt/payload, lista de jobs recentes com auto-refresh.
 """
 from imkt4.gateway._media_modal import MEDIA_MODAL_HTML as _MEDIA_MODAL_HTML
+from imkt4.gateway._modal_close import UNIVERSAL_MODAL_HTML as _UNIVERSAL_MODAL_HTML
 
 
 
@@ -523,4 +524,4 @@ setInterval(loadSidebar, 10000);  // agora não reseta nada (bootstrapped=true)
 </html>
 """
 
-UI_HTML = UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + "</body>")
+UI_HTML = UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + _UNIVERSAL_MODAL_HTML + "</body>")

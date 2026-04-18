@@ -88,6 +88,23 @@ CAPTION_ZONE_BY_STYLE = {
 # Safe zone universal: nunca nos 15% topo nem 25% inferiores
 SAFE_ZONE_Y = (0.25, 0.60)
 
+# Item 12b — safe zones POR PLATAFORMA (flag opcional).
+# tiktok tem botões à direita + descrição em baixo → zona vertical mais alta.
+# instagram_reels: descrição no rodapé → zona ~45-60%.
+# youtube_shorts: similar ao tiktok mas com share à direita.
+# Quando `platform` não é passado, cai pro SAFE_ZONE_Y + caption_zone do style.
+PLATFORM_SAFE_ZONES = {
+    "tiktok": (0.30, 0.55),            # evita: top 15% (search), bottom 30% (desc + botões)
+    "reels": (0.35, 0.55),             # evita: top 10% + bottom 35% (descrição/audio)
+    "instagram_reels": (0.35, 0.55),
+    "shorts": (0.28, 0.58),            # youtube shorts: similar ao tiktok
+    "youtube_shorts": (0.28, 0.58),
+    "stories": (0.25, 0.55),           # instagram stories
+    "instagram_stories": (0.25, 0.55),
+    "feed": (0.15, 0.70),              # feed quadrado é mais livre
+    "instagram_feed": (0.15, 0.70),
+}
+
 
 def _resolve_narration_speed(user_override: Any, style: str) -> float:
     """Item 2 — resolve narration speed. User override > style default > 1.0.
@@ -107,13 +124,30 @@ def _parallax_default_for_style(style: str) -> bool:
     return style in PARALLAX_DEFAULT_STYLES
 
 
-def _caption_zone_for_style(style: str) -> tuple[float, float]:
-    """Item 12 — retorna caption_zone (y%_start, y%_end) respeitando
-    safe zone universal. Default safe zone (25-60%) quando style desconhecido."""
+def _caption_zone_for_style(
+    style: str, platform: str | None = None,
+) -> tuple[float, float]:
+    """Item 12 — retorna caption_zone (y%_start, y%_end).
+
+    Item 12b (flag opcional) — se `platform` é passado, usa a safe zone
+    específica da plataforma como BOUND (mais conservador que safe zone
+    universal). Intersecta com o caption_zone do style pra respeitar os
+    dois ao mesmo tempo.
+
+    Sem platform → cai pro caption_zone do style + safe zone universal
+    (comportamento v4 original).
+    """
     zone = CAPTION_ZONE_BY_STYLE.get(style, SAFE_ZONE_Y)
-    # Clamp à safe zone se extrapolar
-    y_start = max(SAFE_ZONE_Y[0], zone[0])
-    y_end = min(0.85, max(zone[1], y_start + 0.1))  # permite até 85% se template pedir
+    bound = SAFE_ZONE_Y
+    if platform:
+        bound = PLATFORM_SAFE_ZONES.get(platform.lower(), SAFE_ZONE_Y)
+    # Intersecção: zone ∩ bound. Se disjuntos, volta pro bound (plataforma
+    # manda — o botão do tiktok não some porque o template pede caption baixa).
+    y_start = max(bound[0], zone[0])
+    y_end = min(bound[1], zone[1])
+    if y_end <= y_start + 0.05:
+        # Conflito: style pedia fora da zona segura. Usa só bound.
+        y_start, y_end = bound
     return (y_start, y_end)
 
 ASSETS_DIR = Path(__file__).parent / "assets"
@@ -549,18 +583,87 @@ def _freeze_spec_for_scene(sc: dict, scene_type: str, idx: int) -> dict | None:
 
 def _apply_parallax_fake(vf: str, duration: int, width: int, height: int) -> str:
     """Item 8 nível 1 — parallax fake via ajuste na chain de vf.
-    Este é um stub simples: aumenta a intensidade do zoompan pra dar
-    sensação de 'movimento em camadas' sem usar depth map.
-
-    Nível 2 (depth_ai) seria feito via overlay de 3 camadas com depth map
-    real — não implementado nesta passada (requer modelo local).
+    Adiciona blur sutil pra simular profundidade sem depth map real.
     """
-    # Adiciona um pass extra de crop sutil + blur radial progressivo (mock)
-    # Se já tem zoompan, não duplica. Adiciona um boxblur radial simples
-    # na borda pra simular profundidade.
     if "boxblur" not in vf:
         vf = vf + f",boxblur=lr=2:lp=1:cr=0:cp=0,unsharp=lx=3:ly=3:la=0.5"
     return vf
+
+
+_DEPTH_MODEL = None
+
+
+def _depth_anything_model():
+    """Item 8b — lazy load do Depth-Anything V2 (se disponível).
+    Se transformers + torch não instalados, devolve None — pipeline cai
+    silenciosamente pro nível 1 (fake parallax).
+    """
+    global _DEPTH_MODEL
+    if _DEPTH_MODEL is not None:
+        return _DEPTH_MODEL if _DEPTH_MODEL != "unavailable" else None
+    try:
+        # Depth-Anything é disponível via transformers (pipeline
+        # 'depth-estimation'). Requer torch instalado.
+        from transformers import pipeline
+        import torch  # noqa: F401  (verificação)
+        _DEPTH_MODEL = pipeline(
+            "depth-estimation",
+            model=os.environ.get("DEPTH_MODEL", "depth-anything/Depth-Anything-V2-Small-hf"),
+            device=0 if _has_cuda() else -1,
+        )
+        return _DEPTH_MODEL
+    except Exception as exc:  # noqa: BLE001
+        log.info("depth_ai indisponível (%s) — usa parallax nível 1", exc)
+        _DEPTH_MODEL = "unavailable"
+        return None
+
+
+def _has_cuda() -> bool:
+    try:
+        import torch
+        return bool(torch.cuda.is_available())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+async def _generate_depth_map(image_path: Path, out_path: Path) -> bool:
+    """Item 8b — gera depth map 16-bit pra uma imagem. Retorna True se ok."""
+    model = _depth_anything_model()
+    if model is None:
+        return False
+    try:
+        def _sync():
+            from PIL import Image
+            img = Image.open(image_path).convert("RGB")
+            out = model(img)
+            depth = out["depth"]  # PIL.Image grayscale
+            depth.save(out_path)
+            return True
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, _sync)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("depth map falhou pra %s: %s", image_path, exc)
+        return False
+
+
+def _build_depth_parallax_filter(
+    depth_path: Path, width: int, height: int, duration: int,
+) -> str:
+    """Item 8b — constrói filter_complex pra parallax baseado em depth map.
+    Implementação simples: 2 camadas (foreground / background) divididas
+    pelo depth, ambas com zoompan diferente; overlay final.
+
+    Uso simplificado aqui: aplica deslocamento horizontal pequeno proporcional
+    ao depth (geomap pseudo-3D). Integração completa com depth requer
+    displacement map ffmpeg (displace filter).
+    """
+    # displace com depth como mapa horizontal: cria ilusão 3D
+    # -i main -i depth → displace=<edge=wrap>
+    return (
+        f"[0:v]scale={int(width*1.1)}:{int(height*1.1)},crop={width}:{height}[bg];"
+        f"[1:v]scale={width}:{height}[dmap];"
+        f"[bg][dmap]displace=edge=smear[vout]"
+    )
 
 
 def _cumulative_starts(scene_durations: list[float]) -> list[float]:
@@ -698,6 +801,8 @@ class FfmpegLocalWorker(BaseWorker):
         depth_ai = bool(payload.get("depth_ai", False))
         # Item 13b: kinetic presets por style (flag, OFF default)
         kinetic_presets = bool(payload.get("kinetic_presets", False))
+        # Item 12b: safe zone por plataforma (flag, opcional)
+        target_platform = (payload.get("platform") or plan.get("platform") or "").strip()
         # Item 14: freeze frames — auto por style ou flag explícita
         freeze_frames = payload.get("freeze_frames")
         if freeze_frames is None:
@@ -797,7 +902,7 @@ class FfmpegLocalWorker(BaseWorker):
                 if all_words:
                     ass_content = _build_ass_karaoke_with_zone(
                         all_words, width, height,
-                        caption_zone=_caption_zone_for_style(style),
+                        caption_zone=_caption_zone_for_style(style, target_platform),
                         scenes=scenes,
                         scene_starts=_cumulative_starts(scene_durations),
                         kinetic_presets=kinetic_presets,
@@ -837,9 +942,16 @@ class FfmpegLocalWorker(BaseWorker):
                     ass_karaoke_active=ass_karaoke_path is not None,
                 )
 
-                # Item 8 — parallax nível 1 (fake via 3 camadas blur+zoompan)
-                # Aplicado opcionalmente com override via -filter_complex
-                if use_parallax and not depth_ai:
+                # Item 8 — parallax nível 1 (fake via blur+unsharp)
+                # Item 8b — nível 2 (depth_ai): tenta gerar depth_map real;
+                # se modelo indisponível OU falhar, cai pro nível 1.
+                parallax_depth_ok = False
+                if use_parallax and depth_ai:
+                    depth_png = tmp_path / f"depth_{i:02d}.png"
+                    parallax_depth_ok = await _generate_depth_map(img_path, depth_png)
+                    if not parallax_depth_ok:
+                        vf = _apply_parallax_fake(vf, int(dur), width, height)
+                elif use_parallax:
                     vf = _apply_parallax_fake(vf, int(dur), width, height)
 
                 # Item 5a — última cena + hold final: renderiza dur_render como

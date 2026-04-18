@@ -163,4 +163,7 @@ stages:
       freeze_frames: $.input.freeze_frames
       use_parallax: $.input.use_parallax
       depth_ai: $.input.depth_ai
+      # Item 12b — safe zone específica da plataforma alvo (tiktok,
+      # instagram_reels, shorts, etc). Opt-in via input.platform.
+      platform: $.input.platform
     approval: {mode: none}

@@ -11,6 +11,7 @@ Ações disponíveis:
   - 📥 Baixar bundle.zip
 """
 from imkt4.gateway._media_modal import MEDIA_MODAL_HTML as _MEDIA_MODAL_HTML
+from imkt4.gateway._modal_close import UNIVERSAL_MODAL_HTML as _UNIVERSAL_MODAL_HTML
 
 
 
@@ -446,12 +447,28 @@ async function selectRun(runId) {
   await renderDetail(runId);
 }
 
-async function renderDetail(runId) {
+async function renderDetail(runId, opts) {
+  // Backlog #23 — no auto-refresh, preserva scroll position (e colapsos).
+  // opts.preserveScroll: true quando chamado pelo setInterval.
   const detail = document.getElementById('detail');
-  detail.innerHTML = '<div class="empty">carregando…</div>';
+  const preserveScroll = opts && opts.preserveScroll;
+  const prevScrollTop = preserveScroll ? detail.scrollTop : 0;
+  const prevStageOpen = {};
+  if (preserveScroll) {
+    detail.querySelectorAll('details[data-sid]').forEach(el => {
+      prevStageOpen[el.dataset.sid] = el.open;
+    });
+  }
+
+  if (!preserveScroll) {
+    detail.innerHTML = '<div class="empty">carregando…</div>';
+  }
 
   const r = await api('/runs/' + runId);
-  if (!r.ok) { detail.innerHTML = '<div class="empty">run não encontrada</div>'; return; }
+  if (!r.ok) {
+    if (!preserveScroll) detail.innerHTML = '<div class="empty">run não encontrada</div>';
+    return;
+  }
   const run = await r.json();
 
   const status = run.failed ? 'failed' : (run.finished ? 'success' : 'running');
@@ -477,8 +494,9 @@ async function renderDetail(runId) {
     const artifacts = extractArtifactUrls(stg.outputs);
     const cap = stg.requires || '';
     const desc = CAP_DESC[cap] || '';
+    // data-sid pro preserveScroll lembrar qual details estava aberto
     html += `
-      <div class="stage-card">
+      <div class="stage-card" data-sid="${sid}">
         <div class="head">
           <div class="sid">
             ${sid} <span class="pill ${stat}">${stat}</span>
@@ -491,12 +509,21 @@ async function renderDetail(runId) {
         ${desc ? `<div class="desc">${escapeHtml(desc)}</div>` : ''}
         ${stg.error ? `<div class="err">${escapeHtml(stg.error)}</div>` : ''}
         ${artifacts.length ? `<div>${artifacts.map(a => renderArtifact(a)).join('')}</div>` : ''}
-        ${outputsSample ? `<details><summary>output JSON</summary>${outputsSample}</details>` : ''}
+        ${outputsSample ? `<details data-sid="${sid}-output"><summary>output JSON</summary>${outputsSample}</details>` : ''}
       </div>
     `;
   }
   html += '</div>';
   detail.innerHTML = html;
+
+  // Backlog #23 — restaura scroll + open-state de <details> após re-render
+  if (preserveScroll) {
+    detail.querySelectorAll('details[data-sid]').forEach(el => {
+      const sid = el.dataset.sid;
+      if (prevStageOpen[sid] !== undefined) el.open = prevStageOpen[sid];
+    });
+    detail.scrollTop = prevScrollTop;
+  }
 }
 
 // ── artefatos ─────────────────────────────────────────────────
@@ -599,12 +626,13 @@ async function rerunFrom(runId, stageId) {
 updateAuthStatus();
 loadRecipes();
 
+// Backlog #23 — auto-refresh preserva scroll + colapsos
 setInterval(() => {
-  loadRecipes();  // atualiza contadores
+  loadRecipes();  // atualiza contadores (coluna 1, não afeta scroll do detail)
   if (selectedRecipe) loadRuns(selectedRecipe);
   if (selectedRunId) {
     fetch('/runs/' + selectedRunId).then(r => r.json()).then(run => {
-      if (!run.finished) renderDetail(selectedRunId);
+      if (!run.finished) renderDetail(selectedRunId, { preserveScroll: true });
     }).catch(()=>{});
   }
 }, 5000);
@@ -613,4 +641,4 @@ setInterval(() => {
 </html>
 """
 
-RUNS_UI_HTML = RUNS_UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + "</body>")
+RUNS_UI_HTML = RUNS_UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + _UNIVERSAL_MODAL_HTML + "</body>")

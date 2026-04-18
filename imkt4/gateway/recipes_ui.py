@@ -12,6 +12,7 @@ Reusa endpoints /admin/recipes (com token admin).
 Não interfere com a /ui existente.
 """
 from imkt4.gateway._media_modal import MEDIA_MODAL_HTML as _MEDIA_MODAL_HTML
+from imkt4.gateway._modal_close import UNIVERSAL_MODAL_HTML as _UNIVERSAL_MODAL_HTML
 
 
 
@@ -414,4 +415,4 @@ loadRecipes();
 </html>
 """
 
-RECIPES_UI_HTML = RECIPES_UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + "</body>")
+RECIPES_UI_HTML = RECIPES_UI_HTML.replace("</body>", _MEDIA_MODAL_HTML + _UNIVERSAL_MODAL_HTML + "</body>")

@@ -901,6 +901,78 @@ def create_app(
             )
         return out
 
+    @app.get("/workers/{name}")
+    async def worker_detail(name: str) -> dict[str, Any]:
+        """Backlog #21 — detalhe read-only: SKILL.md + recipes que usam +
+        capabilities + stats recentes."""
+        from pathlib import Path as _Path
+        w = None
+        for cand in registry.all_workers():
+            if cand.name == name:
+                w = cand
+                break
+        if w is None:
+            raise HTTPException(404, f"worker desconhecido: {name}")
+        status = registry.get_status(w.name)
+
+        # SKILL.md
+        skill_md = None
+        skill_path = _Path(f"workers/{name}/SKILL.md")
+        if skill_path.exists():
+            try:
+                skill_md = skill_path.read_text(encoding="utf-8")
+            except Exception:  # noqa: BLE001
+                skill_md = None
+
+        # Recipes que chamam alguma das capabilities deste worker
+        used_in_recipes = []
+        caps = set(w.capabilities)
+        try:
+            for r in catalog.all():
+                stage_uses = []
+                for st in r.stages:
+                    if st.requires and st.requires in caps:
+                        stage_uses.append({
+                            "stage_id": st.id, "requires": st.requires,
+                            "fanout": bool(st.fanout_over),
+                            "needs": list(st.needs),
+                        })
+                if stage_uses:
+                    used_in_recipes.append({
+                        "recipe": r.name, "version": r.version,
+                        "stages": stage_uses,
+                    })
+        except Exception:  # noqa: BLE001
+            pass
+
+        # Outras capabilities (irmãs neste mesmo worker)
+        siblings = []
+        for sib in registry.all_workers():
+            if sib.name == w.name:
+                continue
+            common = set(sib.capabilities) & caps
+            if common:
+                siblings.append({
+                    "name": sib.name, "shared_capabilities": sorted(common),
+                    "priority": sib.priority,
+                    "health": registry.get_status(sib.name).health.value,
+                })
+
+        return {
+            "name": w.name,
+            "capabilities": list(w.capabilities),
+            "endpoint": w.endpoint,
+            "local": w.local,
+            "priority": w.priority,
+            "max_concurrent": w.max_concurrent,
+            "health": status.health.value,
+            "in_flight": status.in_flight,
+            "last_error": status.last_error,
+            "skill_md": skill_md,
+            "used_in_recipes": used_in_recipes,
+            "siblings": siblings,
+        }
+
     @app.post("/chat")
     async def chat(req: ChatRequest, request: Request) -> dict[str, Any]:
         await _require_user(request, tenant_id=req.tenant_id)

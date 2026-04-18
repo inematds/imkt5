@@ -1,5 +1,5 @@
 name: campanha-marketing-ab
-version: 1
+version: 2
 # Item 6 — A/B variants recipe-level.
 #
 # Gera N vídeos diferentes variando hook e CTA. Ideal pra testar qual
@@ -70,6 +70,20 @@ stages:
       model: $.input.image_model
     approval: {mode: none}
 
+  # Item 6c (flag ab_ai_suggest): LLM sugere hook_variants+cta_variants
+  # quando user não passou explicitamente. Fallback pra input.hook_variants
+  # se esta stage for skipped.
+  - id: ab_suggest
+    requires: video.ab_suggest
+    needs: [copy]
+    when: $.input.ab_ai_suggest == true && $.input.hook_variants == null
+    payload_from:
+      brief: $.input.brief
+      copy: $.stages.copy.output.copy
+      audience: $.input.audience
+      platform: $.input.platform
+    approval: {mode: none}
+
   - id: video_art_direction
     requires: video.art_direction
     when: $.input.video_style == null
@@ -85,9 +99,10 @@ stages:
   # Em v5 pode refatorar pra fanout_over hook×cta direto.
   - id: video_ab
     requires: video.cinematic
-    needs: [ad_design, images, video_art_direction]
+    needs: [ad_design, images, video_art_direction, ab_suggest]
     when: $.input.skip_video != true
-    fanout_over: $.input.hook_variants
+    # Aceita hook_variants do input OU sugestões do ab_suggest (opção C)
+    fanout_over: $.input.hook_variants || $.stages.ab_suggest.output.hook_variants
     payload_from:
       creative_brief: $.stages.brief.output.creative_brief
       copy: $.stages.copy.output.copy

@@ -71,9 +71,29 @@ MEDIA_MODAL_HTML = r"""
 #media-modal .media-nav.prev { left: 24px; }
 #media-modal .media-nav.next { right: 24px; }
 #media-modal .media-nav:disabled { opacity: 0.3; cursor: default; background: rgba(13,17,23,0.85) !important; }
+
+/* Backlog #22 — botão X universal de fechar modal no canto */
+#media-modal .close-x {
+  position: absolute;
+  top: 20px; right: 24px;
+  background: rgba(13,17,23,0.85); color: #e6edf3;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 50%;
+  width: 44px; height: 44px;
+  font-size: 22px; line-height: 1; font-weight: 300;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+  z-index: 10001;
+}
+#media-modal .close-x:hover {
+  background: rgba(220, 60, 60, 0.9);
+  border-color: white;
+}
 </style>
 
 <div id="media-modal" onclick="closeMediaModal(event)">
+  <button class="close-x" onclick="event.stopPropagation(); closeMediaModal();" title="Fechar (ESC)">×</button>
   <button class="media-nav prev" id="media-prev-btn" onclick="event.stopPropagation(); mediaNav(-1);">‹</button>
   <button class="media-nav next" id="media-next-btn" onclick="event.stopPropagation(); mediaNav(1);">›</button>
   <div class="inner" onclick="event.stopPropagation()">
