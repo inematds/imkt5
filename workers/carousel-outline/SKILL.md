@@ -64,6 +64,18 @@ Responda APENAS JSON:
 - `<br>` no label dos stats é OK (quebra de linha visual).
 - Headline max ~60 chars.
 - Context max ~150 chars.
+
+### TEXTO LIMPO (obrigatório)
+
+Os campos `headline` e `context` são renderizados em HTML/CSS limpo.
+**NÃO use markdown**: nada de `**bold**`, `*itálico*`, `- lista`, `#` ou
+qualquer sintaxe. Só texto plano, 1-2 frases.
+
+Se o INPUT do usuário vem com markdown, REESCREVA como texto plano.
+Não copie blocos do input — o input é matéria-prima, não conteúdo final.
+Exemplo:
+- input bad: `**O que contadores aprendem:**\n* Automação\n* Fluxo em etapas`
+- headline/context good: `Como contadores podem automatizar fluxos repetitivos`
 - `bg_prompt` **obrigatório** em todos os slides — descreve a imagem de
   fundo em inglês, estilo prompt de Stable Diffusion. Traduza o conceito
   do slide pra uma cena visual (não literal). Prefira: fotografia

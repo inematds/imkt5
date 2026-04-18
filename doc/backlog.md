@@ -187,6 +187,40 @@ admin UI, infra de produção.
   source_files, skill_md, templates, env_vars, upstreams, python_deps.
 - Workers são read-only na UI (são código Python, não YAML como receitas).
 
+### 22. Universal modal: botão de fechar
+- **Esforço:** S
+- `imkt4/gateway/_media_modal.py`: o modal de mídia não tem botão X
+  visível. ESC funciona mas user espera clique fora/botão.
+- Fix: ícone ✕ no canto superior direito, clickout closes.
+
+### 23. UI refresh: preservar scroll + só refresh em mudança real
+- **Esforço:** M | **Risco:** médio
+- Problema atual: `/runs-ui` faz polling periódico e re-renderiza a coluna
+  inteira, jogando user de volta pro topo quando estava rolando ou
+  visualizando um detalhe. Acontece em todas as UIs (runs, workers, chat).
+- Comportamento desejado:
+  - Poll de status em background (ex.: 5s) — quieto.
+  - Só re-renderizar a seção AFETADA (ex.: se mudou o status de um stage,
+    atualiza o card daquele stage, não a lista inteira).
+  - Salvar/restaurar scroll position + elemento foco ao re-renderizar.
+  - Considerar diff: polling devolve ETag/hash; só atualiza se mudou.
+- Aplica em `/runs-ui`, `/workers-ui`, `/chat-ui`, `/recipes-ui`.
+
+### 24. Outline/designer: limpar markdown do input do usuário
+- **Esforço:** S
+- `workers/carousel-outline/SKILL.md`: quando brief vem com markdown
+  (`**bold**`, listas, `*italic*`), o LLM às vezes replica literalmente no
+  campo `context` dos slides. Designer renderiza com a sintaxe exposta.
+- Fix: instrução explícita no SKILL pra sempre produzir texto limpo
+  (plain, max N chars por campo). Opcional: pipeline de pré-sanitização
+  no server.py antes de passar o topic ao LLM.
+
+### 25. SolicitaçÃO card colapsável em `/runs-ui`
+- **Esforço:** S
+- Hoje o card "SOLICITAÇÃO" aparece sempre expandido. Em briefs longos
+  empurra tudo pra baixo. Deve aparecer colapsado por default (só título
+  + 1 linha), expandir com clique.
+
 ---
 
 ## Roteiro sugerido

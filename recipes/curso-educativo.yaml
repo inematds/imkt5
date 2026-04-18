@@ -22,7 +22,8 @@ stages:
   - id: outline
     requires: education.outline
     payload_from:
-      topic: $.input.topic
+      # fallback: aceita topic, brief ou text
+      topic: $.input.topic || $.input.brief || $.input.text
       slide_count: $.input.slide_count
       language: $.input.language
       depth: $.input.depth

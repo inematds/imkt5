@@ -33,3 +33,4 @@ workers/*/.venv/
 workers/*/dist/
 workers/*/outputs/
 config/auth.json
+.claude/

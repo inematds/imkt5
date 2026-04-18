@@ -17,6 +17,27 @@ from workers._base.llm_client import complete_json, load_tenant_knowledge
 SKILL_PATH = Path(__file__).parent / "SKILL.md"
 
 
+def _strip_markdown(s: str) -> str:
+    """Remove markdown comum: **bold**, *italic*, `code`, # headers, - lists.
+    Mantém texto plano com quebras de linha simples."""
+    import re
+    if not s:
+        return s
+    # Headers, bullets, quotes
+    s = re.sub(r"^\s*#{1,6}\s+", "", s, flags=re.MULTILINE)
+    s = re.sub(r"^\s*[-*+]\s+", "", s, flags=re.MULTILINE)
+    s = re.sub(r"^\s*>\s+", "", s, flags=re.MULTILINE)
+    # Bold/italic
+    s = re.sub(r"\*\*(.+?)\*\*", r"\1", s)
+    s = re.sub(r"__(.+?)__", r"\1", s)
+    s = re.sub(r"(?<![*\w])\*([^*\n]+?)\*(?![*\w])", r"\1", s)
+    # Code
+    s = re.sub(r"`([^`]+)`", r"\1", s)
+    # Collapse whitespace
+    s = re.sub(r"\n{3,}", "\n\n", s)
+    return s.strip()
+
+
 class CarouselOutlineWorker(BaseWorker):
     name = "carousel-outline"
     capabilities = ("design.carousel_outline",)
@@ -89,9 +110,14 @@ class CarouselOutlineWorker(BaseWorker):
             slide0["context"] = original_context
         slides[0] = slide0
 
+        # Defensivo: strip markdown dos campos de texto (headline, context, etc.)
+        for sl in slides:
+            for k in ("headline", "context", "question"):
+                if isinstance(sl.get(k), str):
+                    sl[k] = _strip_markdown(sl[k])
         return {
             "slides": slides,
-            "title": data.get("title") or topic[:60],
+            "title": _strip_markdown(data.get("title") or topic[:60]),
             "suggested_style": data.get("suggested_style") or "neon_futurista",
             "topic": topic,
             "language": language,

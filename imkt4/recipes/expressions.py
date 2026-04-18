@@ -99,7 +99,24 @@ def _tokenize(body: str) -> list[str]:
 def resolve(expr: Any, context: dict[str, Any]) -> Any:
     """Resolve um valor. Se `expr` é string começando com '$.', resolve
     contra o contexto; se é dict/list, resolve recursivamente; caso
-    contrário, devolve literal."""
+    contrário, devolve literal.
+
+    Fallback `||`: `$.input.topic || $.input.brief` resolve do primeiro
+    path e, se None/vazio, tenta o próximo. Aceita também literal final:
+    `$.input.x || "default"`.
+    """
+    if isinstance(expr, str) and " || " in expr and expr.startswith("$."):
+        # Sequência de alternativas; primeiro truthy ganha.
+        for part in expr.split(" || "):
+            part = part.strip()
+            if part.startswith("$."):
+                v = _resolve_path(context, part)
+            else:
+                # literal (string entre aspas, número, bool, null)
+                v = _coerce(part, part)
+            if v not in (None, "", [], {}):
+                return v
+        return None
     if isinstance(expr, str) and expr.startswith("$."):
         return _resolve_path(context, expr)
     if isinstance(expr, dict):

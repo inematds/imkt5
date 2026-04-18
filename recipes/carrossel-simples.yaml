@@ -20,7 +20,8 @@ stages:
     requires: image.generation
     parallel: 2
     payload_from:
-      prompt: $.input.prompt
+      # fallback: prompt > brief > topic > text (aceita qualquer um)
+      prompt: $.input.prompt || $.input.brief || $.input.topic || $.input.text
       model: $.input.model
       width: 1080
       height: 1080

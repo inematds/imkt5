@@ -125,16 +125,31 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
     border: 1px solid rgba(31,111,235,0.3);
     border-left: 3px solid #1f6feb;
     border-radius: 8px;
-    padding: 14px 16px;
-    margin-bottom: 18px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
   }
+  .input-card summary {
+    cursor: pointer; list-style: none; outline: none;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .input-card summary::-webkit-details-marker { display: none; }
+  .input-card summary .caret {
+    font-size: 10px; color: #7d8590; transition: transform 0.15s;
+  }
+  .input-card[open] summary .caret { transform: rotate(90deg); }
   .input-card-label {
     font-size: 10px; color: #1f6feb; font-weight: 700;
-    letter-spacing: 1px; margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+  .input-card-preview {
+    margin-left: 10px; font-size: 12px; color: #8b949e;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    flex: 1; max-width: calc(100% - 180px);
   }
   .input-card-text {
-    font-size: 15px; color: #e6edf3; line-height: 1.5;
+    font-size: 14px; color: #e6edf3; line-height: 1.5;
     white-space: pre-wrap; word-wrap: break-word;
+    margin-top: 10px; max-height: 400px; overflow-y: auto;
   }
   .input-card-rest {
     margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px;
@@ -507,12 +522,18 @@ function renderInputCard(input) {
       return `<span class="input-kv"><b>${escapeHtml(k)}:</b> ${escapeHtml(sv.slice(0, 80))}</span>`;
     }).join('');
 
+  // preview = 1 linha do texto principal (80 chars)
+  const preview = mainText ? escapeHtml(mainText.replace(/\s+/g, ' ').slice(0, 80) + (mainText.length > 80 ? '…' : '')) : '';
   return `
-    <div class="input-card">
-      <div class="input-card-label">SOLICITAÇÃO</div>
+    <details class="input-card">
+      <summary>
+        <span class="caret">▶</span>
+        <span class="input-card-label">SOLICITAÇÃO</span>
+        ${preview ? `<span class="input-card-preview">${preview}</span>` : ''}
+      </summary>
       ${mainText ? `<div class="input-card-text">${escapeHtml(mainText)}</div>` : ''}
       ${rest ? `<div class="input-card-rest">${rest}</div>` : ''}
-    </div>
+    </details>
   `;
 }
 
