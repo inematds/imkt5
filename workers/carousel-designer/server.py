@@ -146,8 +146,16 @@ class CarouselDesignerWorker(BaseWorker):
             images = [x for sub in images for x in (sub or [])]
         images = [x for x in images if x]
 
-        slides = payload.get("slides") or []
-        # Fallback: se não vieram slides estruturados, constrói do básico
+        # Aceita slides de múltiplas fontes (coalesce):
+        # 1. input.slides (controle total)
+        # 2. stages.outline.output.slides (gerado pelo carousel-outline)
+        # 3. fallback: constrói a partir de title/captions/cta
+        slides = (
+            payload.get("slides")
+            or payload.get("slides_from_input")
+            or payload.get("slides_from_outline")
+            or []
+        )
         if not slides:
             slides = self._slides_from_basic(payload)
 

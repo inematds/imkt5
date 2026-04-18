@@ -1,42 +1,44 @@
 name: carrossel-rico
-version: 2
+version: 3
 # Carrossel editorial estilo timesmkt3 (c0051, c0069...).
-# Usa o worker carousel-designer (Playwright + template HTML).
+# Usa carousel-outline (gera slides a partir de texto livre) +
+# carousel-designer (Playwright + template HTML).
 #
-# Defaults (se nada passado):
-#   style:    "neon_futurista" (blue/green/gold cyberpunk)
-#   formats:  ["1:1", "9:16", "16:9"]  — gera os 3 formatos canônicos
+# 2 modos de uso:
+#
+# 1) Texto livre (fácil):
+#    input: { "topic": "Por que Claude Code muda a forma de programar" }
+#    → stage outline gera slides estruturados.
+#    → designer renderiza os 3 formatos (1:1, 9:16, 16:9).
+#
+# 2) Slides estruturados (controle total):
+#    input: { "slides": [{ headline, context, stat_a, stat_b, ... }] }
+#    → stage outline é pulado.
+#    → designer recebe os slides prontos.
+#
+# Defaults quando não passa nada além do mínimo:
+#   style:    "neon_futurista" (12 presets disponíveis)
+#   formats:  ["1:1", "9:16", "16:9"] — gera os 3
 #   template: "editorial"
 #   handle:   "@inema.tds"
-#
-# Input obrigatório:
-#   slides: list — estrutura rica por slide
-#
-# Input opcional:
-#   bg_prompts: list — prompts SD pra gerar backgrounds (1 por slide).
-#                     Se vazio, slides usam só cor sólida do palette.
-#   style: um dos 12 presets (neon_futurista, warm_lifestyle,
-#          corporate_clean, bold_pop, minimal_zen, dark_cinematic,
-#          pastel_soft, retro_vintage, nature_organic, urban_street,
-#          luxury_gold, editorial_documentary).
-#   palette: { primary, secondary, accent, background, text }
-#            — override parcial sobre o style preset.
-#   formats: ["1:1", "9:16", "16:9"] — subset pra gerar menos.
-#   template: "editorial" (default, único disponível hoje)
-#   image_model: "flux2-klein"
-#
-# Exemplo de `slides`:
-#   - headline: "A dissonância que ninguém quer enxergar"
-#     context: "Dos gestores que temem IA, só 39% temem pelo próprio cargo."
-#     stat_a: { number: "70%", label: "Temem IA" }
-#     stat_b: { number: "39%", label: "Temem pelo cargo" }
-#     question: "Você consegue ver o problema? 🧠"
-#     slide_label: "Dados · 2026"
+#   slide_count (modo 1): 5
 
 stages:
 
-  # Gera backgrounds (1 por slide) — só se bg_prompts vier preenchido.
-  # Fanout sobre bg_prompts produz N imagens pro designer usar como bg.
+  # Gera slides estruturados se o user passou `topic` (e NÃO `slides`).
+  - id: outline
+    requires: design.carousel_outline
+    when: $.input.slides == null
+    payload_from:
+      topic: $.input.topic
+      slide_count: $.input.slide_count
+      language: $.input.language
+      style: $.input.voice_style
+      audience: $.input.audience
+    approval: {mode: none}
+
+  # Backgrounds opcionais (gera N imagens pra usar como bg dos slides).
+  # Só roda se o user passou bg_prompts explicitamente.
   - id: backgrounds
     requires: image.generation
     when: $.input.bg_prompts != null
@@ -49,16 +51,16 @@ stages:
     approval: {mode: none}
 
   # Designer: render HTML/CSS via Playwright.
-  # Passa bg_prompts como lista vazia se skip — worker usa gradient puro.
+  # Aceita slides do outline OU do input direto.
   - id: carrossel
     requires: design.carousel_rich
-    needs: [backgrounds]
+    needs: [outline, backgrounds]
     payload_from:
-      slides: $.input.slides
+      # Se outline rodou, usa slides gerados. Senão, usa do input.
+      slides_from_outline: $.stages.outline.output.slides
+      slides_from_input: $.input.slides
       images: $.stages.backgrounds.output.outputs[*].image_url
       handle: $.input.handle
-      # Se o user não passa style/palette/formats/template, o worker
-      # aplica defaults: style=neon_futurista, formats=[1:1, 9:16, 16:9].
       style: $.input.style
       palette: $.input.palette
       formats: $.input.formats

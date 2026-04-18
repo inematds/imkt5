@@ -242,6 +242,16 @@ workers:
     timeout_seconds: 180
     max_concurrent: 1
 
+  # carousel-outline — gera slides estruturados a partir de texto livre.
+  # Consumido pela receita carrossel-rico quando input não traz slides.
+  - name: carousel-outline
+    capabilities: [design.carousel_outline]
+    endpoint: http://localhost:8112
+    local: true
+    priority: 50
+    timeout_seconds: 120
+    max_concurrent: 2
+
   # # ── plataformas (da absorção do timesmkt3) ───────────────────────
   # - name: platform-instagram
   # capabilities: [platform.instagram]
