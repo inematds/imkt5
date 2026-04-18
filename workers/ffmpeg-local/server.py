@@ -1305,14 +1305,19 @@ class FfmpegLocalWorker(BaseWorker):
 
         if has_narr:
             args += ["-i", str(narration)]
-            # Narração precisa ser split: uma vai pro sidechain da música,
-            # outra vai pro amix final. asplit cria [narr_mix] e [narr_side].
-            filter_parts.append(
-                f"[{input_idx}:a]aformat=sample_fmts=s16:channel_layouts=stereo,apad,"
-                f"asplit=2[narr_mix][narr_side]"
-            )
+            # Só faz asplit (pro sidechain da música) se vamos USAR a música.
+            # Senão, asplit cria output órfão e ffmpeg rejeita ("unconnected output").
+            if has_music:
+                filter_parts.append(
+                    f"[{input_idx}:a]aformat=sample_fmts=s16:channel_layouts=stereo,apad,"
+                    f"asplit=2[narr_mix][narr_side]"
+                )
+            else:
+                filter_parts.append(
+                    f"[{input_idx}:a]aformat=sample_fmts=s16:channel_layouts=stereo,apad"
+                    f"[narr_mix]"
+                )
             input_idx += 1
-            # narr_mix vai pro amix final, narr_side é sidechain
             labels.append(("narr_mix", 1.0))
         if has_music:
             args += ["-stream_loop", "-1", "-i", str(music)]
