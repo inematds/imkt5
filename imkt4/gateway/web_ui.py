@@ -229,7 +229,7 @@ const CAP_CONFIG = {
     buildPayload: (text) => ({
       model: "flux2-klein",
       prompt: text,
-      steps: 15,
+      steps: 4,
       width: 512, height: 512,
     }),
   },

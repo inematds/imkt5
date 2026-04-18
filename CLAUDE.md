@@ -51,6 +51,19 @@ imkt4/
 - **DB**: SQLite no core para memória conversacional (baixa fricção, FTS5), Postgres para o Gateway quando a carga subir. Workers podem ter seus próprios stores.
 - **Monorepo**: um único repo; workers ficam em `workers/<nome>/` como subprojetos independentes.
 
+## Provider-specific tuning
+
+Ao trocar `model:` numa recipe ou num adapter, **re-tunar parâmetros e prompts**
+— eles são específicos do modelo, não da capability. Copiar `steps`/`cfg`/prompt
+entre providers gera imagem pior *e* mais lento (ou custo absurdo).
+
+**Fonte canônica**: [`doc/provider-tuning.md`](./doc/provider-tuning.md) — cheatsheet
+por capability, procedimento pra trocar modelo, camadas onde ajustar
+(recipe → UI `CAP_CONFIG` → adapter fallback).
+
+Resumo do mais comum: `flux2-klein` → `steps: 4` (destilado); `SDXL` → `25–40`;
+`SD 1.5` → `20–30`; `DALL-E 3` → sem `steps`.
+
 ## O que você NÃO deve fazer
 
 - Não criar stubs vazios de adapter (ex.: `channels/telegram.py` só com `pass`). Adapter é criado quando é portado do projeto fonte, com comportamento real.
@@ -62,4 +75,5 @@ imkt4/
 
 - `/home/nmaldaner/projetos/imkt4/ANALISE_METODO_E_PROPOSTA.md` — método de análise dos projetos a absorver + arquitetura-alvo em texto.
 - `/home/nmaldaner/projetos/imkt4/doc/architecture.md` — arquitetura canônica detalhada.
+- `/home/nmaldaner/projetos/imkt4/doc/provider-tuning.md` — parâmetros/prompts por modelo (steps, cfg, estilo de prompt).
 - `/home/nmaldaner/.claude/plans/steady-wobbling-fountain.md` — plano aprovado que originou este scaffold.

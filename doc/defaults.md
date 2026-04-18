@@ -97,7 +97,7 @@ Cada capability tem defaults do **payload** que a UI constrói a partir do texto
 
 | Capability | Defaults do payload |
 |---|---|
-| `image.generation` | `{model: "flux2-klein", steps: 15, width: 512, height: 512}` |
+| `image.generation` | `{model: "flux2-klein", steps: 4, width: 512, height: 512}` *(ver [provider-tuning.md](./provider-tuning.md) — `steps` é por modelo)* |
 | `research.market` | `{max_results_per_query: 3, depth: "basic"}` |
 | `audio.tts` | `{engine: "edge", lang: "pt"}` |
 | `audio.dubbing` | `{engine: "chatterbox", lang: "pt"}` |

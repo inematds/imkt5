@@ -525,22 +525,47 @@ def create_app(
             })
         return out
 
+    async def _load_prev_for_rerun(run_id: str):
+        """Retorna (recipe, tenant_id, user_id, input, origin_channel,
+        origin_channel_external_id) — da memória ou do Postgres."""
+        try:
+            prev = runner.get_run(run_id)
+            return (prev.recipe, prev.tenant_id, prev.user_id,
+                    dict(prev.input), prev.origin_channel,
+                    prev.origin_channel_external_id)
+        except KeyError:
+            pass
+        repo = getattr(runner, "_runs_repo", None)
+        if repo is None:
+            raise HTTPException(404, f"run não encontrada: {run_id}")
+        row = await repo.get(run_id)
+        if not row:
+            raise HTTPException(404, f"run não encontrada: {run_id}")
+        try:
+            recipe = catalog.get(row.get("recipe_name", ""))
+        except KeyError as exc:
+            raise HTTPException(
+                410, f"receita '{row.get('recipe_name')}' não existe mais"
+            ) from exc
+        return (recipe, row.get("tenant_id"), row.get("user_id"),
+                dict(row.get("input") or {}),
+                row.get("origin_channel") or "web",
+                row.get("origin_channel_external_id") or "")
+
     @app.post("/runs/{run_id}/rerun")
     async def rerun(run_id: str, request: Request) -> dict[str, str]:
         """Re-dispara a mesma receita com o mesmo input em uma nova run."""
-        try:
-            prev = runner.get_run(run_id)
-        except KeyError as exc:
-            raise HTTPException(404, f"run não encontrada: {run_id}") from exc
-        await _require_user(request, tenant_id=prev.tenant_id)
+        recipe, tenant_id, user_id, prev_input, origin_ch, origin_ext = \
+            await _load_prev_for_rerun(run_id)
+        await _require_user(request, tenant_id=tenant_id)
         new_run = await runner.start(
-            recipe=prev.recipe,
-            tenant_id=prev.tenant_id,
-            user_id=prev.user_id,
-            input=dict(prev.input),
-            tenant_ctx=await tenant_ctx_provider.snapshot(prev.tenant_id),
-            origin_channel=prev.origin_channel,
-            origin_channel_external_id=prev.origin_channel_external_id,
+            recipe=recipe,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            input=prev_input,
+            tenant_ctx=await tenant_ctx_provider.snapshot(tenant_id),
+            origin_channel=origin_ch,
+            origin_channel_external_id=origin_ext,
         )
         return {"run_id": new_run.run_id, "source_run_id": run_id}
 
@@ -549,28 +574,38 @@ def create_app(
         """Re-dispara uma nova run, pulando stages anteriores a `stage_id`
         (copia outputs dos stages anteriores da run original). Útil pra
         repetir só a partir de onde deu ruim."""
-        try:
-            prev = runner.get_run(run_id)
-        except KeyError as exc:
-            raise HTTPException(404, f"run não encontrada: {run_id}") from exc
-        await _require_user(request, tenant_id=prev.tenant_id)
-        stage_ids = [s.id for s in prev.recipe.stages]
+        recipe, tenant_id, user_id, prev_input, origin_ch, origin_ext = \
+            await _load_prev_for_rerun(run_id)
+        await _require_user(request, tenant_id=tenant_id)
+        stage_ids = [s.id for s in recipe.stages]
         if stage_id not in stage_ids:
             raise HTTPException(400, f"stage_id '{stage_id}' não existe na receita")
         idx = stage_ids.index(stage_id)
-        pre_outputs = {
-            sid: prev.stages[sid].outputs
-            for sid in stage_ids[:idx]
-            if sid in prev.stages and prev.stages[sid].outputs
-        }
+        # carrega outputs dos stages anteriores — memória OU repo
+        pre_outputs: dict[str, list] = {}
+        try:
+            prev = runner.get_run(run_id)
+            for sid in stage_ids[:idx]:
+                if sid in prev.stages and prev.stages[sid].outputs:
+                    pre_outputs[sid] = [dict(o) for o in prev.stages[sid].outputs]
+        except KeyError:
+            repo = getattr(runner, "_runs_repo", None)
+            if repo is not None:
+                row = await repo.get(run_id)
+                raw = (row or {}).get("stages") or {}
+                for sid in stage_ids[:idx]:
+                    st = raw.get(sid) or {}
+                    outs = st.get("outputs") or []
+                    if outs:
+                        pre_outputs[sid] = [dict(o) for o in outs]
         new_run = await runner.start(
-            recipe=prev.recipe,
-            tenant_id=prev.tenant_id,
-            user_id=prev.user_id,
-            input=dict(prev.input),
-            tenant_ctx=await tenant_ctx_provider.snapshot(prev.tenant_id),
-            origin_channel=prev.origin_channel,
-            origin_channel_external_id=prev.origin_channel_external_id,
+            recipe=recipe,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            input=prev_input,
+            tenant_ctx=await tenant_ctx_provider.snapshot(tenant_id),
+            origin_channel=origin_ch,
+            origin_channel_external_id=origin_ext,
         )
         # pre-popula os stages anteriores como SUCCESS (copiados da run original)
         from imkt4.recipes.runner import StageStatus as _St
