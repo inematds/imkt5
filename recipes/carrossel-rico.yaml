@@ -1,0 +1,53 @@
+name: carrossel-rico
+version: 1
+# Carrossel editorial estilo timesmkt3 (c0051, c0069...).
+# Usa o worker carousel-designer (Playwright + template HTML).
+#
+# Input obrigatório:
+#   slides: list — estrutura rica por slide
+#
+# Input opcional:
+#   bg_prompts: list — prompts SD pra gerar backgrounds (1 por slide).
+#                     Se vazio, slides usam só cor sólida do palette.
+#   handle: "@inema.tds"
+#   palette: { primary, secondary, accent, background, text }
+#   formats: ["1:1", "9:16", "16:9"]  — um PNG por aspect
+#   template: "editorial" (default)
+#   image_model: "flux2-klein"
+#
+# Exemplo de `slides`:
+#   - headline: "A dissonância que ninguém quer enxergar"
+#     context: "Dos gestores que temem IA, só 39% temem pelo próprio cargo."
+#     stat_a: { number: "70%", label: "Temem IA" }
+#     stat_b: { number: "39%", label: "Temem pelo cargo" }
+#     question: "Você consegue ver o problema? 🧠"
+#     slide_label: "Dados · 2026"
+
+stages:
+
+  # Gera backgrounds (1 por slide) — só se bg_prompts vier preenchido.
+  # Fanout sobre bg_prompts produz N imagens pro designer usar como bg.
+  - id: backgrounds
+    requires: image.generation
+    when: $.input.bg_prompts != null
+    fanout_over: $.input.bg_prompts
+    payload_from:
+      prompt: $.fanout_item
+      model: $.input.image_model
+      width: 1080
+      height: 1080
+    approval: {mode: none}
+
+  # Designer: render HTML/CSS via Playwright.
+  # Passa bg_prompts como lista vazia se skip — worker usa gradient puro.
+  - id: carrossel
+    requires: design.carousel_rich
+    needs: [backgrounds]
+    payload_from:
+      slides: $.input.slides
+      images: $.stages.backgrounds.output.outputs[*].image_url
+      handle: $.input.handle
+      palette: $.input.palette
+      formats: $.input.formats
+      template: $.input.template
+    approval: {mode: none}
