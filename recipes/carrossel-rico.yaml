@@ -25,10 +25,12 @@ version: 3
 
 stages:
 
-  # Gera slides estruturados se o user passou `topic` (e NÃO `slides`).
+  # Gera slides estruturados a partir de `topic` (só se user NÃO passou
+  # `slides` direto E passou `topic`). Se nem um nem outro, pula e o
+  # designer vai usar _slides_from_basic (title/captions/cta).
   - id: outline
     requires: design.carousel_outline
-    when: $.input.slides == null
+    when: $.input.slides == null && $.input.topic != null
     payload_from:
       topic: $.input.topic
       slide_count: $.input.slide_count
