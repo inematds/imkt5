@@ -127,10 +127,26 @@ def evaluate_when(expr: str | None, context: dict[str, Any]) -> bool:
       - comparações simples: `$.x == true`, `$.y != "foo"`, `$.n > 3`
       - `A && B`             (AND curto-circuito)
       - `A || B`             (OR curto-circuito)
-    Precedência: && tem mais que ||. Sem parênteses (intencional — simples).
+      - parênteses para agrupar: `A && (B || C)`
+    Precedência: && tem mais que ||.
     """
     if not expr:
         return True
+    expr = expr.strip()
+
+    # literais booleanos (resultantes da resolução de parênteses)
+    if expr == "true":
+        return True
+    if expr == "false":
+        return False
+
+    # ── resolve parênteses: do mais interno pra fora
+    while "(" in expr:
+        m = re.search(r"\(([^()]+)\)", expr)
+        if not m:
+            break
+        inner = evaluate_when(m.group(1), context)
+        expr = expr[:m.start()] + ("true" if inner else "false") + expr[m.end():]
 
     # ── OR tem precedência menor — quebra primeiro
     if " || " in expr:

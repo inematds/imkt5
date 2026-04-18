@@ -66,10 +66,9 @@ DEFAULT_PALETTE = {
 # Style presets — traduzidos do video-art-direction/12_styles do timesmkt3.
 # Cada um entrega uma palette coerente. Escolha via input "style".
 STYLE_PRESETS: dict[str, dict[str, str]] = {
+    # Antigos (compatibilidade + templates legacy)
     "neon_futurista":        {"primary": "#0099FF", "secondary": "#00FF88", "accent": "#FFD700", "background": "#0D0D0D", "text": "#FFFFFF"},
     "warm_lifestyle":        {"primary": "#FF8A4C", "secondary": "#FFD166", "accent": "#EF476F", "background": "#2B1810", "text": "#FFF8E7"},
-    "corporate_clean":       {"primary": "#0052CC", "secondary": "#00B8D9", "accent": "#36B37E", "background": "#F4F5F7", "text": "#172B4D"},
-    "bold_pop":              {"primary": "#FF006E", "secondary": "#FFBE0B", "accent": "#8338EC", "background": "#000000", "text": "#FFFFFF"},
     "minimal_zen":           {"primary": "#3D3D3D", "secondary": "#7A7A7A", "accent": "#B8860B", "background": "#FAFAF5", "text": "#1A1A1A"},
     "dark_cinematic":        {"primary": "#E8B04B", "secondary": "#C04848", "accent": "#F2EFE9", "background": "#0A0A0A", "text": "#F2EFE9"},
     "pastel_soft":           {"primary": "#FFB3C1", "secondary": "#C8B6FF", "accent": "#B5EAD7", "background": "#FFF5F7", "text": "#3F3D56"},
@@ -78,6 +77,17 @@ STYLE_PRESETS: dict[str, dict[str, str]] = {
     "urban_street":          {"primary": "#FF4D4D", "secondary": "#00FFF0", "accent": "#FFE933", "background": "#1A1A1A", "text": "#FFFFFF"},
     "luxury_gold":           {"primary": "#D4AF37", "secondary": "#F2E394", "accent": "#C78B47", "background": "#0E0E0E", "text": "#F5F0E1"},
     "editorial_documentary": {"primary": "#3C3B3B", "secondary": "#A8A8A8", "accent": "#C0392B", "background": "#F0EEE9", "text": "#1C1C1C"},
+    # Novos — casam com os 7 templates criados a partir da pesquisa 2025-2026
+    "corporate_clean":       {"primary": "#2563EB", "secondary": "#10B981", "accent": "#7C3AED", "background": "#F7F8FA", "text": "#111827"},
+    "data_viz":              {"primary": "#7C3AED", "secondary": "#D946EF", "accent": "#FBBF24", "background": "#FFFFFF", "text": "#1F2937"},
+    "data_viz_dark":         {"primary": "#FBBF24", "secondary": "#A78BFA", "accent": "#F59E0B", "background": "#1E1B4B", "text": "#E0E7FF"},
+    "wellness_soft":         {"primary": "#A8C5A0", "secondary": "#E8DDD5", "accent": "#C9A96E", "background": "#FAF7F4", "text": "#2C2C2C"},
+    "bold_pop":              {"primary": "#FF2D00", "secondary": "#3B0764", "accent": "#FFD600", "background": "#FFD600", "text": "#000000"},
+    "bold_pop_orange":       {"primary": "#3B0764", "secondary": "#FFD600", "accent": "#FF6000", "background": "#FF6000", "text": "#FFFFFF"},
+    "retro_futurism":        {"primary": "#FF006E", "secondary": "#00D9FF", "accent": "#FFB400", "background": "#0A0A1A", "text": "#FFFFFF"},
+    "organic_earth":         {"primary": "#C45D4B", "secondary": "#7A9B6F", "accent": "#CC7722", "background": "#F0E8DC", "text": "#2D1F0E"},
+    "neo_minimal_luxury":    {"primary": "#BFA882", "secondary": "#3D3028", "accent": "#BFA882", "background": "#1C1612", "text": "#F5F0E8"},
+    "neo_minimal_luxury_light": {"primary": "#BFA882", "secondary": "#E5DFD5", "accent": "#8B6F47", "background": "#F8F5F0", "text": "#1C1612"},
 }
 
 # Formatos canônicos — se user não passa `formats`, gera os 3.
@@ -160,7 +170,16 @@ class CarouselDesignerWorker(BaseWorker):
 
     async def handle(self, job) -> dict[str, Any]:
         payload = job.payload
-        images = payload.get("images") or []
+        # Aceita imagens de múltiplas fontes (coalesce):
+        # 1. images (legado / input direto)
+        # 2. images_auto (stage backgrounds_auto — geradas a partir de bg_prompts do outline)
+        # 3. images_provided (stage backgrounds_provided — prompts trazidos pelo user)
+        images = (
+            payload.get("images")
+            or payload.get("images_auto")
+            or payload.get("images_provided")
+            or []
+        )
         if images and isinstance(images[0], list):
             images = [x for sub in images for x in (sub or [])]
         images = [x for x in images if x]
@@ -189,12 +208,23 @@ class CarouselDesignerWorker(BaseWorker):
 
         handle = payload.get("handle") or "@inema.tds"
 
-        # Style preset (ex.: "neon_futurista") OU palette custom.
-        # Palette custom sobrescreve o preset parcialmente (merge).
-        style = (payload.get("style") or "neon_futurista").lower()
+        # Style: user > art_director > default. Mesmo pra template.
+        # A recipe carrossel-rico passa `style_user`/`style_auto` e
+        # `template_user`/`template_auto`; o coalesce acontece aqui.
+        style = (
+            payload.get("style")
+            or payload.get("style_user")
+            or payload.get("style_auto")
+            or "neon_futurista"
+        ).lower()
         base_palette = STYLE_PRESETS.get(style, DEFAULT_PALETTE)
         palette = _derive_palette({**base_palette, **(payload.get("palette") or {})})
-        template_name = payload.get("template") or "editorial"
+        template_name = (
+            payload.get("template")
+            or payload.get("template_user")
+            or payload.get("template_auto")
+            or "editorial"
+        )
 
         # Formatos: se não vier `formats` nem `width/height`, gera os 3
         # canônicos (1:1, 9:16, 16:9). Se `width/height` explícito, usa só ele.

@@ -100,6 +100,8 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
   .stage-card .sid { font-size: 14px; font-weight: 600; }
   .stage-card .sid .cap { color: #7d8590; font-weight: normal; font-family: monospace;
                           font-size: 11px; margin-left: 8px; }
+  .stage-card .desc { color: #8b949e; font-size: 12px; font-style: italic;
+                      margin-top: 4px; }
   .stage-card .err { color: #f85149; font-size: 12px; font-family: monospace;
                      margin-top: 8px; background: #3b1519; padding: 8px;
                      border-radius: 4px; }
@@ -246,6 +248,36 @@ async function api(url, opts = {}) {
 let selectedRecipe = null;
 let selectedRunId = null;
 let allRunsCache = [];  // cache das últimas 200 runs pra contar por receita
+
+// Descrição curta do que cada worker/capability faz (mostrada no detalhe da run)
+const CAP_DESC = {
+  "research.market":           "pesquisa tendências e insights de mercado",
+  "brief.strategic":           "cria o briefing estratégico da campanha",
+  "copy.platform":             "redige textos por plataforma (IG, YT, Threads…)",
+  "design.ad_layout":          "planeja variantes visuais (prompts p/ imagens)",
+  "image.generation":          "gera imagens via Stable Diffusion (inemaimg)",
+  "audio.tts":                 "sintetiza narração (text-to-speech)",
+  "audio.dubbing":             "clona voz / dublagem com referência",
+  "audio.transcribe":          "transcreve áudio → texto (SRT)",
+  "video.cinematic":           "planeja cenas cinematográficas (scene_plan)",
+  "video.render":              "renderiza vídeo final (ffmpeg: imagens + áudio)",
+  "video.plan_from_outline":   "transforma outline educativo em plano de vídeo",
+  "video.source_ingest":       "ingere vídeos fonte do YouTube",
+  "video.clip_extraction":     "corta clips curtos de vídeos longos",
+  "video.publish":             "publica vídeos em plataformas (YT/Shorts/TikTok)",
+  "design.carousel":           "monta carrossel simples (PIL)",
+  "design.carousel_rich":      "monta carrossel rico (Playwright + templates)",
+  "design.carousel_outline":   "gera estrutura de slides a partir de tópico",
+  "education.outline":         "estrutura aula em hook → conteúdo → CTA",
+  "review.auto":               "revisa artefatos automaticamente (LLM)",
+  "photography.direct":        "diretor de fotografia — refina prompts visuais",
+  "platform.instagram":        "publica no Instagram",
+  "platform.youtube":          "publica no YouTube",
+  "platform.tiktok":           "publica no TikTok",
+  "platform.facebook":         "publica no Facebook",
+  "platform.threads":          "publica no Threads",
+  "platform.linkedin":         "publica no LinkedIn",
+};
 
 // ── coluna 1: receitas ────────────────────────────────────────
 async function loadRecipes(flash) {
@@ -428,14 +460,20 @@ async function renderDetail(runId) {
     const stat = stg.status;
     const outputsSample = renderOutputs(stg.outputs);
     const artifacts = extractArtifactUrls(stg.outputs);
+    const cap = stg.requires || '';
+    const desc = CAP_DESC[cap] || '';
     html += `
       <div class="stage-card">
         <div class="head">
-          <div class="sid">${sid} <span class="pill ${stat}">${stat}</span></div>
+          <div class="sid">
+            ${sid} <span class="pill ${stat}">${stat}</span>
+            ${cap ? `<span class="cap">${escapeHtml(cap)}</span>` : ''}
+          </div>
           <div>
             <button class="small ghost" onclick="rerunFrom('${run.run_id}','${sid}')">▶ re-rodar a partir</button>
           </div>
         </div>
+        ${desc ? `<div class="desc">${escapeHtml(desc)}</div>` : ''}
         ${stg.error ? `<div class="err">${escapeHtml(stg.error)}</div>` : ''}
         ${artifacts.length ? `<div>${artifacts.map(a => renderArtifact(a)).join('')}</div>` : ''}
         ${outputsSample ? `<details><summary>output JSON</summary>${outputsSample}</details>` : ''}

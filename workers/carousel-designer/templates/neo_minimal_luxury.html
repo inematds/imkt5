@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Display:ital,wght@0,300;0,500;1,300&family=Montserrat:wght@300;500&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    width: {{ width }}px; height: {{ height }}px; overflow: hidden;
+    background: {{ palette.background }};
+    font-family: 'Inter', sans-serif;
+    color: {{ palette.text }};
+    position: relative;
+  }
+  {% if bg_image %}
+  .bg-image {
+    position: absolute; top: 0; bottom: 0; right: 0;
+    width: {{ '55%' if aspect == 'landscape' else '100%' }};
+    height: {{ '100%' if aspect == 'landscape' else '48%' }};
+    object-fit: cover;
+    filter: brightness(0.55) saturate(0.88) contrast(1.05);
+    z-index: 0;
+  }
+  .bg-fade {
+    position: absolute; inset: 0; z-index: 1;
+    background:
+      {% if aspect == 'landscape' %}
+      linear-gradient(90deg, {{ palette.background }} 30%, {{ palette.background }}dd 45%, transparent 70%);
+      {% else %}
+      linear-gradient(180deg, {{ palette.background }}aa 0%, {{ palette.background }} 52%);
+      {% endif %}
+  }
+  {% endif %}
+  .container {
+    position: relative; z-index: 2;
+    width: 100%; height: 100%;
+    padding: {{ (pad_v * 1.25) | int }}px {{ (pad_h * 1.25) | int }}px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .top {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .monogram {
+    font-family: 'Cormorant Display', serif; font-weight: 500;
+    font-style: italic; font-size: 22px;
+    color: {{ palette.accent }}; letter-spacing: 0.06em;
+  }
+  .num {
+    font-family: 'Montserrat', sans-serif; font-weight: 300;
+    font-size: 11px; letter-spacing: 0.35em;
+    text-transform: uppercase; color: {{ palette.text }}88;
+  }
+  .main {
+    flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 28px;
+    {% if aspect == 'landscape' %}max-width: 60%;{% endif %}
+  }
+  .kicker {
+    font-family: 'Montserrat', sans-serif; font-weight: 500;
+    font-size: 12px; letter-spacing: 0.38em;
+    text-transform: uppercase; color: {{ palette.accent }};
+  }
+  .divider-top {
+    width: 72px; height: 1px; background: {{ palette.accent }};
+    margin-bottom: -8px; opacity: 0.7;
+  }
+  .headline {
+    font-family: 'Cormorant Display', serif; font-weight: 300;
+    font-size: {{ (headline_size * 1.15) | int }}px;
+    line-height: 1.06; letter-spacing: -0.005em;
+    color: {{ palette.text }};
+    max-width: 100%;
+  }
+  .headline em {
+    font-style: italic; font-weight: 400;
+    color: {{ palette.accent }};
+  }
+  .context {
+    font-family: 'Montserrat', sans-serif; font-weight: 300;
+    font-size: {{ (headline_size * 0.24) | int }}px;
+    line-height: 1.55; letter-spacing: 0.02em;
+    color: {{ palette.text }}cc;
+    max-width: 88%;
+  }
+  .bottom {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding-top: 18px;
+    border-top: 1px solid {{ palette.accent }}44;
+  }
+  .handle {
+    font-family: 'Montserrat', sans-serif; font-weight: 300;
+    font-size: 12px; letter-spacing: 0.3em;
+    text-transform: uppercase; color: {{ palette.text }}aa;
+  }
+  .label {
+    font-family: 'Cormorant Display', serif; font-weight: 300;
+    font-style: italic; font-size: 14px;
+    color: {{ palette.accent }};
+  }
+</style>
+</head>
+<body>
+  {% if bg_image %}<img class="bg-image" src="{{ bg_image }}" alt="">{% endif %}
+  {% if bg_image %}<div class="bg-fade"></div>{% endif %}
+  <div class="container">
+    <div class="top">
+      <div class="monogram">{{ badge or "Inema" }}</div>
+      <div class="num">№ {{ slide_num }}</div>
+    </div>
+    <div class="main">
+      <div class="divider-top"></div>
+      <div class="kicker">{{ slide_label or "Essay · 2026" }}</div>
+      <div class="headline">{{ headline }}</div>
+      {% if context %}<div class="context">{{ context }}</div>{% endif %}
+    </div>
+    <div class="bottom">
+      <div class="label">— capítulo {{ slide_num }}</div>
+      <div class="handle">{{ handle or "@inema.tds" }}</div>
+    </div>
+  </div>
+</body>
+</html>

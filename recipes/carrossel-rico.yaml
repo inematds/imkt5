@@ -1,51 +1,72 @@
 name: carrossel-rico
-version: 3
+version: 4
 # Carrossel editorial estilo timesmkt3 (c0051, c0069...).
 # Usa carousel-outline (gera slides a partir de texto livre) +
 # carousel-designer (Playwright + template HTML).
 #
-# 2 modos de uso:
+# === Modos de uso ===
 #
-# 1) Texto livre (fácil):
-#    input: { "topic": "Por que Claude Code muda a forma de programar" }
-#    → stage outline gera slides estruturados.
-#    → designer renderiza os 3 formatos (1:1, 9:16, 16:9).
+# 1) Simples (recomendado):
+#    { "brief": "seu tópico aqui", "slide_count": 7 }
+#    → outline gera 7 slides estruturados + bg_prompt por slide.
+#    → backgrounds gera 1 imagem por slide (auto).
+#    → designer renderiza nos 3 formatos.
 #
-# 2) Slides estruturados (controle total):
-#    input: { "slides": [{ headline, context, stat_a, stat_b, ... }] }
-#    → stage outline é pulado.
-#    → designer recebe os slides prontos.
+# 2) Com seus próprios prompts de imagem:
+#    { "brief": "...", "image_source": "provided",
+#      "bg_prompts": ["p1", "p2", ...] }
+#    → backgrounds usa SEUS prompts em vez dos auto.
 #
-# Defaults quando não passa nada além do mínimo:
-#   style:    "neon_futurista" (12 presets disponíveis)
-#   formats:  ["1:1", "9:16", "16:9"] — gera os 3
-#   template: "editorial"
-#   handle:   "@inema.tds"
-#   slide_count (modo 1): 5
-#   slide_count (modo 2): 7
-#   slide_count (modo 3): 10
+# 3) Sem imagens (só tipografia):
+#    { "brief": "...", "image_source": "none" }
+#    → pula backgrounds; designer usa só cor/gradient.
+#
+# 4) Controle total (slides já prontos):
+#    { "slides": [...] } — pula outline.
+#
+# === Defaults ===
+#   image_source: "generate" (auto via inemaimg)
+#   slide_count:  5
+#   formats:      ["1:1", "9:16", "16:9"]
+#   template:     "editorial"
+#   style:        "neon_futurista"
+#   handle:       "@inema.tds"
 
 stages:
 
-  # Gera slides estruturados a partir de `topic` (só se user NÃO passou
-  # `slides` direto E passou `topic`). Se nem um nem outro, pula e o
-  # designer vai usar _slides_from_basic (title/captions/cta).
+  # Gera slides estruturados + bg_prompt por slide, a partir de topic/brief.
+  # Pula se user passou `slides` direto (controle total).
   - id: outline
     requires: design.carousel_outline
-    when: $.input.slides == null && $.input.topic != null
+    when: $.input.slides == null && ($.input.topic != null || $.input.brief != null)
     payload_from:
       topic: $.input.topic
+      brief: $.input.brief
       slide_count: $.input.slide_count
       language: $.input.language
       style: $.input.voice_style
       audience: $.input.audience
     approval: {mode: none}
 
-  # Backgrounds opcionais (gera N imagens pra usar como bg dos slides).
-  # Só roda se o user passou bg_prompts explicitamente.
-  - id: backgrounds
+  # Backgrounds: gera 1 imagem por slide (fonte configurável via image_source).
+  # Roda por default (auto-gera a partir dos bg_prompts do outline).
+  # Pula se image_source == "none" OU se não há slides nem bg_prompts.
+  - id: backgrounds_auto
     requires: image.generation
-    when: $.input.bg_prompts != null
+    when: $.input.image_source != "none" && $.input.image_source != "provided" && $.input.slides == null
+    needs: [outline]
+    fanout_over: $.stages.outline.output.slides[*].bg_prompt
+    payload_from:
+      prompt: $.fanout_item
+      model: $.input.image_model
+      width: 1080
+      height: 1080
+    approval: {mode: none}
+
+  # Backgrounds: modo "provided" — user trouxe os prompts prontos.
+  - id: backgrounds_provided
+    requires: image.generation
+    when: $.input.image_source == "provided" && $.input.bg_prompts != null
     fanout_over: $.input.bg_prompts
     payload_from:
       prompt: $.fanout_item
@@ -54,19 +75,37 @@ stages:
       height: 1080
     approval: {mode: none}
 
+  # Art director: LLM escolhe template + palette baseado em brief + tenant.
+  # Pula se user já informou `template` explicitamente.
+  - id: art_direction
+    requires: design.art_director
+    when: $.input.template == null
+    payload_from:
+      brief: $.input.brief
+      topic: $.input.topic
+      audience: $.input.audience
+      platform: $.input.platform
+      brand_profile: $.tenant.profile
+    approval: {mode: none}
+
   # Designer: render HTML/CSS via Playwright.
-  # Aceita slides do outline OU do input direto.
+  # Template/style priorizam: input user > art_direction > default.
   - id: carrossel
     requires: design.carousel_rich
-    needs: [outline, backgrounds]
+    needs: [outline, backgrounds_auto, backgrounds_provided, art_direction]
     payload_from:
-      # Se outline rodou, usa slides gerados. Senão, usa do input.
       slides_from_outline: $.stages.outline.output.slides
       slides_from_input: $.input.slides
-      images: $.stages.backgrounds.output.outputs[*].image_url
+      images_auto: $.stages.backgrounds_auto.output.outputs[*].image_url
+      images_provided: $.stages.backgrounds_provided.output.outputs[*].image_url
       handle: $.input.handle
-      style: $.input.style
+      # palette: tem 3 caminhos (user > art_director > default).
+      # Payload do designer aceita `style` OU `palette` — enviamos style.
+      style_user: $.input.style
+      style_auto: $.stages.art_direction.output.style
       palette: $.input.palette
       formats: $.input.formats
-      template: $.input.template
+      # template idem: user > art_director > default.
+      template_user: $.input.template
+      template_auto: $.stages.art_direction.output.template
     approval: {mode: none}

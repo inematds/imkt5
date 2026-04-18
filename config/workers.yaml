@@ -252,6 +252,16 @@ workers:
     timeout_seconds: 120
     max_concurrent: 2
 
+  # art-director — escolhe template visual + palette pro carousel-designer
+  # a partir do brief + perfil da marca + audiência + plataforma.
+  - name: art-director
+    capabilities: [design.art_director]
+    endpoint: http://localhost:8113
+    local: true
+    priority: 50
+    timeout_seconds: 60
+    max_concurrent: 2
+
   # # ── plataformas (da absorção do timesmkt3) ───────────────────────
   # - name: platform-instagram
   # capabilities: [platform.instagram]

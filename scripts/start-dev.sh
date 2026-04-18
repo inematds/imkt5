@@ -84,6 +84,7 @@ start_bg "outline-to-video-plan" "$VENV" workers/outline-to-video-plan/server.py
 start_bg "photography-director" "$VENV" workers/photography-director/server.py
 start_bg "carousel-designer" "$VENV" workers/carousel-designer/server.py
 start_bg "carousel-outline" "$VENV" workers/carousel-outline/server.py
+start_bg "art-director" "$VENV" workers/art-director/server.py
 
 # inemaimg-adapter — só se o upstream responder em /health
 INEMAIMG_HEALTH_URL="${INEMAIMG_URL:-http://localhost:8000}/health"

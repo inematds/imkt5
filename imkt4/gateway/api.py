@@ -626,22 +626,26 @@ def create_app(
     @app.get("/runs/{run_id}")
     async def get_run(run_id: str) -> dict[str, Any]:
         def _ordered_stages(recipe_name: str, raw: dict) -> dict:
-            """Reordena dict de stages pela ordem declarada na receita.
+            """Reordena dict de stages pela ordem declarada na receita e
+            enriquece com `requires` (capability do worker).
             Stages metadata (chaves começando com _) são ignoradas.
             Stages extras (ex.: legado) vão pro fim, após os declarados.
             """
             try:
                 recipe = catalog.get(recipe_name)
                 order = [s.id for s in recipe.stages]
+                caps = {s.id: s.requires for s in recipe.stages}
             except KeyError:
-                order = []
+                order, caps = [], {}
             cleaned = {k: v for k, v in raw.items()
                        if not k.startswith("_") and isinstance(v, dict)}
             out: dict[str, Any] = {}
             for sid in order:
                 if sid in cleaned:
-                    out[sid] = cleaned[sid]
-            # resto (não declarado, se houver)
+                    entry = dict(cleaned[sid])
+                    if caps.get(sid):
+                        entry["requires"] = caps[sid]
+                    out[sid] = entry
             for sid, v in cleaned.items():
                 if sid not in out:
                     out[sid] = v
@@ -667,12 +671,14 @@ def create_app(
                         "stages": _ordered_stages(recipe_name, raw),
                     }
             raise HTTPException(404, f"run não encontrada: {run_id}")
+        _recipe_caps = {s.id: s.requires for s in run.recipe.stages}
         raw_stages = {
             sid: {
                 "status": s.status.value,
                 "job_ids": list(s.job_ids),
                 "error": s.error,
                 "outputs": s.outputs,
+                "requires": _recipe_caps.get(sid),
             }
             for sid, s in run.stages.items()
         }

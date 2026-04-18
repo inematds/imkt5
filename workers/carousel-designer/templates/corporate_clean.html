@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Manrope:wght@500;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    width: {{ width }}px; height: {{ height }}px; overflow: hidden;
+    background: {{ palette.background }};
+    font-family: 'Inter', sans-serif;
+    color: {{ palette.text }};
+    position: relative;
+  }
+  .container {
+    width: 100%; height: 100%;
+    padding: {{ pad_v }}px {{ pad_h }}px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .top-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 18px;
+    border-bottom: 1px solid {{ palette.primary }}33;
+  }
+  .edition {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.18em; color: {{ palette.primary }};
+  }
+  .slide-num {
+    font-family: 'Manrope', sans-serif; font-weight: 500;
+    font-size: 13px; color: {{ palette.text }}99;
+  }
+  .main {
+    flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 28px;
+    padding: 36px 0;
+  }
+  .headline {
+    font-family: 'Inter', sans-serif; font-weight: 700;
+    font-size: {{ headline_size }}px; line-height: 1.12;
+    letter-spacing: -0.02em; color: {{ palette.text }};
+    max-width: 95%;
+  }
+  .stat-box {
+    display: inline-flex; align-items: baseline; gap: 14px;
+    padding: 22px 0 4px;
+    border-top: 3px solid {{ palette.primary }};
+    margin-top: 8px; max-width: 90%;
+  }
+  .stat-num {
+    font-family: 'Manrope', sans-serif; font-weight: 800;
+    font-size: {{ (headline_size * 2.2) | int }}px;
+    color: {{ palette.primary }};
+    line-height: 0.9; letter-spacing: -0.04em;
+  }
+  .stat-label {
+    font-size: {{ (headline_size * 0.24) | int }}px;
+    color: {{ palette.text }}aa; font-weight: 500;
+    line-height: 1.25; max-width: 280px;
+  }
+  .context {
+    font-size: {{ (headline_size * 0.28) | int }}px; line-height: 1.35;
+    color: {{ palette.text }}cc; font-weight: 400;
+    max-width: 90%;
+  }
+  .bottom-bar {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding-top: 14px;
+    border-top: 1px solid {{ palette.primary }}22;
+  }
+  .handle {
+    font-size: 12px; color: {{ palette.text }}80; letter-spacing: 0.06em;
+  }
+  .label {
+    font-size: 11px; color: {{ palette.primary }};
+    text-transform: uppercase; letter-spacing: 0.2em; font-weight: 600;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <div class="edition">{{ badge or "INEMA" }} · REPORT</div>
+      <div class="slide-num">{{ slide_num }} / {{ slide_label.split('/')[-1].strip() if '/' in slide_label else slide_num }}</div>
+    </div>
+    <div class="main">
+      <div class="headline">{{ headline }}</div>
+      {% if stat_a %}
+      <div class="stat-box">
+        <div class="stat-num">{{ stat_a.number }}</div>
+        <div class="stat-label">{{ stat_a.label | safe }}</div>
+      </div>
+      {% endif %}
+      {% if context %}<div class="context">{{ context }}</div>{% endif %}
+    </div>
+    <div class="bottom-bar">
+      <div class="label">{{ slide_label or "" }}</div>
+      <div class="handle">{{ handle or "@inema.tds" }}</div>
+    </div>
+  </div>
+</body>
+</html>

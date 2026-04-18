@@ -177,6 +177,16 @@ admin UI, infra de produção.
 - **Esforço:** S
 - Gera `workers/<nome>/server.py`, `Dockerfile`, entrada em `workers.yaml`.
 
+### 21. Inspector de workers no `/workers-ui` (read-only)
+- **Esforço:** S-M
+- Hoje o `/workers-ui` mostra só name/capability/status + jobs.
+  Falta: aba "📖 Detalhe" que mostre `SKILL.md`, lista de arquivos
+  (`server.py`, `templates/*`), env vars lidas pelo código (AST),
+  upstream URLs, `requirements.txt`.
+- Endpoint novo: `GET /workers/{name}/inspect` devolve JSON com
+  source_files, skill_md, templates, env_vars, upstreams, python_deps.
+- Workers são read-only na UI (são código Python, não YAML como receitas).
+
 ---
 
 ## Roteiro sugerido
