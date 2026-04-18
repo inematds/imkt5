@@ -117,6 +117,32 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
              border: 1px solid #30363d; margin-right: 6px; margin-top: 6px; }
 
   .refresh-badge { font-size: 10px; color: #3fb950; margin-left: 8px; }
+
+  .input-card {
+    background: linear-gradient(135deg, rgba(31,111,235,0.08), rgba(31,111,235,0.02));
+    border: 1px solid rgba(31,111,235,0.3);
+    border-left: 3px solid #1f6feb;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+  }
+  .input-card-label {
+    font-size: 10px; color: #1f6feb; font-weight: 700;
+    letter-spacing: 1px; margin-bottom: 8px;
+  }
+  .input-card-text {
+    font-size: 15px; color: #e6edf3; line-height: 1.5;
+    white-space: pre-wrap; word-wrap: break-word;
+  }
+  .input-card-rest {
+    margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px;
+    font-size: 11px; color: #7d8590;
+  }
+  .input-card-rest .input-kv {
+    background: #21262d; padding: 2px 8px; border-radius: 4px;
+    font-family: ui-monospace, monospace;
+  }
+  .input-card-rest .input-kv b { color: #e6edf3; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -387,6 +413,7 @@ async function renderDetail(runId) {
     <div class="run-meta">
       <code>${run.run_id}</code> · tenant <b>${run.tenant_id}</b>
     </div>
+    ${renderInputCard(run.input)}
     <div class="toolbar">
       <button onclick="rerunAll('${run.run_id}')">▶ Rodar de novo</button>
       <a class="ghost" href="/runs/${run.run_id}/bundle.zip"
@@ -420,6 +447,37 @@ async function renderDetail(runId) {
 }
 
 // ── artefatos ─────────────────────────────────────────────────
+// Card com o input original (texto que o user digitou pra rodar a receita)
+function renderInputCard(input) {
+  if (!input || (typeof input === 'object' && Object.keys(input).length === 0)) {
+    return '';
+  }
+  // Pega o campo de texto principal (pela convenção das receitas)
+  const TEXT_KEYS = ['brief', 'topic', 'prompt', 'text', 'query'];
+  let mainText = null;
+  let mainKey = null;
+  for (const k of TEXT_KEYS) {
+    if (typeof input[k] === 'string' && input[k].trim()) {
+      mainText = input[k]; mainKey = k; break;
+    }
+  }
+  // Outros campos (flags/configs) — lista compacta
+  const rest = Object.entries(input)
+    .filter(([k, v]) => k !== mainKey && v !== null && v !== undefined && v !== '')
+    .map(([k, v]) => {
+      const sv = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      return `<span class="input-kv"><b>${escapeHtml(k)}:</b> ${escapeHtml(sv.slice(0, 80))}</span>`;
+    }).join('');
+
+  return `
+    <div class="input-card">
+      <div class="input-card-label">SOLICITAÇÃO</div>
+      ${mainText ? `<div class="input-card-text">${escapeHtml(mainText)}</div>` : ''}
+      ${rest ? `<div class="input-card-rest">${rest}</div>` : ''}
+    </div>
+  `;
+}
+
 function extractArtifactUrls(outputs) {
   const seen = new Set();
   const urls = [];
