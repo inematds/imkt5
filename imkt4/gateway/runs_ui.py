@@ -125,6 +125,7 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
     <a href="/recipes-ui" style="color:#7d8590;text-decoration:none;padding:6px 12px;border-radius:6px;">Receitas</a>
     <a href="/runs-ui"    style="color:#1f6feb;text-decoration:none;padding:6px 12px;border-radius:6px;background:#21262d;font-weight:600;">Execuções</a>
     <a href="/workers-ui" style="color:#7d8590;text-decoration:none;padding:6px 12px;border-radius:6px;">Workers</a>
+    <a href="/chat-ui" style="color:#7d8590;text-decoration:none;padding:6px 12px;border-radius:6px;">Chat</a>
     <a href="/admin"      style="color:#7d8590;text-decoration:none;padding:6px 12px;border-radius:6px;">Admin</a>
   </nav>
   <div class="auth">

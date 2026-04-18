@@ -25,6 +25,8 @@ class JobRecord:
     worker_name: str | None = None
     output: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
+    origin_channel: str = ""
+    origin_channel_external_id: str = ""
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -51,6 +53,8 @@ class JobsStore:
         user_id: str,
         capability: str | None,
         worker_type: str | None,
+        origin_channel: str = "",
+        origin_channel_external_id: str = "",
     ) -> JobRecord:
         rec = JobRecord(
             job_id=job_id,
@@ -59,6 +63,8 @@ class JobsStore:
             capability=capability,
             worker_type=worker_type,
             status="pending",
+            origin_channel=origin_channel,
+            origin_channel_external_id=origin_channel_external_id,
         )
         self._data[job_id] = rec
         self._trim()

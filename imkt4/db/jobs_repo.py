@@ -28,24 +28,27 @@ class PostgresJobsStore:
         user_id: str,
         capability: str | None,
         worker_type: str | None,
+        origin_channel: str = "",
+        origin_channel_external_id: str = "",
     ) -> JobRecord:
         async with self._db.pool().acquire() as conn:
             await conn.execute(
                 """
                 INSERT INTO jobs
-                    (job_id, tenant_id, user_id, required_capability, worker_type, status)
-                VALUES ($1, $2, $3, $4, $5, 'pending')
+                    (job_id, tenant_id, user_id, required_capability,
+                     worker_type, status, origin_channel,
+                     origin_channel_external_id)
+                VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)
                 ON CONFLICT (job_id) DO NOTHING
                 """,
                 job_id, tenant_id, user_id, capability, worker_type,
+                origin_channel, origin_channel_external_id,
             )
         return JobRecord(
-            job_id=job_id,
-            tenant_id=tenant_id,
-            user_id=user_id,
-            capability=capability,
-            worker_type=worker_type,
-            status="pending",
+            job_id=job_id, tenant_id=tenant_id, user_id=user_id,
+            capability=capability, worker_type=worker_type, status="pending",
+            origin_channel=origin_channel,
+            origin_channel_external_id=origin_channel_external_id,
         )
 
     async def mark_running(self, job_id: str, worker_name: str) -> None:
@@ -131,6 +134,8 @@ def _row_to_record(row) -> JobRecord:
         worker_name=row["worker_name"],
         output=output,
         error=row["error"],
+        origin_channel=(row["origin_channel"] or ""),
+        origin_channel_external_id=(row["origin_channel_external_id"] or ""),
         created_at=row["created_at"] or datetime.utcnow(),
         updated_at=row["updated_at"] or datetime.utcnow(),
     )

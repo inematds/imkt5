@@ -80,6 +80,8 @@ class HttpDispatcher:
                 user_id=job.user_id,
                 capability=job.required_capability,
                 worker_type=job.worker_type,
+                origin_channel=job.origin_channel or "",
+                origin_channel_external_id=job.origin_channel_external_id or "",
             )
         await self._pending.put(job)
 

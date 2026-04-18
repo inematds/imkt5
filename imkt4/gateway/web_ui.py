@@ -99,6 +99,7 @@ button.ghost:hover { color:var(--fg); background:var(--bg3); }
     <a href="/recipes-ui" style="color:var(--fg2);text-decoration:none;padding:6px 12px;border-radius:6px;">Receitas</a>
     <a href="/runs-ui"    style="color:var(--fg2);text-decoration:none;padding:6px 12px;border-radius:6px;">Execuções</a>
     <a href="/workers-ui" style="color:var(--fg2);text-decoration:none;padding:6px 12px;border-radius:6px;">Workers</a>
+    <a href="/chat-ui"    style="color:var(--fg2);text-decoration:none;padding:6px 12px;border-radius:6px;">Chat</a>
     <a href="/admin"      style="color:var(--fg2);text-decoration:none;padding:6px 12px;border-radius:6px;">Admin</a>
   </nav>
   <span class="env" id="env" style="margin-left:auto;"></span>

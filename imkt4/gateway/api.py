@@ -34,6 +34,7 @@ from imkt4.gateway.admin_ui import ADMIN_HTML
 from imkt4.gateway.recipes_ui import RECIPES_UI_HTML
 from imkt4.gateway.runs_ui import RUNS_UI_HTML
 from imkt4.gateway.workers_ui import WORKERS_UI_HTML
+from imkt4.gateway.chat_ui import CHAT_UI_HTML
 from imkt4.gateway.audit import AuditSink, make_audit_middleware
 from imkt4.gateway.auth import Principal, current_principal
 from imkt4.gateway.jobs_store import JobsStore
@@ -175,6 +176,13 @@ def create_app(
     async def workers_ui_page() -> Any:
         return HTMLResponse(
             content=WORKERS_UI_HTML,
+            headers={"Cache-Control": "no-store, must-revalidate"},
+        )
+
+    @app.get("/chat-ui", response_class=HTMLResponse)
+    async def chat_ui_page() -> Any:
+        return HTMLResponse(
+            content=CHAT_UI_HTML,
             headers={"Cache-Control": "no-store, must-revalidate"},
         )
 
@@ -373,9 +381,12 @@ def create_app(
         capability: str | None = None,
         tenant_id: str | None = None,
         status: str | None = None,
+        origin_channel: str | None = None,
+        origin_external_id: str | None = None,
     ) -> list[dict[str, Any]]:
-        # Busca uma janela maior quando precisa filtrar client-side
-        raw_limit = limit * 4 if (worker_name or capability or tenant_id or status) else limit
+        any_filter = (worker_name or capability or tenant_id or status
+                      or origin_channel or origin_external_id)
+        raw_limit = limit * 4 if any_filter else limit
         recs = await store.recent(raw_limit)
         filtered = []
         for r in recs:
@@ -386,6 +397,10 @@ def create_app(
             if tenant_id and r.tenant_id != tenant_id:
                 continue
             if status and r.status != status:
+                continue
+            if origin_channel and getattr(r, "origin_channel", None) != origin_channel:
+                continue
+            if origin_external_id and getattr(r, "origin_channel_external_id", None) != origin_external_id:
                 continue
             filtered.append(r)
             if len(filtered) >= limit:
@@ -957,6 +972,8 @@ def _job_rec_dict(r) -> dict[str, Any]:
         "status": r.status,
         "output": _urls_in_output(r.output),
         "error": r.error,
+        "origin_channel": getattr(r, "origin_channel", "") or "",
+        "origin_channel_external_id": getattr(r, "origin_channel_external_id", "") or "",
         "created_at": r.created_at.isoformat(),
         "updated_at": r.updated_at.isoformat(),
     }

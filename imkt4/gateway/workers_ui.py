@@ -126,6 +126,7 @@ WORKERS_UI_HTML = r"""<!DOCTYPE html>
     <a href="/recipes-ui">Receitas</a>
     <a href="/runs-ui">Execuções</a>
     <a href="/workers-ui" class="active">Workers</a>
+    <a href="/chat-ui" style="color:#7d8590;text-decoration:none;padding:6px 12px;border-radius:6px;">Chat</a>
     <a href="/admin">Admin</a>
   </nav>
   <div class="auth">
