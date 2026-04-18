@@ -231,13 +231,14 @@ workers:
     max_concurrent: 2
 
   # carousel-designer — render rico via Playwright/Chromium (estilo
-  # editorial do timesmkt3). Capability separada: design.carousel_rich.
-  # carousel-composer (Pillow simples) continua em design.carousel.
+  # editorial do timesmkt3). Responde tanto `design.carousel_rich`
+  # quanto `design.carousel` (prioridade alta — vence o composer
+  # Pillow quando healthy; composer fica de fallback automático).
   - name: carousel-designer
-    capabilities: [design.carousel_rich]
+    capabilities: [design.carousel_rich, design.carousel]
     endpoint: http://localhost:8111
     local: true
-    priority: 70
+    priority: 80
     timeout_seconds: 180
     max_concurrent: 1
 
