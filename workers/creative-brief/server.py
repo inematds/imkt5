@@ -52,11 +52,17 @@ class CreativeBriefWorker(BaseWorker):
 
     async def handle(self, job) -> dict[str, Any]:
         payload = job.payload
-        brief = payload.get("brief", "").strip()
+        # `or ""` trata o caso do YAML resolver brief pra None (campo ausente
+        # no input). payload.get("brief", "") só ajuda se a chave AUSENTE.
+        raw_brief = payload.get("brief")
+        brief = (raw_brief or "").strip() if isinstance(raw_brief, str) else ""
         research = payload.get("research")
 
         if not brief:
-            raise ValueError("payload precisa de 'brief'")
+            raise ValueError(
+                "campo 'brief' é obrigatório (string não-vazia). "
+                "Preencha o textarea principal no modal Nova Execução."
+            )
 
         # Overrides opcionais
         language = payload.get("language") or "pt-BR"

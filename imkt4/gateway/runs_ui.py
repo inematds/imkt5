@@ -806,6 +806,13 @@ document.getElementById('new-run-mode-toggle').onclick = (e) => {
     toggle.textContent = '⚙ modo JSON';
   }
 };
+// Recipes que exigem um brief/topic preenchido (textarea não-vazio)
+const RECIPES_REQUIRE_BRIEF = new Set([
+  'campanha-marketing', 'campanha-marketing-ab',
+  'carrossel-rico', 'curso-educativo',
+]);
+// carrossel-simples é opcional — pode rodar só com title/captions/cta
+
 async function submitNewRun() {
   const raw = document.getElementById('new-run-input').value.trim();
   let input;
@@ -820,6 +827,22 @@ async function submitNewRun() {
   // Merge opções avançadas específicas da recipe
   const adv = collectAdvancedOpts(selectedRecipe);
   input = { ...input, ...adv };
+
+  // Validação: recipes principais exigem brief/topic
+  if (RECIPES_REQUIRE_BRIEF.has(selectedRecipe)) {
+    const hasBrief = (input.brief && String(input.brief).trim()) ||
+                     (input.topic && String(input.topic).trim());
+    if (!hasBrief) {
+      alert(
+        `A receita "${selectedRecipe}" exige uma descrição (brief/topic) ` +
+        `no textarea principal.\n\n` +
+        `Preencha o campo "Input" no topo do modal com o tópico/objetivo ` +
+        `antes de rodar.`
+      );
+      document.getElementById('new-run-input').focus();
+      return;
+    }
+  }
 
   const r = await api('/recipes/' + encodeURIComponent(selectedRecipe) + '/run', {
     method: 'POST',
