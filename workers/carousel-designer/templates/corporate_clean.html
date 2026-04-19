@@ -18,14 +18,21 @@
   .bg-image {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: cover;
-    /* Corporate clean: bg sutil, levemente acinzentada pra não distrair */
-    filter: grayscale(0.4) brightness(0.75) contrast(0.95);
-    opacity: 0.18;
+    /* Corporate clean: bg visível mas desaturada pra dar contexto sem
+       competir com os números/texto. Aumentado de opacity 0.18 → 0.65
+       (imagem visível). Filter desatura + escurece pro texto preto ler. */
+    filter: grayscale(0.35) brightness(0.68) contrast(1.0);
+    opacity: 0.72;
     z-index: 0;
   }
+  /* Véu lateral (só metade direita) pra garantir leitura do headline
+     sem cobrir a imagem inteira */
   .bg-veil {
     position: absolute; inset: 0; z-index: 1;
-    background: linear-gradient(135deg, {{ palette.background }}ee 0%, {{ palette.background }}d8 100%);
+    background: linear-gradient(90deg,
+      {{ palette.background }}00 0%,
+      {{ palette.background }}44 40%,
+      {{ palette.background }}99 100%);
   }
   {% endif %}
   .container {
@@ -57,6 +64,10 @@
     font-size: {{ headline_size }}px; line-height: 1.12;
     letter-spacing: -0.02em; color: {{ palette.text }};
     max-width: 95%;
+    {% if bg_image %}
+    /* Com bg visível, text-shadow garante leitura sobre qualquer área da foto */
+    text-shadow: 0 2px 8px {{ palette.background }}, 0 1px 2px {{ palette.background }};
+    {% endif %}
   }
   .stat-box {
     display: inline-flex; align-items: baseline; gap: 14px;

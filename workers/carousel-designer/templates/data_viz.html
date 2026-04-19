@@ -18,14 +18,20 @@
   .bg-image {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: cover;
-    /* Data-viz prioriza os números; bg fica sutil, monocromática */
-    filter: grayscale(0.6) brightness(0.5) contrast(1.05);
-    opacity: 0.22;
+    /* Data-viz: bg visível dessaturada dá contexto sem bater com os números.
+       Aumentado opacity 0.22 → 0.60, veil só no topo+bottom. */
+    filter: grayscale(0.5) brightness(0.65) contrast(1.0);
+    opacity: 0.60;
     z-index: 0;
   }
+  /* Véu apenas nas bordas (topo/rodapé) pra proteger top-bar e números */
   .bg-veil {
     position: absolute; inset: 0; z-index: 1;
-    background: linear-gradient(180deg, {{ palette.background }}dd 0%, {{ palette.background }}cc 100%);
+    background: linear-gradient(180deg,
+      {{ palette.background }}cc 0%,
+      {{ palette.background }}22 30%,
+      {{ palette.background }}22 70%,
+      {{ palette.background }}aa 100%);
   }
   {% endif %}
   .container {
@@ -75,6 +81,9 @@
     line-height: 1.2; letter-spacing: -0.02em;
     color: {{ palette.text }};
     max-width: 92%;
+    {% if bg_image %}
+    text-shadow: 0 2px 10px {{ palette.background }}, 0 1px 2px {{ palette.background }};
+    {% endif %}
   }
   .context {
     font-size: {{ (headline_size * 0.28) | int }}px;

@@ -1,5 +1,5 @@
 name: carrossel-simples
-version: 5
+version: 6
 # Carrossel mínimo estilo "revista": 1 mensagem por slide em tipografia
 # serif grande (Playfair Display) sobre imagem com gradient.
 #
@@ -36,6 +36,11 @@ stages:
       title: $.input.title
       captions: $.input.captions
       cta: $.input.cta
+      # Fallback: se title não veio, carousel-designer usa brief/topic
+      # como título do slide. Evita carrossel sem texto quando o user
+      # manda só o brief.
+      brief: $.input.brief
+      topic: $.input.topic
       palette: $.input.palette
       formats: $.input.formats
       template: "magazine"

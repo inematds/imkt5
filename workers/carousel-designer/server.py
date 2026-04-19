@@ -481,8 +481,19 @@ class CarouselDesignerWorker(BaseWorker):
 
         Template magazine: cada slide tem UMA frase só no headline —
         nada de stats, question, context. Visual limpo estilo revista.
+
+        Fallback: se `title` não veio mas há `brief`/`topic`/`prompt`/`text`,
+        usa esse como título — evita slides sem headline quando o user
+        passou só o brief.
         """
         title = (payload.get("title") or "").strip()
+        if not title:
+            # Fallback: brief/topic vira title pra ao menos ter a capa
+            for fallback_key in ("brief", "topic", "text"):
+                v = payload.get(fallback_key)
+                if isinstance(v, str) and v.strip():
+                    title = v.strip()
+                    break
         captions = [c for c in (payload.get("captions") or []) if c and c.strip()]
         cta = (payload.get("cta") or "").strip()
         images = payload.get("images") or []
