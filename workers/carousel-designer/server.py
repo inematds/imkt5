@@ -198,14 +198,18 @@ def _detect_text_in_image(
 
         zones_with_text = []
         max_density = density_full
-        # Threshold adaptativo: imagem fotográfica complexa (densidade alta)
-        # exige valor absoluto maior; imagem sintética (densidade baixa)
-        # usa ratio principalmente.
+        # Threshold adaptativo em 3 buckets (calibrado empiricamente):
+        #   < 0.03: imagem sintética (fundo liso) → texto sobressai muito
+        #   0.03-0.10: fotográfica intermediária → mais sensível
+        #   >= 0.10: fotográfica complexa → ratio baixa, exige valor absoluto alto
         if density_full > 0.10:
-            abs_thresh = 0.22      # fotográfica: texto sobressai em valor
+            abs_thresh = 0.22
             ratio_thresh = 1.35
+        elif density_full > 0.03:
+            abs_thresh = 0.04
+            ratio_thresh = 1.25
         else:
-            abs_thresh = 0.008     # sintética/cartoon: pouco edge geral
+            abs_thresh = 0.008
             ratio_thresh = 2.0
         for zname, box in zone_boxes.items():
             d = _edge_density(box)
@@ -360,28 +364,28 @@ class CarouselDesignerWorker(BaseWorker):
                     headline_size = 60 if h_len < 50 else (52 if h_len < 90 else 42)
 
                     # ── Detecção de texto na imagem ──
-                    # Camada 1 (prevenção) é o caminho principal: TEXT_NEGATIVE
-                    # universal injetado em todo negative_prompt do inemaimg.
-                    # Camada 2 (detecção heurística via edges) é OPT-IN pra
-                    # evitar falso positivos em fotos com bokeh/textura rica.
-                    # User ativa via `detect_text_in_bg: true` na recipe OU
-                    # via `skip_text_detection: false` explicitamente.
-                    detect_text = bool(payload.get("detect_text_in_bg"))
+                    # Camada 1 (prevenção): TEXT_NEGATIVE no inemaimg (sempre).
+                    # Camada 2 (detecção): ATIVADA POR DEFAULT. Quando detecta
+                    # texto, o overlay é renderizado com CAIXA SÓLIDA em vez
+                    # de apenas gradiente — cobre eventual texto residual da
+                    # imagem e garante legibilidade. NUNCA suprimimos overlay
+                    # totalmente (user sempre vê título).
+                    detect_text = not bool(payload.get("skip_text_detection"))
                     text_detected = False
                     detection_info = None
                     if bg_path and detect_text:
                         detection_info = _detect_text_in_image(bg_path)
                         text_detected = detection_info.get("has_text", False)
-                        if text_detected and headline:
+                        if text_detected:
                             warnings.append(
-                                f"slide {i+1:02d}: texto detectado na imagem "
+                                f"slide {i+1:02d}: texto residual detectado na imagem "
                                 f"(zonas={detection_info.get('zones_with_text')}, "
                                 f"conf={detection_info.get('confidence'):.2f}); "
-                                f"overlay do headline foi SUPRIMIDO pra evitar "
-                                f"sobreposição. Imagem foi mantida intacta."
+                                f"overlay renderizado com caixa sólida pra "
+                                f"cobrir e garantir legibilidade."
                             )
                             log.info(
-                                "slide %d: text detected → suppressing overlay (conf=%.2f)",
+                                "slide %d: text detected → solid-bg overlay (conf=%.2f)",
                                 i, detection_info.get('confidence', 0),
                             )
 
@@ -396,31 +400,29 @@ class CarouselDesignerWorker(BaseWorker):
                         pad_v = int(h * (0.10 if aspect != "landscape" else 0.08))
                         pad_h = int(w * (0.12 if aspect != "landscape" else 0.10))
 
-                        # Regra: quando a imagem já tem texto, suprime overlay
-                        # (passa headline vazia + flag text_in_bg). Quando vai
-                        # escrever, force_solid_bg garante contraste.
-                        effective_headline = "" if text_detected else headline
+                        # Sempre renderiza overlay; caixa sólida só quando
+                        # texto foi detectado na imagem (cobertura + leitura).
                         html = tmpl.render(
                             width=w, height=h,
                             aspect=aspect,
                             palette=palette,
                             bg_image=bg_url,
-                            headline=effective_headline,
+                            headline=headline,
                             headline_size=mag_hsize,
                             pad_v=pad_v, pad_h=pad_h,
                             slide_num=f"{i+1:02d}",
-                            context="" if text_detected else slide.get("context", ""),
-                            stat_a=None if text_detected else slide.get("stat_a"),
-                            stat_b=None if text_detected else slide.get("stat_b"),
-                            question="" if text_detected else slide.get("question", ""),
+                            context=slide.get("context", ""),
+                            stat_a=slide.get("stat_a"),
+                            stat_b=slide.get("stat_b"),
+                            question=slide.get("question", ""),
                             handle=handle,
                             badge=slide.get("badge", "INEMA"),
                             slide_label=slide.get(
                                 "slide_label", f"{i+1:02d} / {total:02d}",
                             ),
-                            # Flags novas pro template decidir overlay
-                            text_in_bg=text_detected,
-                            force_solid_bg=True,  # caixa sólida atrás do texto
+                            # Flags pro template decidir intensidade do overlay
+                            text_in_bg=text_detected,         # mantido pra compat
+                            force_solid_bg=text_detected,     # caixa sólida SE detectou texto
                         )
                         html_file = tmp_path / f"slide_{i:02d}_{ratio_tag}.html"
                         html_file.write_text(html, encoding="utf-8")

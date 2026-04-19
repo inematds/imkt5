@@ -53,7 +53,13 @@ INEMAIMG_TIMEOUT = float(os.environ.get("INEMAIMG_TIMEOUT", _CFG.request_timeout
 TEXT_NEGATIVE = (
     "text, letters, words, captions, writing, font, typography, "
     "logo, watermark, signature, label, sign, banner, heading, "
-    "title text, handwriting, script, calligraphy, numbers"
+    "title text, handwriting, script, calligraphy, numbers, "
+    "alphabet, characters, roman letters, latin letters, "
+    "poster with text, book cover, magazine cover, billboard, "
+    "newspaper, document, printed text, typed text, written words, "
+    "headline text, caption text, subtitle, tagline, slogan, "
+    "embedded text, overlay text, watermarked, autograph, stamp, "
+    "readable text, legible letters, (text:1.6), (words:1.6), (letters:1.5)"
 )
 
 

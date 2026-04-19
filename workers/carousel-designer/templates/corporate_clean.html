@@ -14,10 +14,25 @@
     color: {{ palette.text }};
     position: relative;
   }
+  {% if bg_image %}
+  .bg-image {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover;
+    /* Corporate clean: bg sutil, levemente acinzentada pra não distrair */
+    filter: grayscale(0.4) brightness(0.75) contrast(0.95);
+    opacity: 0.18;
+    z-index: 0;
+  }
+  .bg-veil {
+    position: absolute; inset: 0; z-index: 1;
+    background: linear-gradient(135deg, {{ palette.background }}ee 0%, {{ palette.background }}d8 100%);
+  }
+  {% endif %}
   .container {
     width: 100%; height: 100%;
     padding: {{ pad_v }}px {{ pad_h }}px;
     display: flex; flex-direction: column; justify-content: space-between;
+    position: relative; z-index: 2;
   }
   .top-bar {
     display: flex; justify-content: space-between; align-items: center;
@@ -80,6 +95,8 @@
 </style>
 </head>
 <body>
+  {% if bg_image %}<img class="bg-image" src="{{ bg_image }}" alt="">{% endif %}
+  {% if bg_image %}<div class="bg-veil"></div>{% endif %}
   <div class="container">
     <div class="top-bar">
       <div class="edition">{{ badge or "INEMA" }} · REPORT</div>
