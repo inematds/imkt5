@@ -109,21 +109,54 @@ class RunsRepo:
         Usado no startup pra zerar runs presas por restart do gateway
         (stages pending/running/awaiting_approval sem ninguém pra avançar).
         Retorna quantas foram reconciliadas.
+
+        Além da flag `finished=true failed=true` na run, ATUALIZA cada
+        stage individual não-terminal (running/pending/awaiting_approval)
+        pra status=failed com error='orphan: gateway restart' — evita
+        inconsistência onde run aparece como failed mas stage individual
+        ainda mostra "running" na UI.
         """
+        reconciled_ids: list[str] = []
         async with self._db.pool().acquire() as conn:
             rows = await conn.fetch(
-                f"""
-                UPDATE recipe_runs
-                   SET failed = true, finished = true,
-                       updated_at = now(),
-                       stages = stages || '{{"_reconciled": "gateway restart"}}'::jsonb
+                """
+                SELECT run_id, stages FROM recipe_runs
                  WHERE finished = false
                    AND updated_at < now() - ($1 || ' seconds')::interval
-                 RETURNING run_id
                 """,
                 str(older_than_seconds),
             )
-        return len(rows)
+            for row in rows:
+                run_id = row["run_id"]
+                stages = row["stages"]
+                if isinstance(stages, str):
+                    stages = json.loads(stages)
+                # Rescrita: marca cada stage não-terminal como failed
+                for sid, s in stages.items():
+                    if sid.startswith("_"):
+                        continue
+                    if not isinstance(s, dict):
+                        continue
+                    st = s.get("status")
+                    if st in ("pending", "running", "awaiting_approval"):
+                        s["status"] = "failed"
+                        s["error"] = s.get("error") or "orphan: gateway restart"
+                        if not s.get("finished_at"):
+                            from datetime import datetime, timezone
+                            s["finished_at"] = datetime.now(timezone.utc).isoformat()
+                stages["_reconciled"] = "gateway restart"
+                await conn.execute(
+                    """
+                    UPDATE recipe_runs
+                       SET failed = true, finished = true,
+                           updated_at = now(),
+                           stages = $2::jsonb
+                     WHERE run_id = $1
+                    """,
+                    run_id, json.dumps(stages, default=str),
+                )
+                reconciled_ids.append(run_id)
+        return len(reconciled_ids)
 
     async def delete(self, run_id: str) -> bool:
         """Remove run permanentemente do DB. Retorna True se removeu."""
