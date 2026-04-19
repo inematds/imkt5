@@ -477,6 +477,7 @@ def create_app(
                         "created_at": r.created_at.isoformat() if r.created_at else None,
                         "status": status, "stage_counts": stage_counts,
                         "total_stages": len(r.stages),
+                        "input": r.input or {},  # preview do input na lista
                     })
                 for row in db_rows:
                     if row["run_id"] in in_mem_ids:
@@ -496,6 +497,7 @@ def create_app(
                         "created_at": row.get("created_at"),
                         "status": status, "stage_counts": counts,
                         "total_stages": len(stages),
+                        "input": row.get("input") or {},
                     })
                 # Ordena por created_at desc e aplica limit
                 out.sort(key=lambda x: x.get("created_at") or "", reverse=True)
@@ -522,6 +524,7 @@ def create_app(
                 "status": overall,
                 "stage_counts": stage_counts,
                 "total_stages": len(r.stages),
+                "input": r.input or {},
             })
         return out
 
