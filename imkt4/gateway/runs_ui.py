@@ -451,12 +451,15 @@ const RECIPE_FIELDS = {
        ['feed', 'Instagram Feed'],
      ],
      default: ''},
-    {key: 'use_karaoke', label: 'Karaoke (legendas sync com fala)', type: 'boolean',
-     hint: 'faster-whisper word-timings + ASS subtitles. Default ON.'},
-    {key: 'use_sfx', label: 'SFX (stab/swoosh por style+hook)', type: 'boolean',
-     hint: 'Default ON — desliga styles tranquilos automaticamente.'},
-    {key: 'hold_final', label: 'Hold final 3s silencioso', type: 'boolean',
-     hint: 'Skip automático quando video < 8s. Default ON.'},
+    {key: 'use_karaoke', label: 'Karaoke (legendas sync com fala) — default ON',
+     type: 'boolean_default_on',
+     hint: 'Desmarque pra desativar. faster-whisper transcreve o TTS e burnuiza palavra-por-palavra sobre o vídeo. ~30s extra no render.'},
+    {key: 'use_sfx', label: 'SFX (stab/swoosh por style+hook) — default ON',
+     type: 'boolean_default_on',
+     hint: 'Desmarque pra desativar. Styles tranquilos (premium/wellness) já desligam automaticamente.'},
+    {key: 'hold_final', label: 'Hold final 3s silencioso — default ON',
+     type: 'boolean_default_on',
+     hint: 'Desmarque pra desativar. Skip automático quando video < 8s.'},
     {key: 'loop_visual', label: 'Loop visual (rewatch rate)', type: 'boolean',
      hint: 'Última cena usa imagem da primeira (rima visual pro TikTok/Reels).'},
     {key: 'kinetic_presets', label: 'Kinetic presets por style', type: 'boolean',
@@ -682,6 +685,19 @@ function renderAdvancedOpts(recipeName) {
       l.appendChild(cb);
       l.appendChild(document.createTextNode(' ativar'));
       wrap.appendChild(l);
+    } else if (f.type === 'boolean_default_on') {
+      // Backend tem default=true pro campo. UI vem JÁ MARCADO; desmarcar
+      // envia explicitamente false pra desativar.
+      const l = document.createElement('label');
+      l.style.cssText = 'color:#e6edf3; font-size:12px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.dataset.fkey = f.key;
+      cb.dataset.ftype = 'boolean_default_on';
+      cb.checked = true;  // default visual ligado
+      l.appendChild(cb);
+      l.appendChild(document.createTextNode(' ligado'));
+      wrap.appendChild(l);
     }
 
     if (f.hint) {
@@ -755,6 +771,11 @@ function collectAdvancedOpts(recipeName) {
     } else if (f.type === 'boolean') {
       const cb = container.querySelector(`[data-fkey="${f.key}"][data-ftype="boolean"]`);
       if (cb && cb.checked) out[f.key] = true;
+    } else if (f.type === 'boolean_default_on') {
+      // Default backend é TRUE. Só enviamos explicit false quando user
+      // desmarcou — se checked (default), nada enviamos (worker vai usar default).
+      const cb = container.querySelector(`[data-fkey="${f.key}"][data-ftype="boolean_default_on"]`);
+      if (cb && !cb.checked) out[f.key] = false;
     } else if (f.type === 'lines') {
       const ta = container.querySelector(`[data-fkey="${f.key}"]`);
       if (ta && ta.value.trim()) {
