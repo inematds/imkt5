@@ -693,6 +693,53 @@ def create_app(
             "stages": _ordered_stages(run.recipe.name, raw_stages),
         }
 
+    @app.delete("/runs/{run_id}")
+    async def delete_run(run_id: str, request: Request) -> dict[str, Any]:
+        """Remove run permanentemente (memória + Postgres).
+        Não remove artefatos no storage (S3/local) — apenas o registro da run.
+        """
+        # Auth: tenant_id extraído de memória OU DB
+        tenant_id = None
+        try:
+            prev = runner.get_run(run_id)
+            tenant_id = prev.tenant_id
+        except KeyError:
+            repo = getattr(runner, "_runs_repo", None)
+            if repo is not None:
+                prev_data = await repo.get(run_id)
+                if prev_data:
+                    tenant_id = prev_data.get("tenant_id")
+        if tenant_id is None:
+            raise HTTPException(404, f"run {run_id} não encontrada")
+        await _require_user(request, tenant_id=tenant_id)
+
+        # Remove da memória se existir
+        try:
+            runner._runs.pop(run_id, None)
+            # Limpa job_index pra qualquer job pendente dessa run
+            to_remove = [
+                jid for jid, (rid, _sid, _slot) in runner._job_index.items()
+                if rid == run_id
+            ]
+            for jid in to_remove:
+                runner._job_index.pop(jid, None)
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger("imkt4.api").warning(
+                "delete run memória falhou: %s", exc,
+            )
+
+        # Remove do DB
+        deleted = False
+        repo = getattr(runner, "_runs_repo", None)
+        if repo is not None:
+            try:
+                deleted = await repo.delete(run_id)
+            except Exception as exc:  # noqa: BLE001
+                logging.getLogger("imkt4.api").warning(
+                    "runs_repo.delete falhou: %s", exc,
+                )
+        return {"deleted": True, "db_deleted": deleted, "run_id": run_id}
+
     @app.post("/runs/{run_id}/approve")
     async def approve(run_id: str, req: ApprovalRequest, request: Request) -> dict[str, str]:
         try:

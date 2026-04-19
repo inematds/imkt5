@@ -125,6 +125,19 @@ class RunsRepo:
             )
         return len(rows)
 
+    async def delete(self, run_id: str) -> bool:
+        """Remove run permanentemente do DB. Retorna True se removeu."""
+        async with self._db.pool().acquire() as conn:
+            result = await conn.execute(
+                "DELETE FROM recipe_runs WHERE run_id = $1", run_id,
+            )
+            # asyncpg devolve 'DELETE N' — parse e retorna True se N>0
+            try:
+                n = int(result.rsplit(" ", 1)[-1])
+                return n > 0
+            except (ValueError, IndexError):
+                return False
+
     async def get(self, run_id: str) -> dict[str, Any] | None:
         async with self._db.pool().acquire() as conn:
             r = await conn.fetchrow(

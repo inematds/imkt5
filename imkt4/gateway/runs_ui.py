@@ -783,7 +783,12 @@ async function loadRuns(recipeName) {
     row.innerHTML = `
       <div class="row-top">
         <span class="when">${when}</span>
-        <span class="pill ${run.status}">${run.status}</span>
+        <span style="display:flex;align-items:center;gap:6px;">
+          <span class="pill ${run.status}">${run.status}</span>
+          <button title="Deletar run" class="row-del-btn"
+            onclick="event.stopPropagation(); deleteRun('${run.run_id}');"
+            style="background:transparent;border:none;color:#7d8590;font-size:14px;cursor:pointer;padding:0 4px;">🗑</button>
+        </span>
       </div>
       <div class="meta">${run.run_id.slice(0,8)}… · ${run.tenant_id}/${run.user_id || '-'}</div>
       <div class="summary">${summary}</div>
@@ -838,6 +843,10 @@ async function renderDetail(runId, opts) {
          style="text-decoration:none;padding:7px 14px;border-radius:6px;border:1px solid #30363d;color:#e6edf3;font-size:13px;">
          📥 Baixar bundle.zip
       </a>
+      <button class="ghost" onclick="deleteRun('${run.run_id}')"
+              style="color:#f85149;border-color:#3b1519;">
+         🗑 Deletar
+      </button>
     </div>
   `;
 
@@ -954,6 +963,24 @@ function escapeHtml(s) {
 }
 
 // ── actions ───────────────────────────────────────────────────
+async function deleteRun(runId) {
+  if (!confirm(`Deletar permanentemente a run ${runId.slice(0,8)}…?\n\nArtefatos (imagens/vídeos) no storage NÃO serão removidos — apenas o registro da execução.`)) return;
+  const r = await api('/runs/' + runId, { method: 'DELETE' });
+  if (!r.ok) {
+    const txt = await r.text();
+    alert(`Falhou: ${r.status} — ${txt.slice(0,200)}`);
+    return;
+  }
+  // Se era a run selecionada, limpa detalhe
+  if (selectedRunId === runId) {
+    selectedRunId = null;
+    document.getElementById('detail').innerHTML =
+      '<div class="empty">Run deletada. Selecione outra.</div>';
+  }
+  await loadRuns(selectedRecipe);
+  await loadRecipes();  // atualiza contadores na coluna 1
+}
+
 async function rerunAll(runId) {
   if (!confirm('Re-rodar a receita inteira com o mesmo input? (nova run)')) return;
   const r = await api('/runs/' + runId + '/rerun', { method: 'POST' });
