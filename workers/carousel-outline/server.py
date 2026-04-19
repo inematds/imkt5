@@ -8,6 +8,7 @@ carousel-designer renderizar direto.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +50,79 @@ def _style_hint_text(style: str) -> str:
         f"Estilo '{style}' — LLM, infere o mood visual do nome e "
         f"aplica consistentemente em todos os bg_prompts."
     )
+
+
+_CTA_MARKERS_RE = re.compile(
+    r"\b("
+    r"inema\.(club|vip|tds)"
+    r"|@inema[a-z.]*"
+    r"|https?://\S+"
+    r"|(?:acesse|entre|acompanhe|siga|clica|clique|baixe|assine|inscrev[ae])"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _slide_has_cta(slide: dict) -> bool:
+    """True se o slide tem sinais claros de CTA (URL, verbo imperativo, handle)."""
+    for field in ("headline", "context", "question", "slide_label"):
+        v = slide.get(field)
+        if isinstance(v, str) and _CTA_MARKERS_RE.search(v):
+            return True
+    return False
+
+
+# Defaults de closing por tenant (brand_identity.md → canônicos).
+# Depois abstrair pra _base/tenant_registry.
+DEFAULT_CLOSING_BY_TENANT = {
+    "inema": {
+        "cta_headline": "Comece grátis: inema.club",
+        "cta_context": "A plataforma gratuita de formação em IA.",
+        "brand_headline": "INEMA.CLUB",
+        "brand_context": "Atrás dos computadores tem gente. Use as máquinas/IA para escalar.",
+        "handle": "@inema.tds",
+    },
+}
+
+
+def _enforce_closing(slides: list[dict], *, tenant_id: str | None) -> None:
+    """Garante que o último slide é fechamento válido (closing_mode + is_closing).
+
+    Quando LLM respeita a SKILL, apenas normaliza/completa. Quando LLM
+    esquece, aplica heurística + fallbacks canônicos do tenant.
+    """
+    if not slides:
+        return
+    last = slides[-1]
+    closing_mode = (last.get("closing_mode") or "").strip().lower()
+    defaults = DEFAULT_CLOSING_BY_TENANT.get(tenant_id or "") or {}
+
+    # Heurística quando LLM não setou closing_mode
+    if closing_mode not in ("cta", "brand"):
+        # Algum slide intermediário (0..N-2) já tem CTA? → brand moment
+        intermediate_has_cta = any(
+            _slide_has_cta(sl) for sl in slides[:-1]
+        )
+        closing_mode = "brand" if intermediate_has_cta else "cta"
+
+    last["closing_mode"] = closing_mode
+    last["is_closing"] = True
+
+    # Fallback de conteúdo se o slide tá vazio/genérico
+    if closing_mode == "brand":
+        if not (last.get("headline") or "").strip():
+            last["headline"] = defaults.get("brand_headline") or "Obrigado"
+        if not (last.get("context") or "").strip():
+            last["context"] = defaults.get("brand_context") or ""
+        if not (last.get("slide_label") or "").strip():
+            last["slide_label"] = defaults.get("handle") or "Marca"
+        # Brand moment NÃO precisa de bg — fica tipográfico.
+        # Mantém bg_prompt se LLM gerou (pode ser útil como textura).
+    else:  # cta
+        if not (last.get("headline") or "").strip():
+            last["headline"] = defaults.get("cta_headline") or "Quer saber mais?"
+        if not (last.get("slide_label") or "").strip():
+            last["slide_label"] = "CTA"
 
 
 def _strip_markdown(s: str) -> str:
@@ -183,6 +257,12 @@ class CarouselOutlineWorker(BaseWorker):
                     for sub in ("number", "label"):
                         if isinstance(stat.get(sub), str):
                             stat[sub] = _strip_markdown(stat[sub])
+
+        # Garante fechamento no último slide: closing_mode obrigatório.
+        # Se LLM não setou, aplica heurística:
+        #   - Se algum slide intermediário tem URL/CTA → closing_mode = "brand"
+        #   - Senão → closing_mode = "cta" + completa com fallback textual
+        _enforce_closing(slides, tenant_id=job.tenant_id)
         return {
             "slides": slides,
             "title": _strip_markdown(data.get("title") or topic[:60]),

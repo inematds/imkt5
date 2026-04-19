@@ -177,6 +177,31 @@
     align-items: center;
   }
 
+  /* Brand moment (último slide modo `brand`) */
+  .brand-moment {
+    position: absolute; inset: 0; z-index: 4;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 40px;
+    background: linear-gradient(135deg,
+      rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.92) 100%);
+  }
+  .brand-moment .brand-logo {
+    font-family: 'Playfair Display', serif;
+    font-weight: 900; font-size: 130px;
+    line-height: 1.0; letter-spacing: -0.02em;
+    color: #ffffff; margin-bottom: 24px;
+  }
+  .brand-moment .brand-tag {
+    font-size: 22px; color: rgba(255,255,255,0.70);
+    max-width: 76%; line-height: 1.4; margin-bottom: 40px;
+  }
+  .brand-moment .brand-handle {
+    font-size: 20px; font-weight: 600;
+    color: {{ palette.accent or '#F5A623' }};
+    letter-spacing: 0.08em;
+  }
+
   .question {
     font-size: 30px;
     font-weight: 700;
@@ -203,6 +228,15 @@
   {% if bg_image %}<img class="bg-image" src="{{ bg_image }}" alt="">{% endif %}
   <div class="overlay"></div>
   <div class="accent-line"></div>
+
+  {% if is_closing and closing_mode == "brand" %}
+  <!-- Brand moment: logo + tagline + handle -->
+  <div class="brand-moment">
+    <div class="brand-logo">{{ headline }}</div>
+    {% if context %}<div class="brand-tag">{{ context }}</div>{% endif %}
+    <div class="brand-handle">{{ slide_label or handle or "@inema.tds" }}</div>
+  </div>
+  {% else %}
 
   <div class="container">
     <div class="top-bar">
@@ -239,5 +273,6 @@
       <div class="handle">{{ handle or "@inema.tds" }}</div>
     </div>
   </div>
+  {% endif %}
 </body>
 </html>

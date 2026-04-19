@@ -421,8 +421,11 @@ class CarouselDesignerWorker(BaseWorker):
                                 "slide_label", f"{i+1:02d} / {total:02d}",
                             ),
                             # Flags pro template decidir intensidade do overlay
-                            text_in_bg=text_detected,         # mantido pra compat
-                            force_solid_bg=text_detected,     # caixa sólida SE detectou texto
+                            text_in_bg=text_detected,
+                            force_solid_bg=text_detected,
+                            # Flags de fechamento (último slide)
+                            is_closing=bool(slide.get("is_closing")),
+                            closing_mode=slide.get("closing_mode", ""),
                         )
                         html_file = tmp_path / f"slide_{i:02d}_{ratio_tag}.html"
                         html_file.write_text(html, encoding="utf-8")

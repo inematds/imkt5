@@ -54,6 +54,40 @@ Responda APENAS JSON:
 }
 ```
 
+## Regra do ÚLTIMO SLIDE (obrigatório)
+
+O último slide SEMPRE é um **fechamento** em um dos dois modos, declarado
+via `closing_mode`:
+
+### Modo A — `closing_mode: "cta"` (call-to-action direto)
+
+Usado quando **nenhum** slide anterior tem CTA explícito. Último slide
+é a chamada pra ação:
+- `headline`: o CTA (ex: "Comece grátis: inema.club")
+- `slide_label`: "CTA"
+- `is_closing: true`
+
+### Modo B — `closing_mode: "brand"` (brand moment)
+
+Usado quando algum slide anterior **já contém** o CTA (padrão "proof
+antecipado → CTA no meio → fechamento visual no final"). Último slide
+é assinatura visual da marca:
+- `headline`: tagline da marca (curta, ≤ 30 chars — ex: "INEMA.CLUB",
+  "inema.vip" ou a tagline principal)
+- `context`: 1 frase de reforço da marca, opcional
+- `slide_label`: "Marca" ou o handle (ex: "@inema.tds")
+- `is_closing: true`
+- `closing_mode: "brand"`
+
+### Como decidir A ou B
+
+1. Percorra os slides 0..N-2. Se algum tem padrão de CTA (texto com
+   URL, "acesse", "entre em", verbo imperativo + marca) → use **B**.
+2. Se não achou CTA em slide intermediário → use **A**.
+3. Pro tenant **INEMA**: CTAs canônicos são `inema.club` (gratuito),
+   `inema.vip` (comunidade paga) e `@inema.tds`. Use exatamente esses
+   textos, sem abreviar.
+
 ## Regras
 
 - **Todos os slides** têm `headline` obrigatório.
