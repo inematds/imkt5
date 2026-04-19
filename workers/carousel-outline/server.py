@@ -57,8 +57,8 @@ class CarouselOutlineWorker(BaseWorker):
         if not topic:
             raise ValueError("payload precisa de 'topic' (ou 'text'/'brief')")
 
-        slide_count = int(payload.get("slide_count") or 5)
-        slide_count = max(3, min(10, slide_count))
+        slide_count = int(payload.get("slide_count") or 7)
+        slide_count = max(3, min(12, slide_count))
         language = payload.get("language") or "pt-BR"
         style = payload.get("style") or "didatico"
         audience = payload.get("audience") or "público geral"

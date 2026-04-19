@@ -10,7 +10,7 @@ renderizar (template editorial).
 
 1. `topic` — obrigatório. Texto livre do usuário ("Por que Claude Code
    muda a forma de programar", "5 erros que gestores cometem com IA"...).
-2. `slide_count` — default 5.
+2. `slide_count` — default 7.
 3. `language` — default "pt-BR".
 4. `style` — default "didatico". Opções: "didatico" | "provocativo" |
    "dados" | "inspiracional".

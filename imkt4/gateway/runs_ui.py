@@ -372,7 +372,7 @@ const RECIPE_FIELDS = {
 
   'carrossel-rico': [
     {key: 'slide_count', label: 'Número de slides', type: 'number',
-     min: 3, max: 10, default: 5, placeholder: '5'},
+     min: 3, max: 12, default: 7, placeholder: '7'},
     {key: 'image_source', label: 'Fonte das imagens', type: 'pills',
      options: [
        ['generate', 'Gerar novas · LLM+SD'],
