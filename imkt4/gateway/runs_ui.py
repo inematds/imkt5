@@ -451,9 +451,9 @@ const RECIPE_FIELDS = {
        ['feed', 'Instagram Feed'],
      ],
      default: ''},
-    {key: 'use_karaoke', label: 'Karaoke (legendas sync com fala) — default ON',
-     type: 'boolean_default_on',
-     hint: 'Desmarque pra desativar. faster-whisper transcreve o TTS e burnuiza palavra-por-palavra sobre o vídeo. ~30s extra no render.'},
+    {key: 'use_karaoke', label: 'Karaoke (legendas sync com fala)',
+     type: 'boolean',
+     hint: 'Default OFF. Marque pra ligar. faster-whisper transcreve o TTS e burnuiza palavra-por-palavra sobre o vídeo (+~30s render).'},
     {key: 'use_sfx', label: 'SFX (stab/swoosh por style+hook) — default ON',
      type: 'boolean_default_on',
      hint: 'Desmarque pra desativar. Styles tranquilos (premium/wellness) já desligam automaticamente.'},
@@ -961,7 +961,9 @@ async function renderDetail(runId, opts) {
   const status = run.failed ? 'failed' : (run.finished ? 'success' : 'running');
   // Pills destacados: video_mode (quick/pro/skip), platform alvo, approval
   const modePills = [];
-  const vm = (run.input || {}).video_mode;
+  // video_mode: default é "quick" quando recipe é campanha-marketing e não explícito
+  const recipeHasVideo = ['campanha-marketing','campanha-marketing-ab'].includes(run.recipe);
+  const vm = (run.input || {}).video_mode || (recipeHasVideo ? 'quick' : null);
   if (vm) {
     const vmColor = vm === 'pro' ? '#7c3aed' : (vm === 'skip' ? '#6b7280' : '#1f6feb');
     modePills.push(`<span class="pill" style="background:${vmColor};color:white;">video: ${vm.toUpperCase()}</span>`);

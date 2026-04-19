@@ -40,6 +40,25 @@ from workers._base.storage import get_storage
 
 FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
+# Fontes do estilo editorial magazine (padrão mkt3 video-quick).
+# Serif black pro headline, Inter sem-serif pro body. Se ausentes, cai pro FONT_BOLD.
+_FONT_DIR = Path(__file__).parent / "assets" / "fonts"
+FONT_SERIF_EDITORIAL = str(_FONT_DIR / "PlayfairDisplay.ttf")
+FONT_SANS_EDITORIAL  = str(_FONT_DIR / "Inter.ttf")
+
+
+def _pick_font(font_family: str | None = None) -> str:
+    """Escolhe o arquivo de fonte pelo nome lógico (ou fallback)."""
+    fam = (font_family or "").lower().strip()
+    if fam in ("lora", "playfair", "dm serif display", "dm serif", "serif", "editorial"):
+        if Path(FONT_SERIF_EDITORIAL).exists():
+            return FONT_SERIF_EDITORIAL
+    if fam in ("inter", "sans", "sans-serif"):
+        if Path(FONT_SANS_EDITORIAL).exists():
+            return FONT_SANS_EDITORIAL
+    # fallback
+    return FONT_BOLD
+
 # Item 2 — defaults de narration_speed por style do video-art-director
 NARRATION_SPEED_BY_STYLE = {
     "energetico": 1.20, "bold_pop": 1.20, "streetwear_urban": 1.20,
@@ -254,6 +273,8 @@ def _build_vf(
     karaoke: list[dict] | None = None,
     color_grade: str | None = None,  # "cool" | "warm" | None
     ass_karaoke_active: bool = False,  # se True, pula text_overlay pesado
+    use_vignette: bool = False,
+    use_grain: bool = False,
 ) -> str:
     """Monta -vf: crop → motion → color grading → (karaoke | text overlay)."""
     fps = 30
@@ -286,6 +307,15 @@ def _build_vf(
     elif color_grade == "warm":
         vf = f"{vf},colorchannelmixer=rr=1.08:gg=1.02:bb=0.92,eq=saturation=1.08"
 
+    # Fase 3 — decorações pro mode (cchyperframes MOTION_PHILOSOPHY):
+    # - Vignette radial-gradient (lei 2 "Black is the canvas") — PI/4
+    # - Film grain super faint (lei 10 "one unifying texture") — noise c0s=5
+    if use_vignette:
+        vf = f"{vf},vignette=PI/4:eval=init"
+    if use_grain:
+        # noise c0s=5 = grain sutil no canal Y (luminância), quase imperceptível
+        vf = f"{vf},noise=c0s=5:c0f=t+u"
+
     # Karaoke por cena (LEGADO — ASS chain é aplicado após concat).
     if karaoke:
         vf = f"{vf},{_build_karaoke_draw(karaoke, duration, width, height)}"
@@ -298,21 +328,28 @@ def _build_vf(
 
 
 def _build_text_overlay(scene: dict, width: int, height: int, tmp: Path, idx: int) -> str:
-    """Text overlay tradicional (fallback quando sem karaoke)."""
+    """Text overlay estilo MAGAZINE EDITORIAL (padrão mkt3 video-quick):
+       - serif black (Playfair Display) — headline dominante
+       - SEM drawbox preto cobrindo fundo (apenas um gradiente sutil)
+       - shadow forte: '0 4px 12px rgba(0,0,0,0.8)' = shadowy=4 + dark box
+       - outline 3px preto (bordercolor+borderw) pra legibilidade
+       - safe zone: 120px topo em 9:16 (6.25% altura), 80px em 1:1
+       - text_position default 'top' (NUNCA 'bottom' por baixo = área de ação).
+    """
     overlay = (scene.get("text_overlay") or "").strip()
     font_size = int(scene.get("font_size", 88))
 
-    pad_side = int(width * 0.08)
+    pad_side = int(width * 0.07)
     usable_w = width - 2 * pad_side
-    avg_char_w = font_size * 0.6
+    avg_char_w = font_size * 0.55
     max_chars_per_line = max(8, int(usable_w / avg_char_w))
 
     import textwrap as _tw
     wrapped = _tw.fill(overlay.upper(), width=max_chars_per_line)
     n_lines = wrapped.count("\n") + 1
     if n_lines > 3:
-        font_size = max(44, int(font_size * 3 / n_lines))
-        avg_char_w = font_size * 0.6
+        font_size = max(48, int(font_size * 3 / n_lines))
+        avg_char_w = font_size * 0.55
         max_chars_per_line = max(8, int(usable_w / avg_char_w))
         wrapped = _tw.fill(overlay.upper(), width=max_chars_per_line)
         n_lines = wrapped.count("\n") + 1
@@ -321,33 +358,47 @@ def _build_text_overlay(scene: dict, width: int, height: int, tmp: Path, idx: in
     txt_path.write_text(wrapped, encoding="utf-8")
 
     position = scene.get("text_position", "top")
-    block_h = int(font_size * 1.25 * n_lines)
-    margin_y = int(height * 0.08)
+    block_h = int(font_size * 1.15 * n_lines)
+    # Safe zone editorial (mkt3): 120px top em 9:16 (1920h → 6.25%).
+    # Em 1:1 (1080h) usa 80px (7.4%). Mínimo 48px pra landscape curto.
+    is_vertical = height > width * 1.1
+    margin_y = 120 if is_vertical else max(48, int(height * 0.075))
     if position == "top":
-        y_box = margin_y
+        y_txt = margin_y
     elif position == "center":
-        y_box = (height - block_h) // 2
+        y_txt = (height - block_h) // 2
     else:
-        y_box = height - block_h - margin_y
+        y_txt = height - block_h - margin_y
 
-    box_pad_y = int(font_size * 0.6)
-    box_x = pad_side
-    box_w = width - 2 * pad_side
-    box_y = y_box - box_pad_y
-    box_full_h = block_h + box_pad_y * 2
-    opacity = scene.get("overlay_opacity", 0.55)
-    line_spacing = int(font_size * 0.2)
+    # Fonte: scene pode pedir font_family específica; default serif editorial
+    font_family = scene.get("font_family") or "Playfair"
+    font_file = _pick_font(font_family)
+    line_spacing = int(font_size * 0.1)
+
+    # Overlay escuro SUTIL na zona do texto (vignette local) em vez de drawbox
+    # cobrindo tudo. Usa apenas a FAIXA vertical onde o texto fica, com
+    # gradient horizontal que desaparece nas laterais.
+    # Implementação: boxblur só atrás do texto, alpha baixa.
+    shadow_y1 = max(0, y_txt - int(font_size * 0.3))
+    shadow_h = block_h + int(font_size * 0.6)
+    opacity = scene.get("overlay_opacity", 0.32)  # antes era 0.55; reduzido
+
     return (
-        f"drawbox=x={box_x}:y={box_y}:w={box_w}:h={box_full_h}:"
+        # Faixa horizontal escurecida APENAS onde texto vai (sem ocupar a
+        # tela inteira; dá contraste sem esconder a imagem de fundo).
+        f"drawbox=x=0:y={shadow_y1}:w={width}:h={shadow_h}:"
         f"color=black@{opacity}:t=fill,"
-        f"drawtext=fontfile={FONT_BOLD}:"
+        # Headline — serif black, shadow forte, outline 3px preto
+        f"drawtext=fontfile={font_file}:"
         f"textfile={txt_path}:"
         f"fontcolor=white:"
         f"fontsize={font_size}:"
         f"line_spacing={line_spacing}:"
         f"x=(w-text_w)/2:"
-        f"y={y_box}:"
-        f"shadowcolor=black@0.9:shadowx=0:shadowy=3"
+        f"y={y_txt}:"
+        # Outline 3px + shadow 4px simula 'text-shadow: 0 4px 12px rgba(0,0,0,0.8)'
+        f"borderw=3:bordercolor=black@0.85:"
+        f"shadowcolor=black@0.75:shadowx=0:shadowy=4"
     )
 
 
@@ -771,13 +822,20 @@ class FfmpegLocalWorker(BaseWorker):
         # quando user não informa; payload.get retorna None, não default).
         use_sfx = payload.get("use_sfx")
         use_sfx = True if use_sfx is None else bool(use_sfx)
-        use_karaoke = payload.get("use_karaoke")
-        use_karaoke = True if use_karaoke is None else bool(use_karaoke)
+        # Karaoke default OFF (pedido do user 2026-04-19). Antes era ON.
+        # Liga via use_karaoke:true no input ou pill no modal.
+        use_karaoke = bool(payload.get("use_karaoke", False))
 
         # Fase 2: crossfade + color grading opt-in (ativados por video_mode="pro")
         video_mode = (payload.get("video_mode") or "").lower()
         use_crossfade = video_mode == "pro" or bool(payload.get("use_crossfade"))
         use_color_grading = video_mode == "pro" or bool(payload.get("use_color_grading"))
+
+        # Fase 3 (inspirada em cchyperframes MOTION_PHILOSOPHY):
+        # pro mode ganha vignette (Lei 2 "Black is the canvas") +
+        # film grain sutil ("super faint film grain") por default.
+        use_vignette = video_mode == "pro" or bool(payload.get("use_vignette"))
+        use_grain = video_mode == "pro" or bool(payload.get("use_grain"))
 
         # Transition do art-director vira crossfade se pro mode
         transition = (payload.get("transition") or plan.get("transition") or "cut").strip()
@@ -940,6 +998,8 @@ class FfmpegLocalWorker(BaseWorker):
                     karaoke=karaoke_by_scene[i],
                     color_grade=grade,
                     ass_karaoke_active=ass_karaoke_path is not None,
+                    use_vignette=use_vignette,
+                    use_grain=use_grain,
                 )
 
                 # Item 8 — parallax nível 1 (fake via blur+unsharp)

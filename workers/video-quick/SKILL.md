@@ -41,7 +41,7 @@ Você recebe via prompt:
 | text_position | `"top"` default; `"center"` se imagem tiver rosto no topo. NUNCA `"bottom"`. |
 | font_size | 80-108 |
 | font_weight | `"900"` |
-| font_family | `"Lora"` ou `"DM Serif Display"` (editorial). `"Bebas Neue"` só no hook. |
+| font_family | `"Playfair"` (editorial, padrão no renderer). `"Lora"`/`"DM Serif Display"` mapeiam pro mesmo serif. `"Inter"` só em tipografia sans-serif opcional. |
 | text_color | `"#FFFFFF"` |
 | text_shadow | `"0 4px 12px rgba(0,0,0,0.8)"` |
 | overlay_opacity | 0.45-0.55 |
