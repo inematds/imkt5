@@ -83,6 +83,15 @@ Exemplo:
   Ex.: "minimalist workspace, laptop glowing, warm evening light,
   bokeh, shallow depth of field, editorial photography". Max ~150 chars.
 
+- **NUNCA peça texto/letras/escrita no `bg_prompt`**. O headline, caption
+  e CTA são renderizados depois pelo carousel-designer por cima da
+  imagem. Se você pede "a poster with the words 'FUTURE IS NOW'" ou
+  "sign saying X", o modelo SD vai gerar texto ilegível que atrapalha o
+  overlay. Proibido no bg_prompt: `text`, `letters`, `words`, `sign`,
+  `poster with writing`, `typography`, `logo`, `label`, `caption`,
+  `title`, `banner`, `heading`, `handwriting`, `signature`. Foque em
+  cena visual pura (pessoas, objetos, ambientes, iluminação, mood).
+
 ## Suggested style
 
 Escolha 1 dos 12 presets do carousel-designer que combina com o

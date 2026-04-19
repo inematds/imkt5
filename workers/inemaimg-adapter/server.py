@@ -44,6 +44,18 @@ INEMAIMG_URL = os.environ.get("INEMAIMG_URL", _CFG.upstream_url)
 INEMAIMG_MODEL_DEFAULT = os.environ.get("INEMAIMG_MODEL", _CFG.default_model)
 INEMAIMG_TIMEOUT = float(os.environ.get("INEMAIMG_TIMEOUT", _CFG.request_timeout_seconds))
 
+# Regra universal: imagens geradas NUNCA devem ter texto embutido.
+# Texto/headline/caption/CTA é sempre renderizado depois pelo
+# carousel-designer (ou via ffmpeg overlay no vídeo). Quando o SD gera
+# texto, ele fica ilegível e atrapalha o overlay. Fix: negative prompt
+# global pra todos modelos SD. Usuário pode desativar via
+# `allow_text_in_image: true` no payload (caso raro — pôster tipográfico).
+TEXT_NEGATIVE = (
+    "text, letters, words, captions, writing, font, typography, "
+    "logo, watermark, signature, label, sign, banner, heading, "
+    "title text, handwriting, script, calligraphy, numbers"
+)
+
 
 class InemaimgAdapter(BaseWorker):
     name = "inemaimg-adapter"
@@ -71,6 +83,15 @@ class InemaimgAdapter(BaseWorker):
         ):
             if k in payload:
                 body[k] = payload[k]
+
+        # Injeta TEXT_NEGATIVE universal (fold no negative_prompt existente).
+        # Ignorado apenas quando user passa allow_text_in_image:true.
+        if not payload.get("allow_text_in_image"):
+            user_neg = (body.get("negative_prompt") or "").strip()
+            if user_neg:
+                body["negative_prompt"] = f"{user_neg}, {TEXT_NEGATIVE}"
+            else:
+                body["negative_prompt"] = TEXT_NEGATIVE
 
         log.info("job %s → upstream %s/generate model=%s prompt=%s",
                  job.job_id[:8], INEMAIMG_URL, model, prompt[:80])

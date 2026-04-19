@@ -65,6 +65,16 @@ Exemplo:
 
 `negative_prompt` deve listar: `text, watermarks, logos, people faces, low quality, blurry`.
 
+**REGRA ABSOLUTA — sem texto na imagem:** NUNCA peça texto/letras/palavras
+no `background_prompt`. O headline, CTA e caption são overlay posterior
+(feito pelo carousel-designer ou ffmpeg). Se o prompt contém "with
+headline 'X'", "sign saying X", "poster with words", "label X",
+"typography reading X" — o SD gera texto ilegível que atrapalha. Foque
+em cena visual pura: pessoas em ação, objetos, ambientes, iluminação,
+mood. O adapter inemaimg já injeta `text, letters, words, typography`
+no negative_prompt universalmente — mas o prompt POSITIVO também não
+deve pedir texto.
+
 ---
 
 ## Variantes obrigatórias

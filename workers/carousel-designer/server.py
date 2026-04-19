@@ -145,6 +145,90 @@ def _ratio_tag(w: int, h: int) -> str:
     return f"{w // g}x{h // g}"
 
 
+def _detect_text_in_image(
+    image_path: Path, *, zones: tuple[str, ...] = ("full",),
+) -> dict[str, Any]:
+    """Detecção heurística de texto em imagem gerada.
+
+    Funciona SEM OCR externo (apenas PIL). Texto gerado pelo SD tem
+    assinaturas visuais características:
+      - Alta densidade de bordas (edges) em bandas horizontais estreitas
+      - Contraste local alto repetido em padrão regular
+      - Razão edges/total elevada em regiões específicas
+
+    Retorna:
+      {
+        "has_text": bool,
+        "confidence": float (0-1),
+        "zones_with_text": [str],  # quais zonas detectaram
+        "edge_density_full": float,
+      }
+    """
+    try:
+        from PIL import Image, ImageFilter
+    except ImportError:
+        return {"has_text": False, "confidence": 0.0, "error": "PIL indisponível"}
+
+    try:
+        img = Image.open(image_path).convert("L")  # grayscale
+        w, h = img.size
+        edges = img.filter(ImageFilter.FIND_EDGES)
+
+        def _edge_density(crop_box) -> float:
+            sub = edges.crop(crop_box)
+            # conta pixels "fortes" (>80 em escala 0-255)
+            hist = sub.histogram()
+            total = sum(hist)
+            if total == 0:
+                return 0.0
+            strong = sum(hist[80:])
+            return strong / total
+
+        # Densidade total
+        density_full = _edge_density((0, 0, w, h))
+
+        # Zonas horizontais (onde texto costuma aparecer em imagens SD):
+        # upper (0-20%), center (35-65%), lower (75-100%)
+        # Textos gerados pelo SD geralmente ficam em uma dessas bandas.
+        zone_boxes = {
+            "upper":  (0, 0, w, int(h * 0.25)),
+            "center": (0, int(h * 0.35), w, int(h * 0.65)),
+            "lower":  (0, int(h * 0.75), w, h),
+        }
+
+        zones_with_text = []
+        max_density = density_full
+        # Threshold adaptativo: imagem fotográfica complexa (densidade alta)
+        # exige valor absoluto maior; imagem sintética (densidade baixa)
+        # usa ratio principalmente.
+        if density_full > 0.10:
+            abs_thresh = 0.22      # fotográfica: texto sobressai em valor
+            ratio_thresh = 1.35
+        else:
+            abs_thresh = 0.008     # sintética/cartoon: pouco edge geral
+            ratio_thresh = 2.0
+        for zname, box in zone_boxes.items():
+            d = _edge_density(box)
+            max_density = max(max_density, d)
+            if d > abs_thresh and d > density_full * ratio_thresh:
+                zones_with_text.append(zname)
+
+        has_text = bool(zones_with_text)
+        # confidence: razão entre densidade na pior zona e a média.
+        confidence = min(1.0, max_density / max(0.003, density_full * ratio_thresh))
+
+        return {
+            "has_text": has_text,
+            "confidence": float(confidence),
+            "zones_with_text": zones_with_text,
+            "edge_density_full": float(density_full),
+            "edge_density_max_zone": float(max_density),
+        }
+    except Exception as exc:  # noqa: BLE001
+        log.warning("_detect_text_in_image falhou em %s: %s", image_path, exc)
+        return {"has_text": False, "confidence": 0.0, "error": str(exc)}
+
+
 def _derive_palette(p: dict[str, str]) -> dict[str, str]:
     """Gera variações (soft, border, glow, shadow, primary_text) a partir
     de primary/secondary pro CSS. Aceita hex #RRGGBB."""
@@ -241,6 +325,7 @@ class CarouselDesignerWorker(BaseWorker):
         total = max(len(slides), len(images))
         composed_urls: list[str] = []
         out_slides: list[dict[str, Any]] = []
+        warnings: list[str] = []  # notificações pro output final
 
         with tempfile.TemporaryDirectory(prefix=f"cdesign-{job.job_id}-") as tmp:
             tmp_path = Path(tmp)
@@ -274,6 +359,32 @@ class CarouselDesignerWorker(BaseWorker):
                     h_len = len(headline)
                     headline_size = 60 if h_len < 50 else (52 if h_len < 90 else 42)
 
+                    # ── Detecção de texto na imagem ──
+                    # Camada 1 (prevenção) é o caminho principal: TEXT_NEGATIVE
+                    # universal injetado em todo negative_prompt do inemaimg.
+                    # Camada 2 (detecção heurística via edges) é OPT-IN pra
+                    # evitar falso positivos em fotos com bokeh/textura rica.
+                    # User ativa via `detect_text_in_bg: true` na recipe OU
+                    # via `skip_text_detection: false` explicitamente.
+                    detect_text = bool(payload.get("detect_text_in_bg"))
+                    text_detected = False
+                    detection_info = None
+                    if bg_path and detect_text:
+                        detection_info = _detect_text_in_image(bg_path)
+                        text_detected = detection_info.get("has_text", False)
+                        if text_detected and headline:
+                            warnings.append(
+                                f"slide {i+1:02d}: texto detectado na imagem "
+                                f"(zonas={detection_info.get('zones_with_text')}, "
+                                f"conf={detection_info.get('confidence'):.2f}); "
+                                f"overlay do headline foi SUPRIMIDO pra evitar "
+                                f"sobreposição. Imagem foi mantida intacta."
+                            )
+                            log.info(
+                                "slide %d: text detected → suppressing overlay (conf=%.2f)",
+                                i, detection_info.get('confidence', 0),
+                            )
+
                     slide_formats: list[dict[str, Any]] = []
                     for (w, h) in dims_list:
                         aspect = _aspect_name(w, h)
@@ -285,24 +396,31 @@ class CarouselDesignerWorker(BaseWorker):
                         pad_v = int(h * (0.10 if aspect != "landscape" else 0.08))
                         pad_h = int(w * (0.12 if aspect != "landscape" else 0.10))
 
+                        # Regra: quando a imagem já tem texto, suprime overlay
+                        # (passa headline vazia + flag text_in_bg). Quando vai
+                        # escrever, force_solid_bg garante contraste.
+                        effective_headline = "" if text_detected else headline
                         html = tmpl.render(
                             width=w, height=h,
                             aspect=aspect,
                             palette=palette,
                             bg_image=bg_url,
-                            headline=headline,
+                            headline=effective_headline,
                             headline_size=mag_hsize,
                             pad_v=pad_v, pad_h=pad_h,
                             slide_num=f"{i+1:02d}",
-                            context=slide.get("context", ""),
-                            stat_a=slide.get("stat_a"),
-                            stat_b=slide.get("stat_b"),
-                            question=slide.get("question", ""),
+                            context="" if text_detected else slide.get("context", ""),
+                            stat_a=None if text_detected else slide.get("stat_a"),
+                            stat_b=None if text_detected else slide.get("stat_b"),
+                            question="" if text_detected else slide.get("question", ""),
                             handle=handle,
                             badge=slide.get("badge", "INEMA"),
                             slide_label=slide.get(
                                 "slide_label", f"{i+1:02d} / {total:02d}",
                             ),
+                            # Flags novas pro template decidir overlay
+                            text_in_bg=text_detected,
+                            force_solid_bg=True,  # caixa sólida atrás do texto
                         )
                         html_file = tmp_path / f"slide_{i:02d}_{ratio_tag}.html"
                         html_file.write_text(html, encoding="utf-8")
@@ -352,7 +470,8 @@ class CarouselDesignerWorker(BaseWorker):
                 "images_composed": composed_urls,
                 "palette": palette,
                 "template": template_name,
-            }
+            },
+            "warnings": warnings,  # notificações de texto detectado, etc.
         }
 
     def _slides_from_basic(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
