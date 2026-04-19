@@ -17,6 +17,40 @@ from workers._base.llm_client import complete_json, load_tenant_knowledge
 SKILL_PATH = Path(__file__).parent / "SKILL.md"
 
 
+STYLE_VISUAL_GUIDANCE = {
+    "dark_cinematic":        "low-key lighting, moody shadows, film noir atmosphere, deep blacks, dramatic contrast",
+    "neon_futurista":        "neon lights, cyberpunk aesthetic, electric blues and magentas, glowing accents, night city",
+    "editorial_documentary": "natural light, candid photography, muted earth tones, shallow depth of field, reportage style",
+    "corporate_clean":       "bright even lighting, minimalist composition, clean whites and pastels, modern office aesthetic",
+    "data_viz":              "abstract geometric patterns, gradient fields, isometric perspective, vibrant data aesthetic",
+    "wellness_soft":         "soft warm natural light, organic textures, sage and cream palette, serene composition",
+    "bold_pop":              "high contrast, saturated primaries, graphic shapes, energetic composition, op art feel",
+    "bold_pop_orange":       "high contrast, oranges and purples, graphic pop, energetic",
+    "retro_futurism":        "80s synthwave, magentas and cyans, retro grids, VHS grain, futuristic nostalgia",
+    "organic_earth":         "warm earth tones, terracotta and sage, natural textures, artisan aesthetic",
+    "neo_minimal_luxury":    "warm champagne and deep browns, luxurious minimalism, soft shadows, high-end editorial",
+    "warm_lifestyle":        "warm afternoon light, lifestyle photography, coral and peach, bokeh backgrounds",
+    "minimal_zen":           "wabi-sabi minimalism, neutral tones, empty space, serene composition",
+    "nature_organic":        "forest greens and earthy browns, organic shapes, natural environments, soft natural light",
+    "pastel_soft":           "pastel palette, soft gradients, gentle lighting, dreamy atmosphere",
+    "urban_street":          "urban textures, concrete and neon, street photography, high-contrast grit",
+    "luxury_gold":           "rich golds and deep blacks, premium materials, dramatic chiaroscuro, editorial luxury",
+}
+
+
+def _style_hint_text(style: str) -> str:
+    """Retorna dicas visuais específicas para o style, usadas pra guiar
+    os bg_prompts gerados pelo LLM."""
+    key = style.lower().strip()
+    guidance = STYLE_VISUAL_GUIDANCE.get(key)
+    if guidance:
+        return f"Características visuais: {guidance}."
+    return (
+        f"Estilo '{style}' — LLM, infere o mood visual do nome e "
+        f"aplica consistentemente em todos os bg_prompts."
+    )
+
+
 def _strip_markdown(s: str) -> str:
     """Remove markdown comum: **bold**, *italic*, `code`, # headers, - lists.
     Também remove tags HTML simples (<br>, <b>, <i>, <em>, <strong>)
@@ -63,9 +97,28 @@ class CarouselOutlineWorker(BaseWorker):
         style = payload.get("style") or "didatico"
         audience = payload.get("audience") or "público geral"
 
+        # Novo: style_hint do art_direction (carrossel-rico v5).
+        # Guia os bg_prompts pra ficarem alinhados ao estilo visual.
+        style_hint = (
+            payload.get("style_hint")
+            or payload.get("style_hint_user")
+            or ""
+        ).strip()
+
         knowledge = load_tenant_knowledge(
             job.tenant_id, files=["brand_identity.md", "product_campaign.md"],
         )
+
+        style_guidance = ""
+        if style_hint:
+            style_guidance = (
+                f"\n## DIREÇÃO VISUAL (do art_director)\n\n"
+                f"Style escolhido: **{style_hint}**.\n"
+                f"{_style_hint_text(style_hint)}\n"
+                f"Aplica essas dicas em TODOS os `bg_prompt` — o modelo de "
+                f"geração de imagem vai receber esses prompts, então descreva "
+                f"a cena visual em inglês alinhada ao mood do style.\n"
+            )
 
         system = (
             f"{self._skill}\n\n"
@@ -76,6 +129,7 @@ class CarouselOutlineWorker(BaseWorker):
             f"- N slides: {slide_count}\n"
             f"- Estilo de voz: {style}\n"
             f"- Audience: {audience}\n"
+            f"{style_guidance}"
         )
 
         user = f"## Tópico\n\n{topic}\n"

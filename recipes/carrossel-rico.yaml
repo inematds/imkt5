@@ -1,5 +1,5 @@
 name: carrossel-rico
-version: 4
+version: 5
 # Carrossel editorial estilo timesmkt3 (c0051, c0069...).
 # Usa carousel-outline (gera slides a partir de texto livre) +
 # carousel-designer (Playwright + template HTML).
@@ -34,10 +34,29 @@ version: 4
 
 stages:
 
-  # Gera slides estruturados + bg_prompt por slide, a partir de topic/brief.
+  # 1) Art director PRIMEIRO — define template + style + mood antes de
+  # gerar os prompts de imagem e os textos. Isso faz com que o outline
+  # e os bg_prompts fiquem alinhados ao estilo escolhido (ex: style
+  # dark_cinematic → bg_prompts pedem "low-key lighting, moody shadows").
+  # Pula quando user já passou template E style explícitos (nada a decidir).
+  - id: art_direction
+    requires: design.art_director
+    when: $.input.template == null || $.input.style == null
+    payload_from:
+      brief: $.input.brief
+      topic: $.input.topic
+      audience: $.input.audience
+      platform: $.input.platform
+      brand_profile: $.tenant.profile
+    approval: {mode: none}
+
+  # 2) Outline — gera slides estruturados + bg_prompt por slide.
+  # Recebe style_hint do art_direction (ou input.style como fallback)
+  # pra que o LLM alinhe os bg_prompts ao estilo visual escolhido.
   # Pula se user passou `slides` direto (controle total).
   - id: outline
     requires: design.carousel_outline
+    needs: [art_direction]
     when: $.input.slides == null && ($.input.topic != null || $.input.brief != null)
     payload_from:
       topic: $.input.topic
@@ -46,9 +65,12 @@ stages:
       language: $.input.language
       style: $.input.voice_style
       audience: $.input.audience
+      # Hint de estilo pra guiar bg_prompts: art_director > input > none
+      style_hint: $.stages.art_direction.output.style
+      style_hint_user: $.input.style
     approval: {mode: none}
 
-  # Backgrounds: gera 1 imagem por slide (fonte configurável via image_source).
+  # 3) Backgrounds: gera 1 imagem por slide (fonte configurável via image_source).
   # Roda por default (auto-gera a partir dos bg_prompts do outline).
   # Pula se image_source == "none" OU se não há slides nem bg_prompts.
   - id: backgrounds_auto
@@ -63,7 +85,7 @@ stages:
       height: 1080
     approval: {mode: none}
 
-  # Backgrounds: modo "provided" — user trouxe os prompts prontos.
+  # 3b) Backgrounds: modo "provided" — user trouxe os prompts prontos.
   - id: backgrounds_provided
     requires: image.generation
     when: $.input.image_source == "provided" && $.input.bg_prompts != null
@@ -75,20 +97,7 @@ stages:
       height: 1080
     approval: {mode: none}
 
-  # Art director: LLM escolhe template + palette baseado em brief + tenant.
-  # Pula se user já informou `template` explicitamente.
-  - id: art_direction
-    requires: design.art_director
-    when: $.input.template == null
-    payload_from:
-      brief: $.input.brief
-      topic: $.input.topic
-      audience: $.input.audience
-      platform: $.input.platform
-      brand_profile: $.tenant.profile
-    approval: {mode: none}
-
-  # Designer: render HTML/CSS via Playwright.
+  # 4) Designer: render HTML/CSS via Playwright.
   # Template/style priorizam: input user > art_direction > default.
   - id: carrossel
     requires: design.carousel_rich
