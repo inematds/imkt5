@@ -1,5 +1,5 @@
 name: campanha-marketing
-version: 10
+version: 11
 # Pipeline completo: brief → copy → ad-designer → imagens (fanout) →
 #                    voiceover → video (scene plan) → video_render (MP4).
 #
@@ -139,9 +139,23 @@ stages:
       speed: $.input.narration_speed
     approval: {mode: none}
 
+  # c79 fase α-bis — pré-renderiza texto de cena como PNG RGBA (chrome
+  # gradient + halo Instrument Serif italic). Opt-in via chrome_text_overlay=true.
+  # Skippa se flag off.
+  - id: text_overlays
+    requires: video.text_overlay
+    needs: [video]
+    when: $.input.chrome_text_overlay == true && $.input.skip_video != true
+    payload_from:
+      scenes: $.stages.video.output.scene_plan.scenes
+      width: $.stages.video.output.scene_plan.width
+      height: $.stages.video.output.scene_plan.height
+      tenant_id: $.tenant.tenant_id
+    approval: {mode: none}
+
   - id: video_render
     requires: video.render
-    needs: [video, voiceover, video_art_direction]
+    needs: [video, voiceover, video_art_direction, text_overlays]
     when: $.input.skip_video != true
     payload_from:
       scene_plan: $.stages.video.output.scene_plan
@@ -171,4 +185,10 @@ stages:
       # Item 12b — safe zone específica da plataforma alvo (tiktok,
       # instagram_reels, shorts, etc). Opt-in via input.platform.
       platform: $.input.platform
+      # c79 fase α-bis: flag + URLs dos PNGs pré-renderizados
+      chrome_text_overlay: $.input.chrome_text_overlay
+      text_overlay_urls: $.stages.text_overlays.output.outputs[*].text_png_url
+      # Outras flags c79 fase α (já existentes)
+      hold_final_s: $.input.hold_final_s
+      pacing: $.input.pacing
     approval: {mode: none}

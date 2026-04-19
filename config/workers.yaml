@@ -283,6 +283,17 @@ workers:
     timeout_seconds: 60
     max_concurrent: 2
 
+  # video-text-designer — c79 fase α-bis: pré-renderiza texto de cena
+  # como PNG RGBA via Playwright + Chromium (chrome gradient + halo +
+  # Instrument Serif italic). ffmpeg-local consome via `chrome_text_overlay: true`.
+  - name: video-text-designer
+    capabilities: [video.text_overlay]
+    endpoint: http://localhost:8116
+    local: true
+    priority: 50
+    timeout_seconds: 120
+    max_concurrent: 2
+
   # # ── plataformas (da absorção do timesmkt3) ───────────────────────
   # - name: platform-instagram
   # capabilities: [platform.instagram]

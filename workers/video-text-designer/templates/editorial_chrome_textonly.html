@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width={{ width }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: {{ width }}px;
+    height: {{ height }}px;
+    overflow: hidden;
+    background: rgba(0,0,0,0);  /* transparent for overlay */
+    font-family: 'Inter', sans-serif;
+  }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    {% if text_position == 'center' %}
+    justify-content: center;
+    {% elif text_position == 'bottom' %}
+    justify-content: flex-end;
+    padding-bottom: {{ safe_bottom }}px;
+    {% else %}
+    justify-content: flex-start;
+    padding-top: {{ safe_top }}px;
+    {% endif %}
+    align-items: center;
+    padding-left: {{ pad_h }}px;
+    padding-right: {{ pad_h }}px;
+  }
+
+  /* Barra escura (magazine style) — opcional, default false */
+  {% if use_dark_bar %}
+  .headline-bar {
+    position: absolute;
+    left: 0; right: 0;
+    {% if text_position == 'center' %}top: 50%; transform: translateY(-50%);
+    {% elif text_position == 'bottom' %}bottom: {{ safe_bottom - 20 }}px;
+    {% else %}top: {{ safe_top - 20 }}px;
+    {% endif %}
+    height: auto;
+    padding: {{ bar_pad_y }}px {{ pad_h }}px;
+    background: linear-gradient(90deg,
+      rgba(0,0,0,0) 0%,
+      rgba(0,0,0,0.55) 15%,
+      rgba(0,0,0,0.72) 50%,
+      rgba(0,0,0,0.55) 85%,
+      rgba(0,0,0,0) 100%);
+    backdrop-filter: blur(3px);
+  }
+  {% endif %}
+
+  /* Chrome gradient headline (c79 law 3 — light is the brand) */
+  .headline {
+    font-family: 'Instrument Serif', 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: {{ font_size }}px;
+    line-height: 1.08;
+    letter-spacing: 0.005em;
+    text-align: center;
+    max-width: {{ max_text_width }}px;
+
+    background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 40%, #b8b8b8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+
+    /* Halo glow duplo — premium depth (c79 law 3) */
+    filter:
+      drop-shadow(0 0 24px rgba(255,255,255,0.55))
+      drop-shadow(0 0 48px rgba(255,255,255,0.22))
+      drop-shadow(0 4px 18px rgba(0,0,0,0.82));
+  }
+
+  /* Variante: badge/stat module (scene_type = proof com stat) */
+  {% if stat_number %}
+  .stat-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    background: rgba(20,20,25,0.50);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 20px;
+    padding: 36px 48px;
+    min-width: {{ (width * 0.50) | int }}px;
+    filter: drop-shadow(0 20px 60px rgba(0,0,0,0.55));
+  }
+  .stat-number {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: {{ (font_size * 1.6) | int }}px;
+    line-height: 0.85;
+    background: linear-gradient(180deg, #ffffff 0%, #c8c8c8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 30px rgba(255,255,255,0.45));
+  }
+  .stat-label {
+    font-family: 'Inter', sans-serif;
+    font-size: {{ (font_size * 0.28) | int }}px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+  {% endif %}
+
+  /* CTA scene — com borda de luz em baixo */
+  {% if scene_type == 'cta' %}
+  .cta-accent {
+    position: absolute;
+    left: 15%; right: 15%;
+    bottom: {{ safe_bottom - 40 }}px;
+    height: 2px;
+    background: linear-gradient(to right,
+      transparent 0%,
+      rgba(255,255,255,0.55) 20%,
+      rgba(255,255,255,0.85) 50%,
+      rgba(255,255,255,0.55) 80%,
+      transparent 100%);
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.5));
+  }
+  {% endif %}
+</style>
+</head>
+<body>
+  <div class="stage">
+    {% if use_dark_bar %}<div class="headline-bar"></div>{% endif %}
+
+    {% if stat_number %}
+    <div class="stat-wrap">
+      <div class="stat-number">{{ stat_number }}</div>
+      <div class="stat-label">{{ text_overlay }}</div>
+    </div>
+    {% else %}
+    <div class="headline">{{ text_overlay }}</div>
+    {% endif %}
+
+    {% if scene_type == 'cta' %}<div class="cta-accent"></div>{% endif %}
+  </div>
+</body>
+</html>

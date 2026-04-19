@@ -1,5 +1,5 @@
 name: carrossel-simples
-version: 6
+version: 7
 # Carrossel mínimo estilo "revista": 1 mensagem por slide em tipografia
 # serif grande (Playfair Display) sobre imagem com gradient.
 #
@@ -43,5 +43,10 @@ stages:
       topic: $.input.topic
       palette: $.input.palette
       formats: $.input.formats
-      template: "magazine"
+      # Template override: se user passou, usa; senão magazine (default).
+      template: $.input.template || "magazine"
+      # c79 fase α — flags opt-in (default false; só `editorial_chrome` implementa)
+      use_vignette: $.input.use_vignette || false
+      use_perspective_grid: $.input.use_perspective_grid || false
+      use_grain: $.input.use_grain || false
     approval: {mode: none}

@@ -1,5 +1,5 @@
 name: carrossel-rico
-version: 5
+version: 6
 # Carrossel editorial estilo timesmkt3 (c0051, c0069...).
 # Usa carousel-outline (gera slides a partir de texto livre) +
 # carousel-designer (Playwright + template HTML).
@@ -117,4 +117,8 @@ stages:
       # template idem: user > art_director > default.
       template_user: $.input.template
       template_auto: $.stages.art_direction.output.template
+      # c79 fase α — flags opt-in (default false)
+      use_vignette: $.input.use_vignette || false
+      use_perspective_grid: $.input.use_perspective_grid || false
+      use_grain: $.input.use_grain || false
     approval: {mode: none}

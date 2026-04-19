@@ -275,6 +275,7 @@ def _build_vf(
     ass_karaoke_active: bool = False,  # se True, pula text_overlay pesado
     use_vignette: bool = False,
     use_grain: bool = False,
+    skip_drawtext_overlay: bool = False,  # c79 fase α-bis: PNG overlay externo
 ) -> str:
     """Monta -vf: crop → motion → color grading → (karaoke | text overlay)."""
     fps = 30
@@ -319,9 +320,14 @@ def _build_vf(
     # Karaoke por cena (LEGADO — ASS chain é aplicado após concat).
     if karaoke:
         vf = f"{vf},{_build_karaoke_draw(karaoke, duration, width, height)}"
-    elif not ass_karaoke_active and (scene.get("text_overlay") or "").strip():
-        # text_overlay (drawbox+drawtext) só quando ASS não está ativo —
-        # evita conflito visual entre título estático + karaoke fluindo.
+    elif (
+        not ass_karaoke_active
+        and not skip_drawtext_overlay
+        and (scene.get("text_overlay") or "").strip()
+    ):
+        # text_overlay (drawbox+drawtext) só quando ASS não está ativo E
+        # chrome_text_overlay também não está. Evita conflito visual entre
+        # título estático + karaoke fluindo + PNG overlay.
         vf = f"{vf},{_build_text_overlay(scene, width, height, tmp, idx)}"
 
     return vf
@@ -878,6 +884,15 @@ class FfmpegLocalWorker(BaseWorker):
         else:
             freeze_frames = bool(freeze_frames)
 
+        # c79 fase α-bis — chrome_text_overlay: PNG transparente pré-renderizado
+        # pelo video-text-designer (capability video.text_overlay) substitui
+        # o drawtext ffmpeg. Opt-in via payload.chrome_text_overlay=true.
+        # Aceita lista por cena em text_overlay_urls (index-aligned).
+        chrome_text_overlay = bool(payload.get("chrome_text_overlay", False))
+        text_overlay_urls_raw = payload.get("text_overlay_urls") or []
+        if not isinstance(text_overlay_urls_raw, list):
+            text_overlay_urls_raw = []
+
         music_path = _select_music(music_genre) if music_genre else None
         hook_sfx, trans_sfx = _sfx_for_style(style, hook_pattern) if use_sfx else (None, None)
 
@@ -901,6 +916,22 @@ class FfmpegLocalWorker(BaseWorker):
                 img_local = tmp_path / f"scene_{i:02d}.png"
                 await _fetch_to(img_url, img_local)
                 image_paths.append(img_local)
+
+            # c79 fase α-bis — baixa text_overlay PNGs (RGBA) se chrome_text_overlay
+            text_overlay_paths: list[Path | None] = [None] * len(scenes)
+            if chrome_text_overlay and text_overlay_urls_raw:
+                for i, url in enumerate(text_overlay_urls_raw[:len(scenes)]):
+                    if not url or not isinstance(url, str):
+                        continue
+                    p = tmp_path / f"text_{i:02d}.png"
+                    try:
+                        await _fetch_to(url, p)
+                        text_overlay_paths[i] = p
+                    except Exception as exc:  # noqa: BLE001
+                        log.warning(
+                            "falha baixando text_overlay PNG cena %d (%s): %s",
+                            i, url, exc,
+                        )
 
             # ── Narration: baixa N mp3s (item 4) + aplica atempo (item 2) ──
             audio_per_scene: list[Path | None] = [None] * len(scenes)
@@ -1011,6 +1042,8 @@ class FfmpegLocalWorker(BaseWorker):
                 if freeze_frames:
                     scene_freeze = _freeze_spec_for_scene(sc, scene_type, i)
 
+                # c79 fase α-bis — quando há PNG de text overlay, pula drawtext
+                skip_drawtext = chrome_text_overlay and text_overlay_paths[i] is not None
                 vf = _build_vf(
                     sc, width, height, int(dur), tmp_path, i,
                     is_hook=(i == 0 and hook_pattern in ("pattern_interrupt", "stat_shot")),
@@ -1019,6 +1052,7 @@ class FfmpegLocalWorker(BaseWorker):
                     ass_karaoke_active=ass_karaoke_path is not None,
                     use_vignette=use_vignette,
                     use_grain=use_grain,
+                    skip_drawtext_overlay=skip_drawtext,
                 )
 
                 # Item 8 — parallax nível 1 (fake via blur+unsharp)
@@ -1047,16 +1081,37 @@ class FfmpegLocalWorker(BaseWorker):
 
                 # -t no OUTPUT (não no input). Sem -framerate no input;
                 # senão o zoompan multiplica frames (d × n_input_frames).
-                await _run_ffmpeg([
-                    "-y", "-loop", "1", "-i", str(render_img),
-                    "-vf", vf,
-                    "-t", str(dur),
-                    "-c:v", "libx264", "-pix_fmt", "yuv420p",
-                    "-preset", "ultrafast", "-r", "30",
-                    "-crf", "30",
-                    "-tune", "stillimage",
-                    str(out),
-                ])
+                text_png_path = text_overlay_paths[i] if chrome_text_overlay else None
+                if text_png_path is not None:
+                    # c79 fase α-bis: compose PNG RGBA sobre o clip base via
+                    # filter_complex. Input 0 = imagem-base, input 1 = PNG alpha.
+                    # Sintaxe: [0:v]<vf>[base];[base][1:v]overlay=0:0[vout]
+                    escaped_vf = vf  # vf já não tem aspas simples quebradas
+                    fc = f"[0:v]{escaped_vf}[base];[base][1:v]overlay=0:0:format=auto[vout]"
+                    await _run_ffmpeg([
+                        "-y",
+                        "-loop", "1", "-i", str(render_img),
+                        "-i", str(text_png_path),
+                        "-filter_complex", fc,
+                        "-map", "[vout]",
+                        "-t", str(dur),
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                        "-preset", "ultrafast", "-r", "30",
+                        "-crf", "30",
+                        "-tune", "stillimage",
+                        str(out),
+                    ])
+                else:
+                    await _run_ffmpeg([
+                        "-y", "-loop", "1", "-i", str(render_img),
+                        "-vf", vf,
+                        "-t", str(dur),
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                        "-preset", "ultrafast", "-r", "30",
+                        "-crf", "30",
+                        "-tune", "stillimage",
+                        str(out),
+                    ])
 
                 # Item 14 — freeze frame: corta clip em 3 partes (pré/still/pós)
                 if scene_freeze:
