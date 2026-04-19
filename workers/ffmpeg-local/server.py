@@ -848,6 +848,16 @@ class FfmpegLocalWorker(BaseWorker):
         # Item 5a: hold final silencioso (default ON quando video_length >= 8s)
         hold_final = payload.get("hold_final")
         hold_final = True if hold_final is None else bool(hold_final)
+        # c79 fase α — hold_final_s configurável (default 3.0 = comportamento atual)
+        # c79 law 9 recomenda 4-6s. Aceita override explícito.
+        try:
+            hold_final_s = float(payload.get("hold_final_s", 3.0))
+        except (TypeError, ValueError):
+            hold_final_s = 3.0
+        hold_final_s = max(0.5, min(hold_final_s, 8.0))
+        # c79 fase α — pacing: "normal" (default = comportamento atual) ou "tight"
+        # (clamp cada cena a 1.5-2s pra sensação c79 law 1)
+        pacing = (payload.get("pacing") or "").strip().lower()
         # Item 5b: loop visual — flag OFF default
         loop_visual = bool(payload.get("loop_visual", False))
         # Item 8: parallax nível 1 (por style) + nível 2 (flag depth_ai)
@@ -933,12 +943,21 @@ class FfmpegLocalWorker(BaseWorker):
                 else:
                     scene_durations.append(float(declared))
 
-            # Item 5a — Hold final silencioso (+3s na última cena)
+            # c79 fase α — pacing: tight clampa cada cena em [1.5, 2.0]s
+            # (exceto última que ainda recebe hold). Opt-in via payload.pacing.
+            if pacing == "tight":
+                scene_durations = [
+                    max(1.5, min(d, 2.0)) if i < len(scene_durations) - 1 else d
+                    for i, d in enumerate(scene_durations)
+                ]
+
+            # Item 5a — Hold final silencioso (padding na última cena)
             # Skip se vídeo < 8s OU só 1 cena OU hold_final explicit False.
+            # c79 fase α — hold_final_s configurável (default 3.0).
             pre_hold_total = sum(scene_durations)
             do_hold = hold_final and len(scenes) > 1 and pre_hold_total >= 8.0
             if do_hold:
-                scene_durations[-1] += 3.0  # 0.5s natural + 2.5s freeze
+                scene_durations[-1] += hold_final_s
 
             total_video_dur = sum(scene_durations)
 
@@ -1302,12 +1321,19 @@ class FfmpegLocalWorker(BaseWorker):
         """Concat com xfade entre clips. transition → escolhe tipo de
         transição ffmpeg (fade, fadeblack, slideleft, dissolve, etc.)."""
         # Map de transições do art-director para xfade presets
+        # c79-inspired additions (whip_streak, zoom_punch) usam filters
+        # avançados do ffmpeg (hblur, zoomin). Opt-in via payload.transition
+        # ou payload.transition_type.
         xfade_map = {
             "crossfade_short": ("fade", 0.3),
-            "crossfade_long": ("fade", 0.8),
-            "fade_black": ("fadeblack", 1.0),
-            "whip_pan": ("slideleft", 0.25),
-            "zoom_blur": ("fadeblack", 0.4),
+            "crossfade_long":  ("fade", 0.8),
+            "fade_black":      ("fadeblack", 1.0),
+            "whip_pan":        ("slideleft", 0.25),
+            "zoom_blur":       ("fadeblack", 0.4),
+            # c79 fase α:
+            "whip_streak":     ("hblur", 0.28),   # horizontal blur (c79 whip)
+            "zoom_punch":      ("zoomin", 0.30),  # emphasis cut
+            "smooth_slide":    ("smoothleft", 0.35),
         }
         xf_type, xf_dur = xfade_map.get(transition, ("fade", 0.4))
 

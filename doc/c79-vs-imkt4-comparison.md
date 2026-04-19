@@ -300,6 +300,69 @@ renders > 50/dia OU branding-heavy que não cabe no estilo editorial.
 
 ---
 
+## 8b. ✅ Fase α implementada (2026-04-19)
+
+Todas as 6 técnicas core entregues **atrás de flag opt-in ou template
+novo**. Zero impacto em runs existentes.
+
+### Carrossel (template novo)
+
+- ✅ **`editorial_chrome.html`** — template novo (não muta `editorial.html`)
+  com:
+  - Chrome gradient headline (Instrument Serif italic + linear-gradient
+    180° white→gray→light + `-webkit-background-clip: text`)
+  - Halo glow duplo (`drop-shadow(0 0 20px rgba(255,255,255,.38))` +
+    `drop-shadow(0 0 40px rgba(255,255,255,.18))`)
+  - Perspective grid floor (`perspective(900px) rotateX(60deg)` +
+    repeating-linear-gradient duplo)
+  - Vignette radial (`radial-gradient(ellipse, transparent 30%, #000 95%)`)
+  - Film grain CSS puro (3 radial-gradients em 3px/5px/7px, determinístico,
+    sem PNG)
+  - Liquid-glass stat blocks (`backdrop-filter: blur(12px)`)
+  - Chrome accent line no topo
+  - Brand moment com chrome italic serif
+
+- ✅ Selecionável em `template: "editorial_chrome"` OU pela UI
+  (pill ✨ Editorial Chrome)
+- ✅ Flags opt-in `use_perspective_grid` / `use_vignette` / `use_grain`
+  ficam disponíveis pros outros templates (ignoradas pelos que não
+  implementam)
+
+### Vídeo (flags opt-in no ffmpeg-local)
+
+- ✅ **Novas transições xfade**:
+  - `whip_streak` → `hblur` 0.28s (horizontal blur c79 whip)
+  - `zoom_punch` → `zoomin` 0.30s (emphasis cut)
+  - `smooth_slide` → `smoothleft` 0.35s
+
+- ✅ **`hold_final_s`**: duração configurável (default 3.0 = comportamento
+  anterior, aceita 0.5-8.0). c79 law 9 recomenda 4-6s pro CTA landing.
+
+- ✅ **`pacing: "tight"`**: clampa cada cena em `[1.5, 2.0]`s (exceto a
+  última que ainda recebe hold). c79 law 1 — 1 ideia por beat, ~1.5s/cena.
+  Default `""` = sem mudança.
+
+### UI
+
+- ✅ Modal `campanha-marketing` expõe:
+  - `template` pill com ✨ Editorial Chrome
+  - `use_vignette` / `use_perspective_grid` / `use_grain` (booleans)
+  - `transition` pill com ✨ Whip streak / Zoom punch / Smooth slide
+  - `hold_final_s` number input (step 0.5)
+  - `pacing` pill (normal / ✨ tight)
+
+### Pendente (próximas fases)
+
+- 🟡 **Vídeo: chrome gradient headline via Playwright PNG overlay** —
+  requer nova stage de pré-render no pipeline video-pro. ~2h. Fica como
+  fase α-bis ou fase β.
+- 🟡 **Vídeo: perspective grid PNG overlay** — 40min. Fica como fase α-bis.
+- 🟡 **B1-B4**: word-by-word ASS reveal, SCALE 8× hero, callback visual,
+  ajuste fino de pacing.
+- 🔴 **Fase β**: worker `video-motion-graphics` HTML+GSAP (3-4 dias).
+
+---
+
 ## 9. TL;DR
 
 1. **c79 = qualidade Infinite-tier, stack Chromium+GSAP, hand-built.**

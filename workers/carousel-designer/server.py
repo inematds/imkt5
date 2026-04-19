@@ -426,6 +426,11 @@ class CarouselDesignerWorker(BaseWorker):
                             # Flags de fechamento (último slide)
                             is_closing=bool(slide.get("is_closing")),
                             closing_mode=slide.get("closing_mode", ""),
+                            # Flags c79 fase α — opt-in no template
+                            # (templates antigos ignoram estes kwargs)
+                            use_perspective_grid=bool(payload.get("use_perspective_grid", False)),
+                            use_vignette=bool(payload.get("use_vignette", False)),
+                            use_grain=bool(payload.get("use_grain", False)),
                         )
                         html_file = tmp_path / f"slide_{i:02d}_{ratio_tag}.html"
                         html_file.write_text(html, encoding="utf-8")
