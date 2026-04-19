@@ -19,10 +19,15 @@ SKILL_PATH = Path(__file__).parent / "SKILL.md"
 
 def _strip_markdown(s: str) -> str:
     """Remove markdown comum: **bold**, *italic*, `code`, # headers, - lists.
+    Também remove tags HTML simples (<br>, <b>, <i>, <em>, <strong>)
+    que o LLM às vezes injeta apesar da SKILL instruir o contrário.
     Mantém texto plano com quebras de linha simples."""
     import re
     if not s:
         return s
+    # HTML tags (primeiro — antes de outros padrões que podem conter <>)
+    s = re.sub(r"<\s*br\s*/?\s*>", " ", s, flags=re.IGNORECASE)
+    s = re.sub(r"<\s*/?\s*(b|i|em|strong|span|p|div)\s*/?\s*>", "", s, flags=re.IGNORECASE)
     # Headers, bullets, quotes
     s = re.sub(r"^\s*#{1,6}\s+", "", s, flags=re.MULTILINE)
     s = re.sub(r"^\s*[-*+]\s+", "", s, flags=re.MULTILINE)
@@ -33,8 +38,9 @@ def _strip_markdown(s: str) -> str:
     s = re.sub(r"(?<![*\w])\*([^*\n]+?)\*(?![*\w])", r"\1", s)
     # Code
     s = re.sub(r"`([^`]+)`", r"\1", s)
-    # Collapse whitespace
+    # Collapse whitespace (mas preserva single \n de text wrap)
     s = re.sub(r"\n{3,}", "\n\n", s)
+    s = re.sub(r"[ \t]{2,}", " ", s)
     return s.strip()
 
 
@@ -110,11 +116,19 @@ class CarouselOutlineWorker(BaseWorker):
             slide0["context"] = original_context
         slides[0] = slide0
 
-        # Defensivo: strip markdown dos campos de texto (headline, context, etc.)
+        # Defensivo: strip markdown/HTML dos campos de texto. Inclui
+        # stat_a/stat_b.{number,label} e slide_label porque o LLM às vezes
+        # injeta <br> ou markdown mesmo instruído contrário.
         for sl in slides:
-            for k in ("headline", "context", "question"):
+            for k in ("headline", "context", "question", "slide_label", "badge"):
                 if isinstance(sl.get(k), str):
                     sl[k] = _strip_markdown(sl[k])
+            for stat_key in ("stat_a", "stat_b"):
+                stat = sl.get(stat_key)
+                if isinstance(stat, dict):
+                    for sub in ("number", "label"):
+                        if isinstance(stat.get(sub), str):
+                            stat[sub] = _strip_markdown(stat[sub])
         return {
             "slides": slides,
             "title": _strip_markdown(data.get("title") or topic[:60]),

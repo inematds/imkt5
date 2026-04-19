@@ -41,8 +41,8 @@ Responda APENAS JSON:
     {
       "headline": "A dissonância que ninguém quer enxergar",
       "context": "Texto de apoio 1-2 frases (opcional no hook, comum no content).",
-      "stat_a": {"number": "70%", "label": "Temem<br>o impacto da IA"},
-      "stat_b": {"number": "39%", "label": "Temem pelo<br>próprio cargo"},
+      "stat_a": {"number": "70%", "label": "Temem o impacto da IA"},
+      "stat_b": {"number": "39%", "label": "Temem pelo próprio cargo"},
       "question": "Você consegue ver? 🧠",
       "slide_label": "Dados · 2026",
       "bg_prompt": "dark abstract tech visualization, neural network lines, cinematic lighting, depth of field, 8k"
@@ -61,9 +61,14 @@ Responda APENAS JSON:
 - `context` opcional mas valoroso pra content slides.
 - `question` no hook e/ou CTA (estilo gancho).
 - `slide_label` é meta/categoria ("Dados · 2026", "Verdade", "Dica 1", "CTA").
-- `<br>` no label dos stats é OK (quebra de linha visual).
+- **NÃO use HTML** (ex: `<br>`, `<b>`, `<i>`) em NENHUM campo. Templates
+  escapam tags e aparecem como texto literal no slide ("Temem<br>o impacto"
+  vira texto em vez de quebra). Use texto corrido; o template quebra
+  automaticamente por max-width + word-wrap. Quebras necessárias usam `\n`
+  (newline real), não `<br>`.
 - Headline max ~60 chars.
 - Context max ~150 chars.
+- Stat label max ~40 chars (caso precise 2 linhas, deixa o wrap natural fazer).
 
 ### TEXTO LIMPO (obrigatório)
 

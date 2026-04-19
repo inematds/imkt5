@@ -26,7 +26,7 @@ version: 4
 #
 # === Defaults ===
 #   image_source: "generate" (auto via inemaimg)
-#   slide_count:  5
+#   slide_count:  7
 #   formats:      ["1:1", "9:16", "16:9"]
 #   template:     "editorial"
 #   style:        "neon_futurista"
