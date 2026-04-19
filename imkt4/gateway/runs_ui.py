@@ -356,15 +356,15 @@ const RECIPE_FIELDS = {
      type: 'lines', rows: 4, placeholder: 'Aprenda fazendo\n1 case por dia\nSem teoria chata'},
     {key: 'cta', label: 'CTA (último slide)', type: 'text',
      placeholder: 'Inscreva-se em INEMA.CLUB'},
-    {key: 'model', label: 'Modelo SD', type: 'select',
+    {key: 'model', label: 'Modelo SD', type: 'pills',
      options: [
-       ['', '(default: flux2-klein)'],
-       ['flux2-klein', 'flux2-klein (destilado 4 steps)'],
-       ['sdxl', 'SDXL'],
-       ['sd15', 'SD 1.5'],
-     ]},
-    {key: 'formats', label: 'Formatos', type: 'checkboxes',
-     options: [['1:1', '1:1 (feed)'], ['9:16', '9:16 (stories/reels)'], ['16:9', '16:9 (yt)']],
+       ['flux2-klein', 'flux2-klein · 4 steps'],
+       ['sdxl', 'SDXL · 30 steps'],
+       ['sd15', 'SD 1.5 · 25 steps'],
+     ],
+     default: 'flux2-klein'},
+    {key: 'formats', label: 'Formatos (múltipla escolha)', type: 'pills-multi',
+     options: [['1:1', '1:1 · feed'], ['9:16', '9:16 · stories/reels'], ['16:9', '16:9 · youtube']],
      default: ['1:1', '9:16', '16:9']},
     {key: 'detect_text_in_bg', label: 'Detectar texto na imagem (fallback)',
      type: 'boolean', hint: 'Se o SD gerar texto indevido, suprime overlay. Default off.'},
@@ -373,24 +373,23 @@ const RECIPE_FIELDS = {
   'carrossel-rico': [
     {key: 'slide_count', label: 'Número de slides', type: 'number',
      min: 3, max: 10, default: 5, placeholder: '5'},
-    {key: 'image_source', label: 'Fonte das imagens', type: 'select',
+    {key: 'image_source', label: 'Fonte das imagens', type: 'pills',
      options: [
-       ['generate', 'Gerar novas (via LLM+SD)'],
-       ['provided', 'Vou passar prompts abaixo'],
-       ['none', 'Sem imagens (apenas tipografia)'],
+       ['generate', 'Gerar novas · LLM+SD'],
+       ['provided', 'Vou passar prompts'],
+       ['none', 'Sem imagens · só tipografia'],
      ],
      default: 'generate'},
     {key: 'bg_prompts', label: 'Prompts de imagem (1 por linha)',
      type: 'lines', rows: 4,
      placeholder: 'minimalist office, warm light\nabstract data viz, dark bg\n...',
-     hint: 'Usado apenas quando "Fonte das imagens" = "Vou passar prompts abaixo"',
+     hint: 'Usado apenas quando "Fonte das imagens" = "Vou passar prompts"',
      dependsOn: {key: 'image_source', value: 'provided'}},
-    {key: 'template', label: 'Template',
-     type: 'select',
+    {key: 'template', label: 'Template', type: 'pills',
      options: [
-       ['', '(auto: art-director escolhe)'],
-       ['magazine', 'Magazine (serif grande, cinematográfico)'],
-       ['editorial', 'Editorial (documentário)'],
+       ['', 'Auto · art-director'],
+       ['magazine', 'Magazine'],
+       ['editorial', 'Editorial'],
        ['corporate_clean', 'Corporate Clean'],
        ['data_viz', 'Data Viz'],
        ['wellness_soft', 'Wellness Soft'],
@@ -398,13 +397,13 @@ const RECIPE_FIELDS = {
        ['retro_futurism', 'Retro Futurism'],
        ['organic_earth', 'Organic Earth'],
        ['neo_minimal_luxury', 'Neo Minimal Luxury'],
-     ]},
-    {key: 'style', label: 'Style (palette)',
-     type: 'select',
+     ],
+     default: ''},
+    {key: 'style', label: 'Style (palette)', type: 'pills',
      options: [
-       ['', '(auto: art-director escolhe)'],
+       ['', 'Auto · art-director'],
        ['neon_futurista', 'Neon Futurista'],
-       ['editorial_documentary', 'Editorial Documentary'],
+       ['editorial_documentary', 'Editorial'],
        ['corporate_clean', 'Corporate Clean'],
        ['data_viz', 'Data Viz'],
        ['wellness_soft', 'Wellness Soft'],
@@ -415,15 +414,16 @@ const RECIPE_FIELDS = {
        ['dark_cinematic', 'Dark Cinematic'],
        ['warm_lifestyle', 'Warm Lifestyle'],
        ['nature_organic', 'Nature Organic'],
-     ]},
-    {key: 'model', label: 'Modelo SD', type: 'select',
+     ],
+     default: ''},
+    {key: 'model', label: 'Modelo SD', type: 'pills',
      options: [
-       ['', '(default: flux2-klein)'],
-       ['flux2-klein', 'flux2-klein (destilado 4 steps)'],
-       ['sdxl', 'SDXL'],
-       ['sd15', 'SD 1.5'],
-     ]},
-    {key: 'formats', label: 'Formatos', type: 'checkboxes',
+       ['flux2-klein', 'flux2-klein · 4 steps'],
+       ['sdxl', 'SDXL · 30 steps'],
+       ['sd15', 'SD 1.5 · 25 steps'],
+     ],
+     default: 'flux2-klein'},
+    {key: 'formats', label: 'Formatos (múltipla escolha)', type: 'pills-multi',
      options: [['1:1', '1:1'], ['9:16', '9:16'], ['16:9', '16:9']],
      default: ['1:1', '9:16', '16:9']},
     {key: 'detect_text_in_bg', label: 'Detectar texto na imagem (fallback)',
@@ -501,6 +501,75 @@ function renderAdvancedOpts(recipeName) {
       });
       if (f.default !== undefined) sel.value = f.default;
       wrap.appendChild(sel);
+    } else if (f.type === 'pills') {
+      // Radio-style: clicar em uma desmarca a outra. Default destacada.
+      const box = document.createElement('div');
+      box.style.cssText = 'display:flex; gap:6px; flex-wrap:wrap;';
+      box.dataset.fkey = f.key;
+      box.dataset.ftype = 'pills';
+      const defaultVal = f.default !== undefined ? f.default : (f.options?.[0]?.[0] ?? '');
+      box.dataset.value = defaultVal;
+      (f.options || []).forEach(([val, label]) => {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.dataset.val = val;
+        pill.textContent = label;
+        const isActive = val === defaultVal;
+        pill.style.cssText = `
+          padding: 5px 11px; border-radius: 14px; font-size: 11px;
+          font-family: system-ui, sans-serif; font-weight: 500;
+          cursor: pointer; user-select: none; transition: all 0.12s;
+          background: ${isActive ? '#1f6feb' : '#0d1117'};
+          color: ${isActive ? 'white' : '#e6edf3'};
+          border: 1px solid ${isActive ? '#1f6feb' : '#30363d'};
+        `;
+        pill.onclick = (ev) => {
+          ev.preventDefault();
+          box.dataset.value = val;
+          [...box.children].forEach(c => {
+            const on = c.dataset.val === val;
+            c.style.background = on ? '#1f6feb' : '#0d1117';
+            c.style.color = on ? 'white' : '#e6edf3';
+            c.style.borderColor = on ? '#1f6feb' : '#30363d';
+          });
+          // dispara event pra refreshDepends
+          box.dispatchEvent(new Event('change', {bubbles: true}));
+        };
+        box.appendChild(pill);
+      });
+      wrap.appendChild(box);
+    } else if (f.type === 'pills-multi') {
+      // Checkbox-style: pode selecionar várias.
+      const box = document.createElement('div');
+      box.style.cssText = 'display:flex; gap:6px; flex-wrap:wrap;';
+      box.dataset.fkey = f.key;
+      box.dataset.ftype = 'pills-multi';
+      const selected = new Set(f.default || []);
+      (f.options || []).forEach(([val, label]) => {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.dataset.val = val;
+        pill.textContent = label;
+        const isActive = selected.has(val);
+        const style = (on) => `
+          padding: 5px 11px; border-radius: 14px; font-size: 11px;
+          font-family: system-ui, sans-serif; font-weight: 500;
+          cursor: pointer; user-select: none; transition: all 0.12s;
+          background: ${on ? '#238636' : '#0d1117'};
+          color: ${on ? 'white' : '#e6edf3'};
+          border: 1px solid ${on ? '#238636' : '#30363d'};
+        `;
+        pill.style.cssText = style(isActive);
+        pill.dataset.on = isActive ? '1' : '0';
+        pill.onclick = (ev) => {
+          ev.preventDefault();
+          const on = pill.dataset.on === '1';
+          pill.dataset.on = on ? '0' : '1';
+          pill.style.cssText = style(!on);
+        };
+        box.appendChild(pill);
+      });
+      wrap.appendChild(box);
     } else if (f.type === 'checkboxes') {
       const box = document.createElement('div');
       box.style.cssText = 'display:flex; gap:12px; flex-wrap:wrap;';
@@ -549,7 +618,11 @@ function renderAdvancedOpts(recipeName) {
       const dk = wrap.dataset.dependsKey;
       const dv = wrap.dataset.dependsValue;
       const parent = container.querySelector(`[data-fkey="${dk}"]`);
-      const parentVal = parent ? parent.value : '';
+      if (!parent) return;
+      // Se parent é pill container, lê dataset.value; senão lê .value
+      const parentVal = parent.dataset.ftype === 'pills'
+        ? parent.dataset.value
+        : (parent.value || '');
       wrap.style.display = (parentVal === dv) ? '' : 'none';
     });
   }
@@ -566,12 +639,31 @@ function collectAdvancedOpts(recipeName) {
   const out = {};
   const container = document.getElementById('advanced-opts');
   fields.forEach(f => {
+    // Campo invisível por dependsOn é ignorado
+    const wrap = container.querySelector(`[data-fwrap="${f.key}"]`);
+    if (wrap && wrap.style.display === 'none') return;
+
     if (f.type === 'checkboxes') {
       const box = container.querySelector(`[data-fkey="${f.key}"][data-ftype="checkboxes"]`);
       if (!box) return;
       const vals = [...box.querySelectorAll('input[type=checkbox]')]
         .filter(c => c.checked).map(c => c.value);
-      // Só inclui se diferente do default (pra não poluir o input)
+      const def = f.default || [];
+      if (vals.length && JSON.stringify(vals) !== JSON.stringify(def)) {
+        out[f.key] = vals;
+      }
+    } else if (f.type === 'pills') {
+      const box = container.querySelector(`[data-fkey="${f.key}"][data-ftype="pills"]`);
+      if (!box) return;
+      const v = box.dataset.value;
+      const def = f.default !== undefined ? String(f.default) : '';
+      if (v && v !== def) out[f.key] = v;
+      else if (v && !def) out[f.key] = v;  // default vazio → qualquer seleção conta
+    } else if (f.type === 'pills-multi') {
+      const box = container.querySelector(`[data-fkey="${f.key}"][data-ftype="pills-multi"]`);
+      if (!box) return;
+      const vals = [...box.querySelectorAll('button')]
+        .filter(b => b.dataset.on === '1').map(b => b.dataset.val);
       const def = f.default || [];
       if (vals.length && JSON.stringify(vals) !== JSON.stringify(def)) {
         out[f.key] = vals;
