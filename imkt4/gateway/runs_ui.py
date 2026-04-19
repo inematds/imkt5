@@ -209,7 +209,7 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
   <div id="new-run-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0;
        background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center;">
     <div style="background:#161b22; border:1px solid #30363d; border-radius:10px; padding:24px;
-         max-width:560px; width:90%;">
+         max-width:640px; width:92%; max-height:92vh; overflow-y:auto;">
       <h3 style="margin:0 0 8px 0; font-size:16px;">Nova execução</h3>
       <div style="color:#7d8590; font-size:13px; margin-bottom:14px;">
         Receita: <b id="new-run-recipe-name"></b>
@@ -218,10 +218,14 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
         Input
         <a href="#" id="new-run-mode-toggle" style="margin-left:10px;font-size:11px;color:#1f6feb;text-decoration:none;">⚙ modo JSON</a>
       </label>
-      <textarea id="new-run-input" rows="6"
+      <textarea id="new-run-input" rows="4"
         placeholder="ex.: Curso IA pra empreendedores, 30 dias resultados"
         style="width:100%; background:#0d1117; color:#e6edf3; border:1px solid #30363d;
                padding:10px; border-radius:6px; font-size:13px; font-family:ui-monospace, monospace;"></textarea>
+
+      <!-- Opções avançadas específicas por receita -->
+      <div id="advanced-opts" style="margin-top:14px;"></div>
+
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
         <button class="ghost" onclick="closeNewRunDialog()">Cancelar</button>
         <button onclick="submitNewRun()">▶ Rodar</button>
@@ -341,12 +345,264 @@ async function selectRecipe(name) {
 
 // ── Nova execução ─────────────────────────────────────────────
 let newRunMode = 'text';  // text | json
+
+// Schemas de opções avançadas por receita. Cada campo é renderizado
+// como input apropriado. O valor final é serializado em input JSON.
+const RECIPE_FIELDS = {
+  'carrossel-simples': [
+    {key: 'title', label: 'Título (capa)', type: 'text',
+     placeholder: 'ex.: Trilha IA Express'},
+    {key: 'captions', label: 'Captions (1 por linha, slides intermediários)',
+     type: 'lines', rows: 4, placeholder: 'Aprenda fazendo\n1 case por dia\nSem teoria chata'},
+    {key: 'cta', label: 'CTA (último slide)', type: 'text',
+     placeholder: 'Inscreva-se em INEMA.CLUB'},
+    {key: 'model', label: 'Modelo SD', type: 'select',
+     options: [
+       ['', '(default: flux2-klein)'],
+       ['flux2-klein', 'flux2-klein (destilado 4 steps)'],
+       ['sdxl', 'SDXL'],
+       ['sd15', 'SD 1.5'],
+     ]},
+    {key: 'formats', label: 'Formatos', type: 'checkboxes',
+     options: [['1:1', '1:1 (feed)'], ['9:16', '9:16 (stories/reels)'], ['16:9', '16:9 (yt)']],
+     default: ['1:1', '9:16', '16:9']},
+    {key: 'detect_text_in_bg', label: 'Detectar texto na imagem (fallback)',
+     type: 'boolean', hint: 'Se o SD gerar texto indevido, suprime overlay. Default off.'},
+  ],
+
+  'carrossel-rico': [
+    {key: 'slide_count', label: 'Número de slides', type: 'number',
+     min: 3, max: 10, default: 5, placeholder: '5'},
+    {key: 'image_source', label: 'Fonte das imagens', type: 'select',
+     options: [
+       ['generate', 'Gerar novas (via LLM+SD)'],
+       ['provided', 'Vou passar prompts abaixo'],
+       ['none', 'Sem imagens (apenas tipografia)'],
+     ],
+     default: 'generate'},
+    {key: 'bg_prompts', label: 'Prompts de imagem (1 por linha)',
+     type: 'lines', rows: 4,
+     placeholder: 'minimalist office, warm light\nabstract data viz, dark bg\n...',
+     hint: 'Usado apenas quando "Fonte das imagens" = "Vou passar prompts abaixo"',
+     dependsOn: {key: 'image_source', value: 'provided'}},
+    {key: 'template', label: 'Template',
+     type: 'select',
+     options: [
+       ['', '(auto: art-director escolhe)'],
+       ['magazine', 'Magazine (serif grande, cinematográfico)'],
+       ['editorial', 'Editorial (documentário)'],
+       ['corporate_clean', 'Corporate Clean'],
+       ['data_viz', 'Data Viz'],
+       ['wellness_soft', 'Wellness Soft'],
+       ['bold_pop', 'Bold Pop'],
+       ['retro_futurism', 'Retro Futurism'],
+       ['organic_earth', 'Organic Earth'],
+       ['neo_minimal_luxury', 'Neo Minimal Luxury'],
+     ]},
+    {key: 'style', label: 'Style (palette)',
+     type: 'select',
+     options: [
+       ['', '(auto: art-director escolhe)'],
+       ['neon_futurista', 'Neon Futurista'],
+       ['editorial_documentary', 'Editorial Documentary'],
+       ['corporate_clean', 'Corporate Clean'],
+       ['data_viz', 'Data Viz'],
+       ['wellness_soft', 'Wellness Soft'],
+       ['bold_pop', 'Bold Pop'],
+       ['retro_futurism', 'Retro Futurism'],
+       ['organic_earth', 'Organic Earth'],
+       ['neo_minimal_luxury', 'Neo Minimal Luxury'],
+       ['dark_cinematic', 'Dark Cinematic'],
+       ['warm_lifestyle', 'Warm Lifestyle'],
+       ['nature_organic', 'Nature Organic'],
+     ]},
+    {key: 'model', label: 'Modelo SD', type: 'select',
+     options: [
+       ['', '(default: flux2-klein)'],
+       ['flux2-klein', 'flux2-klein (destilado 4 steps)'],
+       ['sdxl', 'SDXL'],
+       ['sd15', 'SD 1.5'],
+     ]},
+    {key: 'formats', label: 'Formatos', type: 'checkboxes',
+     options: [['1:1', '1:1'], ['9:16', '9:16'], ['16:9', '16:9']],
+     default: ['1:1', '9:16', '16:9']},
+    {key: 'detect_text_in_bg', label: 'Detectar texto na imagem (fallback)',
+     type: 'boolean'},
+  ],
+};
+
+function renderAdvancedOpts(recipeName) {
+  const container = document.getElementById('advanced-opts');
+  container.innerHTML = '';
+  const fields = RECIPE_FIELDS[recipeName];
+  if (!fields) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const det = document.createElement('details');
+  det.style.cssText = 'margin-top:6px; background:#0d1117; border:1px solid #30363d; border-radius:6px; padding:10px 12px;';
+  det.open = true;
+  const sum = document.createElement('summary');
+  sum.style.cssText = 'cursor:pointer; color:#1f6feb; font-size:12px; font-weight:600; user-select:none;';
+  sum.textContent = '⚙ Opções específicas da receita';
+  det.appendChild(sum);
+
+  const body = document.createElement('div');
+  body.style.cssText = 'margin-top:12px; display:flex; flex-direction:column; gap:10px;';
+
+  fields.forEach(f => {
+    const wrap = document.createElement('div');
+    wrap.dataset.fwrap = f.key;
+    if (f.dependsOn) {
+      wrap.dataset.dependsKey = f.dependsOn.key;
+      wrap.dataset.dependsValue = f.dependsOn.value;
+    }
+    const lbl = document.createElement('label');
+    lbl.style.cssText = 'display:block; color:#7d8590; font-size:11px; margin-bottom:4px; font-weight:500;';
+    lbl.textContent = f.label;
+    wrap.appendChild(lbl);
+
+    const commonStyle = 'width:100%; background:#161b22; color:#e6edf3; border:1px solid #30363d; padding:7px 9px; border-radius:5px; font-size:12px; font-family:ui-monospace, monospace;';
+
+    if (f.type === 'text') {
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.dataset.fkey = f.key;
+      inp.placeholder = f.placeholder || '';
+      inp.style.cssText = commonStyle;
+      wrap.appendChild(inp);
+    } else if (f.type === 'number') {
+      const inp = document.createElement('input');
+      inp.type = 'number';
+      inp.dataset.fkey = f.key;
+      inp.placeholder = f.placeholder || '';
+      if (f.min !== undefined) inp.min = f.min;
+      if (f.max !== undefined) inp.max = f.max;
+      if (f.default !== undefined) inp.value = f.default;
+      inp.style.cssText = commonStyle;
+      wrap.appendChild(inp);
+    } else if (f.type === 'lines') {
+      const ta = document.createElement('textarea');
+      ta.dataset.fkey = f.key;
+      ta.rows = f.rows || 3;
+      ta.placeholder = f.placeholder || '';
+      ta.style.cssText = commonStyle;
+      wrap.appendChild(ta);
+    } else if (f.type === 'select') {
+      const sel = document.createElement('select');
+      sel.dataset.fkey = f.key;
+      sel.style.cssText = commonStyle;
+      (f.options || []).forEach(([val, label]) => {
+        const o = document.createElement('option');
+        o.value = val;
+        o.textContent = label;
+        sel.appendChild(o);
+      });
+      if (f.default !== undefined) sel.value = f.default;
+      wrap.appendChild(sel);
+    } else if (f.type === 'checkboxes') {
+      const box = document.createElement('div');
+      box.style.cssText = 'display:flex; gap:12px; flex-wrap:wrap;';
+      box.dataset.fkey = f.key;
+      box.dataset.ftype = 'checkboxes';
+      (f.options || []).forEach(([val, label]) => {
+        const l = document.createElement('label');
+        l.style.cssText = 'color:#e6edf3; font-size:12px; display:inline-flex; align-items:center; gap:4px; cursor:pointer;';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = val;
+        if (f.default && f.default.includes(val)) cb.checked = true;
+        l.appendChild(cb);
+        l.appendChild(document.createTextNode(' ' + label));
+        box.appendChild(l);
+      });
+      wrap.appendChild(box);
+    } else if (f.type === 'boolean') {
+      const l = document.createElement('label');
+      l.style.cssText = 'color:#e6edf3; font-size:12px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.dataset.fkey = f.key;
+      cb.dataset.ftype = 'boolean';
+      if (f.default) cb.checked = true;
+      l.appendChild(cb);
+      l.appendChild(document.createTextNode(' ativar'));
+      wrap.appendChild(l);
+    }
+
+    if (f.hint) {
+      const h = document.createElement('div');
+      h.style.cssText = 'color:#7d8590; font-size:10px; margin-top:3px;';
+      h.textContent = f.hint;
+      wrap.appendChild(h);
+    }
+    body.appendChild(wrap);
+  });
+
+  det.appendChild(body);
+  container.appendChild(det);
+
+  // Aplica dependsOn: esconde/mostra campos conforme o valor do campo-pai
+  function refreshDepends() {
+    container.querySelectorAll('[data-depends-key]').forEach(wrap => {
+      const dk = wrap.dataset.dependsKey;
+      const dv = wrap.dataset.dependsValue;
+      const parent = container.querySelector(`[data-fkey="${dk}"]`);
+      const parentVal = parent ? parent.value : '';
+      wrap.style.display = (parentVal === dv) ? '' : 'none';
+    });
+  }
+  container.querySelectorAll('[data-fkey]').forEach(el => {
+    el.addEventListener('change', refreshDepends);
+    el.addEventListener('input', refreshDepends);
+  });
+  refreshDepends();
+}
+
+function collectAdvancedOpts(recipeName) {
+  const fields = RECIPE_FIELDS[recipeName];
+  if (!fields) return {};
+  const out = {};
+  const container = document.getElementById('advanced-opts');
+  fields.forEach(f => {
+    if (f.type === 'checkboxes') {
+      const box = container.querySelector(`[data-fkey="${f.key}"][data-ftype="checkboxes"]`);
+      if (!box) return;
+      const vals = [...box.querySelectorAll('input[type=checkbox]')]
+        .filter(c => c.checked).map(c => c.value);
+      // Só inclui se diferente do default (pra não poluir o input)
+      const def = f.default || [];
+      if (vals.length && JSON.stringify(vals) !== JSON.stringify(def)) {
+        out[f.key] = vals;
+      }
+    } else if (f.type === 'boolean') {
+      const cb = container.querySelector(`[data-fkey="${f.key}"][data-ftype="boolean"]`);
+      if (cb && cb.checked) out[f.key] = true;
+    } else if (f.type === 'lines') {
+      const ta = container.querySelector(`[data-fkey="${f.key}"]`);
+      if (ta && ta.value.trim()) {
+        out[f.key] = ta.value.split('\n').map(s => s.trim()).filter(Boolean);
+      }
+    } else {
+      const el = container.querySelector(`[data-fkey="${f.key}"]`);
+      if (!el) return;
+      const v = el.value?.trim();
+      if (!v) return;
+      if (f.type === 'number') out[f.key] = Number(v);
+      else out[f.key] = v;
+    }
+  });
+  return out;
+}
+
 function openNewRunDialog() {
   if (!selectedRecipe) return;
   document.getElementById('new-run-recipe-name').textContent = selectedRecipe;
   document.getElementById('new-run-input').value = '';
   newRunMode = 'text';
   document.getElementById('new-run-mode-toggle').textContent = '⚙ modo JSON';
+  renderAdvancedOpts(selectedRecipe);
   document.getElementById('new-run-modal').style.display = 'flex';
 }
 function closeNewRunDialog() {
@@ -381,8 +637,14 @@ async function submitNewRun() {
     try { input = JSON.parse(raw || '{}'); }
     catch (e) { alert('JSON inválido: ' + e.message); return; }
   } else {
-    input = raw ? { brief: raw } : {};
+    // Texto simples vira brief OU topic dependendo da recipe.
+    // carrossel-simples e carrossel-rico aceitam ambos via || na recipe.
+    input = raw ? { brief: raw, topic: raw } : {};
   }
+  // Merge opções avançadas específicas da recipe
+  const adv = collectAdvancedOpts(selectedRecipe);
+  input = { ...input, ...adv };
+
   const r = await api('/recipes/' + encodeURIComponent(selectedRecipe) + '/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
