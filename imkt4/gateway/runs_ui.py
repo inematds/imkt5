@@ -429,6 +429,90 @@ const RECIPE_FIELDS = {
     {key: 'detect_text_in_bg', label: 'Detectar texto na imagem (fallback)',
      type: 'boolean'},
   ],
+
+  'campanha-marketing': [
+    {key: 'video_mode', label: 'Modo de vídeo', type: 'pills',
+     options: [
+       ['quick', 'Quick · rápido, cortes secos'],
+       ['pro', 'Pro · crossfade + color grading'],
+       ['skip', 'Skip · sem vídeo (só imagens)'],
+     ],
+     default: 'quick',
+     hint: 'Quick: 4-6 cenas, motion básico. Pro: xfade+color grading por seção (cool/warm).'},
+    {key: 'image_count', label: 'Quantidade de imagens', type: 'number',
+     min: 1, max: 8, default: 3, placeholder: '3'},
+    {key: 'platform', label: 'Plataforma alvo (safe zones)', type: 'pills',
+     options: [
+       ['', 'Universal (25-60%)'],
+       ['tiktok', 'TikTok'],
+       ['instagram_reels', 'Instagram Reels'],
+       ['shorts', 'YouTube Shorts'],
+       ['stories', 'Instagram Stories'],
+       ['feed', 'Instagram Feed'],
+     ],
+     default: ''},
+    {key: 'use_karaoke', label: 'Karaoke (legendas sync com fala)', type: 'boolean',
+     hint: 'faster-whisper word-timings + ASS subtitles. Default ON.'},
+    {key: 'use_sfx', label: 'SFX (stab/swoosh por style+hook)', type: 'boolean',
+     hint: 'Default ON — desliga styles tranquilos automaticamente.'},
+    {key: 'hold_final', label: 'Hold final 3s silencioso', type: 'boolean',
+     hint: 'Skip automático quando video < 8s. Default ON.'},
+    {key: 'loop_visual', label: 'Loop visual (rewatch rate)', type: 'boolean',
+     hint: 'Última cena usa imagem da primeira (rima visual pro TikTok/Reels).'},
+    {key: 'kinetic_presets', label: 'Kinetic presets por style', type: 'boolean',
+     hint: 'Animações por style: wipe/zoom_impact/type_on/glow_pulse só em hook+emphasis.'},
+    {key: 'freeze_frames', label: 'Freeze frame em revelações', type: 'boolean',
+     hint: 'Auto em styles data_viz/editorial/corporate quando cena tem stat. Whisper + emphasis_word pra timing exato.'},
+    {key: 'use_parallax', label: 'Parallax nível 1 (fake)', type: 'boolean',
+     hint: 'Blur+unsharp em 3 camadas. Auto ON em styles cinematográficos.'},
+    {key: 'depth_ai', label: 'Parallax nível 2 (Depth-Anything V2)', type: 'boolean',
+     hint: 'Opt-in. Tenta depth map real; cai pro nível 1 se modelo não instalado.'},
+    {key: 'narration_speed', label: 'Narração speed (atempo)', type: 'number',
+     min: 1.0, max: 1.25, placeholder: 'auto por style (1.10-1.20)',
+     hint: 'Clamp 1.0-1.25. Override manual. Default por style no worker.'},
+    {key: 'approval_mode', label: 'Aprovação global', type: 'pills',
+     options: [
+       ['', 'Nenhuma (none)'],
+       ['auto', 'Auto (LLM reviewer)'],
+       ['human', 'Humana (canal de origem, timeout 30min)'],
+       ['agent', 'Agent (LLM reviewer específico)'],
+     ],
+     default: ''},
+    {key: 'with_research', label: 'Pesquisa prévia (Tavily)', type: 'boolean',
+     hint: 'Consulta web antes do brief. Custa chamadas API.'},
+  ],
+
+  'campanha-marketing-ab': [
+    {key: 'video_mode', label: 'Modo de vídeo', type: 'pills',
+     options: [['quick','Quick'], ['pro','Pro']],
+     default: 'quick'},
+    {key: 'image_count', label: 'Imagens (base, antes de variantes)', type: 'number',
+     min: 1, max: 6, default: 3, placeholder: '3'},
+    {key: 'ab_ai_suggest', label: 'LLM sugere variantes (hooks+CTAs)', type: 'boolean',
+     hint: 'Alternativa ao hook_variants manual. Worker video-ab-suggest decide.'},
+    {key: 'hook_variants', label: 'Hook variants (1 por linha, override da AI)',
+     type: 'lines', rows: 3,
+     placeholder: 'stat_shot\nquestion_abrupt\npattern_interrupt'},
+    {key: 'cta_variants', label: 'CTA variants (1 por linha)', type: 'lines', rows: 2,
+     placeholder: 'Comece grátis\nAcesse INEMA.CLUB'},
+    {key: 'platform', label: 'Plataforma alvo', type: 'pills',
+     options: [['','Universal'], ['tiktok','TikTok'], ['instagram_reels','Reels'], ['shorts','Shorts']],
+     default: ''},
+    {key: 'use_karaoke', label: 'Karaoke', type: 'boolean'},
+  ],
+
+  'curso-educativo': [
+    {key: 'slide_count', label: 'Número de slides', type: 'number',
+     min: 5, max: 15, default: 10, placeholder: '10'},
+    {key: 'depth', label: 'Profundidade', type: 'pills',
+     options: [['iniciante','Iniciante'], ['intermediario','Intermediário'], ['avancado','Avançado']],
+     default: 'iniciante'},
+    {key: 'style', label: 'Estilo de voz', type: 'pills',
+     options: [['didatico','Didático'], ['direto','Direto'], ['narrativo','Narrativo']],
+     default: 'didatico'},
+    {key: 'skip_audio', label: 'Pular narração (só carousel)', type: 'boolean'},
+    {key: 'skip_video', label: 'Pular vídeo (só carousel+audio)', type: 'boolean'},
+  ],
 };
 
 function renderAdvancedOpts(recipeName) {
@@ -831,8 +915,22 @@ async function renderDetail(runId, opts) {
   const run = await r.json();
 
   const status = run.failed ? 'failed' : (run.finished ? 'success' : 'running');
+  // Pills destacados: video_mode (quick/pro/skip), platform alvo, approval
+  const modePills = [];
+  const vm = (run.input || {}).video_mode;
+  if (vm) {
+    const vmColor = vm === 'pro' ? '#7c3aed' : (vm === 'skip' ? '#6b7280' : '#1f6feb');
+    modePills.push(`<span class="pill" style="background:${vmColor};color:white;">video: ${vm.toUpperCase()}</span>`);
+  }
+  const pl = (run.input || {}).platform;
+  if (pl) modePills.push(`<span class="pill" style="background:#10b981;color:white;">📱 ${pl}</span>`);
+  const am = (run.input || {}).approval_mode;
+  if (am) modePills.push(`<span class="pill" style="background:#f59e0b;color:white;">🔒 aprovação: ${am}</span>`);
+  const sc = (run.input || {}).slide_count;
+  if (sc) modePills.push(`<span class="pill" style="background:#475569;color:white;">${sc} slides</span>`);
+
   let html = `
-    <h2>${run.recipe} <span class="pill ${status}">${status}</span></h2>
+    <h2>${run.recipe} <span class="pill ${status}">${status}</span> ${modePills.join(' ')}</h2>
     <div class="run-meta">
       <code>${run.run_id}</code> · tenant <b>${run.tenant_id}</b>
     </div>

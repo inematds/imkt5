@@ -1,5 +1,5 @@
 name: campanha-marketing
-version: 9
+version: 10
 # Pipeline completo: brief → copy → ad-designer → imagens (fanout) →
 #                    voiceover → video (scene plan) → video_render (MP4).
 #
@@ -46,14 +46,33 @@ stages:
       image_reference_note: $.input.image_reference_note
     approval: {mode: none}
 
+  # Video art direction ANTES do copy/ad_design — define style, motion,
+  # hook pattern e música logo no início pra que o copy e os bg_prompts
+  # fiquem alinhados ao style visual escolhido. Roda a menos que user
+  # passou style/template explícitos OU video foi skipped (skip_video).
+  - id: video_art_direction
+    requires: video.art_direction
+    needs: [brief]
+    when: $.input.video_style == null && $.input.skip_video != true
+    payload_from:
+      brief: $.input.brief
+      creative_brief: $.stages.brief.output.creative_brief
+      audience: $.input.audience
+      platform: $.input.platform
+      brand_profile: $.tenant.profile
+    approval: {mode: none}
+
   - id: copy
     requires: copy.platform
-    needs: [brief]
+    needs: [brief, video_art_direction]
     payload_from:
       creative_brief: $.stages.brief.output.creative_brief
       research: $.stages.research.output
       language: $.input.language
       platform_targets: $.input.platform_targets
+      # Informa style pra copywriter alinhar tom/palavras ao mood
+      art_direction_style: $.stages.video_art_direction.output.style
+      art_direction_hook_pattern: $.stages.video_art_direction.output.hook_pattern
     approval: {mode: none}
 
   - id: ad_design
@@ -68,8 +87,8 @@ stages:
       image_background_color: $.input.image_background_color
       platform_targets: $.input.platform_targets
       language: $.input.language
-    # TODO(10b no backlog): reativar auto_reviewer após endurecer critérios.
-    # Enquanto flutuar, rodar sem gate pra não bloquear.
+      # bg_prompts alinhados ao style do video (fotografia, mood, cor)
+      art_direction_style: $.stages.video_art_direction.output.style
     approval: {mode: none}
 
   - id: images
@@ -84,21 +103,7 @@ stages:
       images: $.input.image_reference
     approval: {mode: none}
 
-  # Video art direction — escolhe style+motion+transition+music+hook.
-  # Roda se user não passou style/template explicitamente.
-  - id: video_art_direction
-    requires: video.art_direction
-    when: $.input.video_style == null && $.input.skip_video != true
-    needs: [copy]
-    payload_from:
-      brief: $.input.brief
-      copy: $.stages.copy.output.copy
-      audience: $.input.audience
-      platform: $.input.platform
-      brand_profile: $.tenant.profile
-    approval: {mode: none}
-
-  # Video scene plan. Recebe a direção de arte pra alinhar motion/hook.
+  # Video scene plan. Já recebe direção de arte (roda desde o início).
   # Item 7 — stage de maior leverage pra aprovação: cena ruim vale caro pra
   # render. Default none; promove via approval_mode global.
   - id: video
