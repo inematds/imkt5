@@ -69,6 +69,34 @@ WORKERS_UI_HTML = r"""<!DOCTYPE html>
   .job-row .when { font-size: 12px; font-weight: 500; }
   .job-row .meta { color: #7d8590; font-size: 10px; font-family: monospace; margin-top: 4px; }
   .job-row .cap { color: #1f6feb; font-size: 11px; font-family: monospace; margin-top: 4px; }
+  .job-row .thumbs {
+    display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap;
+  }
+  .job-row .thumb {
+    width: 48px; height: 48px;
+    border-radius: 3px;
+    border: 1px solid #30363d;
+    background: #0d1117 center/cover no-repeat;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .job-row .thumb.is-video::after {
+    content: '▶'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 16px;
+    background: rgba(0,0,0,0.40);
+    border-radius: 3px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  }
+  .job-row .thumb.is-audio::after {
+    content: '🔊'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .job-row .thumb.more-count {
+    color: #8b949e; font-size: 11px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+  }
 
   .pill { display: inline-block; padding: 2px 7px; border-radius: 10px;
           font-size: 9px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
@@ -485,6 +513,30 @@ async function loadJobs() {
           hour:'2-digit', minute:'2-digit', second:'2-digit',
         })
       : '';
+
+    // Thumbnails inline — extrai URLs de artefatos do output e mostra
+    // até 4 miniaturas (ex: imagens/vídeos/áudios gerados pelo worker).
+    const urls = extractArtifactUrls(j.output);
+    const thumbs = [];
+    const MAX_THUMBS = 4;
+    for (const u of urls) {
+      if (thumbs.length >= MAX_THUMBS) break;
+      const lower = u.toLowerCase();
+      if (/\.(png|jpg|jpeg|webp|gif)(\?|$)/.test(lower)) {
+        thumbs.push(`<div class="thumb" style="background-image:url('${u}')" title="${escapeHtml(u)}"></div>`);
+      } else if (/\.(mp4|webm|mov)(\?|$)/.test(lower)) {
+        // Vídeo: usa poster do frame 1s via <video> escondido + canvas?
+        // Por simplicidade, só mostra ícone ▶ com fundo escuro.
+        thumbs.push(`<div class="thumb is-video" title="${escapeHtml(u)}"></div>`);
+      } else if (/\.(mp3|wav|m4a|ogg)(\?|$)/.test(lower)) {
+        thumbs.push(`<div class="thumb is-audio" title="${escapeHtml(u)}"></div>`);
+      }
+    }
+    const moreCount = urls.length - thumbs.length;
+    if (moreCount > 0) {
+      thumbs.push(`<div class="thumb more-count" title="${moreCount} outros artefatos">+${moreCount}</div>`);
+    }
+
     row.innerHTML = `
       <div class="row-top">
         <span class="when">${when}</span>
@@ -492,6 +544,7 @@ async function loadJobs() {
       </div>
       <div class="cap">${j.capability || j.worker_type || '?'}</div>
       <div class="meta">${j.job_id.slice(0,8)}… · ${j.tenant_id}/${j.user_id || '-'}</div>
+      ${thumbs.length ? `<div class="thumbs">${thumbs.join('')}</div>` : ''}
     `;
     list.appendChild(row);
   });
