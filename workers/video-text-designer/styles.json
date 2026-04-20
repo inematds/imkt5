@@ -1,0 +1,107 @@
+{
+  "_comment": "Catálogo único de estilos de text overlay. Source of truth pro worker + UI + gerador de thumbs. Pra adicionar/alterar/remover estilo: edite este arquivo e rode scripts/gen_text_style_thumbs.py.",
+  "styles": [
+    {
+      "slug": "chrome_overlay",
+      "template": "editorial_chrome_textonly",
+      "label": "Chrome Overlay",
+      "desc": "chrome italic no topo + halo (carrossel-rico default)",
+      "preview": {
+        "text": "AGENTIC É O FUTURO",
+        "text_position": "top",
+        "scene_type": "hook",
+        "font_size": 120
+      }
+    },
+    {
+      "slug": "chrome_fullslide",
+      "template": "editorial_chrome_fullslide",
+      "label": "Chrome Full Slide",
+      "desc": "chrome centrado, imagem dimmed estilo carrossel",
+      "preview": {
+        "text": "Orquestre agentes IA",
+        "text_position": "center",
+        "scene_type": "hook",
+        "font_size": 120
+      }
+    },
+    {
+      "slug": "editorial_chrome_rico",
+      "template": "editorial_chrome_rico",
+      "label": "Editorial Chrome Rico ✨",
+      "desc": "formato COMPLETO do carrossel-rico: badge + slide label + handle + stats + brand moment",
+      "preview": {
+        "text": "Gestores do futuro",
+        "text_position": "center",
+        "scene_type": "proof",
+        "font_size": 120,
+        "badge": "INEMA",
+        "slide_label": "04 / 07",
+        "brand_handle": "@inema.tds",
+        "stat_a": {"number": "87%", "label": "Automatizam tarefas"},
+        "stat_b": {"number": "3×", "label": "Velocidade em equipe"}
+      }
+    },
+    {
+      "slug": "magazine_bar",
+      "template": "magazine_bar",
+      "label": "Magazine Bar",
+      "desc": "barra preta horizontal + Playfair serif",
+      "preview": {
+        "text": "GESTORES DO FUTURO",
+        "text_position": "center",
+        "scene_type": "hook",
+        "font_size": 120
+      }
+    },
+    {
+      "slug": "solid_block",
+      "template": "solid_block",
+      "label": "Solid Block",
+      "desc": "bloco amarelo/colorido + Inter bold rotacionado",
+      "preview": {
+        "text": "INEMA.CLUB",
+        "text_position": "center",
+        "scene_type": "cta",
+        "font_size": 120
+      }
+    },
+    {
+      "slug": "stamp_diagonal",
+      "template": "stamp_diagonal",
+      "label": "Stamp Diagonal",
+      "desc": "stamp rotacionado c79 estilo \"NO BUSINESS\"",
+      "preview": {
+        "text": "COMEÇA AGORA",
+        "text_position": "center",
+        "scene_type": "cta",
+        "font_size": 120
+      }
+    },
+    {
+      "slug": "kinetic_pop",
+      "template": "kinetic_pop",
+      "label": "Kinetic Pop",
+      "desc": "Bebas Neue enorme + neon glow",
+      "preview": {
+        "text": "IA · AGORA",
+        "text_position": "center",
+        "scene_type": "hook",
+        "font_size": 120
+      }
+    },
+    {
+      "slug": "minimal_caption",
+      "template": "minimal_caption",
+      "label": "Minimal Caption",
+      "desc": "texto pequeno bottom-left doc style",
+      "preview": {
+        "text": "Aprenda a comandar AI agents em 21 dias",
+        "text_position": "bottom",
+        "scene_type": "hook",
+        "font_size": 100,
+        "caption_prefix": "EP.01"
+      }
+    }
+  ]
+}

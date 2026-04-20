@@ -1098,6 +1098,20 @@ def create_app(
             raise HTTPException(404, f"thumb não encontrada: {slug}")
         return FileResponse(p, media_type="image/jpeg")
 
+    # Catálogo dinâmico dos text overlay styles (lido de styles.json)
+    @app.get("/text-style-catalog")
+    async def text_style_catalog() -> dict[str, Any]:
+        import json
+        manifest_path = Path(
+            "./workers/video-text-designer/styles.json"
+        ).resolve()
+        if not manifest_path.exists():
+            return {"styles": []}
+        try:
+            return json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(500, f"erro lendo manifest: {exc}") from exc
+
     # ── proxy S3/MinIO: streama bytes pelo gateway ────────────────────
     # Soluciona "localhost:9000 quebra em outra máquina" — UI recebe
     # `/s3/<bucket>/<key>` e o gateway busca do MinIO internamente.

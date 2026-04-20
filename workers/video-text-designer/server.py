@@ -11,6 +11,7 @@ Consumido pelo ffmpeg-local como overlay (opt-in via
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import sys
@@ -31,10 +32,24 @@ from workers._base.storage import get_storage  # noqa: E402
 log = logging.getLogger("imkt4.workers.video-text-designer")
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+STYLES_JSON = Path(__file__).parent / "styles.json"
 _jinja = jinja2.Environment(
     loader=jinja2.FileSystemLoader(str(TEMPLATES_DIR)),
     autoescape=jinja2.select_autoescape(["html"]),
 )
+
+
+def _load_styles_catalog() -> dict[str, dict]:
+    """Lê styles.json e devolve mapping slug → {template, label, desc, ...}.
+    É chamado a cada request pra permitir hot-reload sem restart."""
+    if not STYLES_JSON.exists():
+        return {}
+    try:
+        manifest = json.loads(STYLES_JSON.read_text(encoding="utf-8"))
+        return {s["slug"]: s for s in manifest.get("styles", []) if "slug" in s}
+    except Exception as exc:  # noqa: BLE001
+        log.warning("erro lendo styles.json: %s", exc)
+        return {}
 
 
 def _font_size_for(text: str, width: int, height: int) -> int:
@@ -93,21 +108,21 @@ class VideoTextDesignerWorker(BaseWorker):
             or "chrome_overlay"
         ).lower()
 
-        # Mapeia style → template
-        STYLE_TO_TEMPLATE = {
-            "chrome_overlay":    "editorial_chrome_textonly",    # chrome top/center/bottom (opt-in dark fade)
-            "chrome_fullslide":  "editorial_chrome_fullslide",   # chrome centrado + dark overlay 82%
-            "magazine_bar":      "magazine_bar",                 # dark bar horizontal + Playfair
-            "solid_block":       "solid_block",                  # bloco colorido sólido + Inter bold
-            "stamp_diagonal":    "stamp_diagonal",               # stamp rotacionado estilo c79
-            "kinetic_pop":       "kinetic_pop",                  # Bebas Neue + neon glow
-            "minimal_caption":   "minimal_caption",              # small caption bottom-left
-            # aliases legados
-            "overlay":           "editorial_chrome_textonly",
-            "full_slide":        "editorial_chrome_fullslide",
-        }
+        # Carrega catálogo fresh (hot-reload do styles.json)
+        catalog = _load_styles_catalog()
+        # Aliases legados pro mode antigo
+        if style == "overlay":
+            style = "chrome_overlay"
+        elif style == "full_slide":
+            style = "chrome_fullslide"
+
         # Override direto se passou template explícito
-        template_name = payload.get("template") or STYLE_TO_TEMPLATE.get(style, "editorial_chrome_textonly")
+        if payload.get("template"):
+            template_name = payload["template"]
+        elif style in catalog:
+            template_name = catalog[style]["template"]
+        else:
+            template_name = "editorial_chrome_textonly"  # fallback
         tmpl = _jinja.get_template(f"{template_name}.html")
         use_dark_bar = bool(payload.get("use_dark_bar", False))
         use_dark_top_fade = payload.get("use_dark_top_fade")

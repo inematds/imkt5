@@ -312,6 +312,31 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
     background: rgba(31,111,235,0.05);
     transform: translateY(-1px);
   }
+  .preset-card-body {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .preset-thumb {
+    width: 64px;
+    min-width: 64px;
+    aspect-ratio: 9/16;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #30363d;
+    background: #0d1117;
+  }
+  .preset-thumb.no-thumb {
+    display: flex; align-items: center; justify-content: center;
+    color: #58a6ff; font-size: 18px; font-weight: 700;
+    font-family: ui-monospace, monospace;
+  }
+  .preset-card-info {
+    flex: 1;
+    display: flex; flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
   .preset-name {
     font-size: 13px; font-weight: 600; color: #e6edf3;
   }
@@ -871,13 +896,14 @@ const RECIPE_FIELDS = {
     {key: 'text_overlay_style', label: 'Estilo do texto sobre o vídeo',
      type: 'style-gallery',
      options: [
-       ['chrome_overlay',    'Chrome Overlay',    'chrome italic no topo + halo (carrossel-rico default)'],
-       ['chrome_fullslide',  'Chrome Full Slide', 'chrome centrado, imagem dimmed estilo carrossel'],
-       ['magazine_bar',      'Magazine Bar',      'barra preta horizontal + Playfair serif'],
-       ['solid_block',       'Solid Block',       'bloco amarelo/colorido + Inter bold rotacionado'],
-       ['stamp_diagonal',    'Stamp Diagonal',    'stamp rotacionado c79 estilo "NO BUSINESS"'],
-       ['kinetic_pop',       'Kinetic Pop',       'Bebas Neue enorme + neon glow'],
-       ['minimal_caption',   'Minimal Caption',   'texto pequeno bottom-left doc style'],
+       ['chrome_overlay',         'Chrome Overlay',          'chrome italic no topo + halo (default)'],
+       ['chrome_fullslide',       'Chrome Full Slide',       'chrome centrado, imagem dimmed'],
+       ['editorial_chrome_rico',  'Editorial Chrome Rico ✨', 'formato completo do carrossel-rico (badge + stats + brand)'],
+       ['magazine_bar',           'Magazine Bar',            'barra preta horizontal + Playfair'],
+       ['solid_block',            'Solid Block',             'bloco amarelo + Inter bold rotacionado'],
+       ['stamp_diagonal',         'Stamp Diagonal',          'stamp rotacionado c79 estilo NO BUSINESS'],
+       ['kinetic_pop',            'Kinetic Pop',             'Bebas Neue enorme + neon glow'],
+       ['minimal_caption',        'Minimal Caption',         'texto pequeno bottom-left doc style'],
      ],
      default: 'chrome_overlay',
      dependsOn: {key: 'chrome_text_overlay', value: true},
@@ -1350,7 +1376,8 @@ function switchTab(tabName) {
   if (tabName === 'examples') renderExamplesTab(selectedRecipe);
 }
 
-// Render da aba Presets — scaffolding (commit 2 preenche)
+// Render da aba Presets — cada card mostra preview (se preset define
+// text_overlay_style OU template, usa thumb correspondente).
 function renderPresetsTab(recipeName) {
   const tab = document.getElementById('tab-presets');
   if (!tab) return;
@@ -1368,11 +1395,28 @@ function renderPresetsTab(recipeName) {
       .slice(0, 5)
       .map(([k,v]) => `<span class="preset-tag">${escapeHtml(k)}=${escapeHtml(String(v).slice(0,20))}</span>`)
       .join('');
+    // Se o preset define text_overlay_style ou chrome_text_mode, usa o thumb
+    // correspondente. Senão fallback chrome_overlay.
+    const styleSlug = (p.input && (
+      p.input.text_overlay_style ||
+      (p.input.chrome_text_mode === 'full_slide' ? 'chrome_fullslide' : null) ||
+      (p.input.chrome_text_overlay ? 'chrome_overlay' : null)
+    )) || (p.thumb_style || null);
+    const thumbHtml = styleSlug
+      ? `<img class="preset-thumb" src="/text-style-thumbs/${escapeHtml(styleSlug)}.jpg"
+              loading="lazy" alt="${escapeHtml(styleSlug)}"
+              title="estilo: ${escapeHtml(styleSlug)}">`
+      : `<div class="preset-thumb no-thumb">${escapeHtml(p.name.slice(0, 2).toUpperCase())}</div>`;
     html += `
       <div class="preset-card" onclick="applyPreset('${recipeName}', ${i})">
-        <div class="preset-name">${escapeHtml(p.name)}</div>
-        <div class="preset-desc">${escapeHtml(p.desc || '')}</div>
-        <div class="preset-tags">${tags}</div>
+        <div class="preset-card-body">
+          ${thumbHtml}
+          <div class="preset-card-info">
+            <div class="preset-name">${escapeHtml(p.name)}</div>
+            <div class="preset-desc">${escapeHtml(p.desc || '')}</div>
+            <div class="preset-tags">${tags}</div>
+          </div>
+        </div>
       </div>
     `;
   });
@@ -1421,31 +1465,66 @@ async function renderExamplesTab(recipeName) {
   }
 }
 
-// Busca detalhe de cada run pra extrair thumb; monta grid
+// Busca detalhe de cada run pra extrair thumb do artefato FINAL
+// (video_render ou última slide do carrossel, não imagem intermediária).
 async function renderExampleCards(tab, runs, recipeName) {
-  // Busca detalhes em paralelo (já só mostramos inputs — thumb requer detail)
+  // Prioridade de stages pra thumb (ordem decrescente):
+  // 1. video_render (video_url / frame)
+  // 2. carrossel (última slide)
+  // 3. ad_design (última variant)
+  // 4. images (última gerada)
+  // 5. qualquer outra imagem
+  const FINAL_STAGE_ORDER = [
+    'video_render', 'carrossel', 'carousel', 'ad_design', 'images',
+  ];
+  const IMG_RE = /\.(png|jpg|jpeg|webp)(\?|$)/i;
+  const VID_RE = /\.(mp4|webm|mov)(\?|$)/i;
+
+  function extractFinalThumb(detail) {
+    const stages = detail.stages || {};
+    // Tenta cada stage de "resultado final" na ordem de prioridade
+    for (const sid of FINAL_STAGE_ORDER) {
+      const stg = stages[sid];
+      if (!stg || stg.status !== 'success') continue;
+      const outputs = stg.outputs || [];
+      // Flatten: coleta TODOS os URLs de imagem/video nos outputs
+      const allImages = [];
+      const allVideos = [];
+      const walk = (v) => {
+        if (typeof v === 'string') {
+          if (IMG_RE.test(v)) allImages.push(v);
+          else if (VID_RE.test(v)) allVideos.push(v);
+        } else if (Array.isArray(v)) v.forEach(walk);
+        else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+      };
+      outputs.forEach(walk);
+      // Prefere vídeo (mais representativo que frame), senão última imagem
+      if (allVideos.length) return { url: allVideos[allVideos.length - 1], type: 'video' };
+      if (allImages.length) return { url: allImages[allImages.length - 1], type: 'image' };
+    }
+    // Fallback: qualquer imagem em qualquer stage
+    for (const stg of Object.values(stages)) {
+      for (const out of (stg.outputs || [])) {
+        let found = null;
+        const walk = (v) => {
+          if (found) return;
+          if (typeof v === 'string' && IMG_RE.test(v)) found = v;
+          else if (Array.isArray(v)) v.forEach(walk);
+          else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+        };
+        walk(out);
+        if (found) return { url: found, type: 'image' };
+      }
+    }
+    return null;
+  }
+
   const details = await Promise.all(runs.map(async (run) => {
     try {
       const rr = await api('/runs/' + run.run_id);
       if (!rr.ok) return { run, thumb: null };
       const detail = await rr.json();
-      // Pega primeira URL de imagem dos stages
-      let thumb = null;
-      for (const stg of Object.values(detail.stages || {})) {
-        for (const out of (stg.outputs || [])) {
-          const walk = (v) => {
-            if (thumb) return;
-            if (typeof v === 'string' && /\.(png|jpg|jpeg|webp)(\?|$)/i.test(v)) {
-              thumb = v;
-            } else if (Array.isArray(v)) v.forEach(walk);
-            else if (v && typeof v === 'object') Object.values(v).forEach(walk);
-          };
-          walk(out);
-          if (thumb) break;
-        }
-        if (thumb) break;
-      }
-      return { run, thumb };
+      return { run, thumb: extractFinalThumb(detail) };
     } catch (e) {
       return { run, thumb: null };
     }
@@ -1455,10 +1534,29 @@ async function renderExampleCards(tab, runs, recipeName) {
   details.forEach(({run, thumb}) => {
     const brief = (run.input && (run.input.brief || run.input.topic || run.input.prompt)) || '—';
     const briefShort = String(brief).replace(/\s+/g, ' ').slice(0, 100);
+    const when = new Date(run.created_at).toLocaleString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: '2-digit',
+    });
+    let thumbHtml = '';
+    if (thumb) {
+      if (thumb.type === 'video') {
+        // video: mostra ícone ▶ sobre frame dark placeholder
+        thumbHtml = `<div class="example-thumb" style="background:#0d1117;display:flex;align-items:center;justify-content:center;">
+          <span style="font-size:28px;color:white;text-shadow:0 2px 8px rgba(0,0,0,.8);">▶</span>
+        </div>`;
+      } else {
+        thumbHtml = `<img class="example-thumb" src="${escapeHtml(thumb.url)}" loading="lazy" alt="">`;
+      }
+    } else {
+      thumbHtml = `<div class="example-thumb" style="background:#21262d;display:flex;align-items:center;justify-content:center;color:#6e7681;font-size:11px;">sem thumb</div>`;
+    }
     html += `
       <div class="example-card" onclick="applyExample('${recipeName}', '${run.run_id}')">
-        ${thumb ? `<img class="example-thumb" src="${escapeHtml(thumb)}" loading="lazy" alt="">` : ''}
-        <div class="preset-name" style="font-size:11px;color:#8b949e;">${run.run_id.slice(0,8)}</div>
+        ${thumbHtml}
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#6e7681;">
+          <span style="font-family:ui-monospace,monospace;">${run.run_id.slice(0,8)}</span>
+          <span>${when}</span>
+        </div>
         <div class="example-brief">${escapeHtml(briefShort)}</div>
       </div>
     `;
