@@ -227,6 +227,132 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
   .form-echo-bool .checkbox-icon { font-size: 14px; }
   .form-echo-bool.on { color: #3fb950; font-weight: 600; }
   .form-echo-bool.off { color: #6e7681; }
+
+  /* Modal tabs (Formulário / Presets / Exemplos) */
+  .modal-tabs {
+    display: flex; gap: 4px;
+    border-bottom: 1px solid #30363d;
+    margin-bottom: 14px;
+  }
+  .modal-tab {
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #8b949e;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .modal-tab:hover { color: #c9d1d9; background: rgba(255,255,255,0.03); }
+  .modal-tab.active {
+    color: #58a6ff;
+    border-bottom-color: #1f6feb;
+    font-weight: 600;
+  }
+  .modal-tab-content.active { display: block !important; }
+
+  /* Seções do formulário (images / text / video) */
+  .form-section {
+    margin-bottom: 14px;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    background: rgba(13,17,23,0.4);
+  }
+  .form-section[open] { border-color: #30363d; }
+  .form-section summary {
+    cursor: pointer;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #c9d1d9;
+    list-style: none;
+    outline: none;
+    user-select: none;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .form-section summary::-webkit-details-marker { display: none; }
+  .form-section summary .caret {
+    font-size: 10px; color: #7d8590;
+    transition: transform 0.15s;
+  }
+  .form-section[open] summary .caret { transform: rotate(90deg); }
+  .form-section-body {
+    padding: 4px 14px 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .form-section-desc {
+    font-size: 10px; color: #6e7681;
+    margin-left: auto;
+    font-weight: 400;
+  }
+
+  /* Cards de preset/exemplo */
+  .preset-grid, .example-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+  .preset-card, .example-card {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.12s;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .preset-card:hover, .example-card:hover {
+    border-color: #1f6feb;
+    background: rgba(31,111,235,0.05);
+    transform: translateY(-1px);
+  }
+  .preset-name {
+    font-size: 13px; font-weight: 600; color: #e6edf3;
+  }
+  .preset-desc {
+    font-size: 11px; color: #8b949e; line-height: 1.4;
+  }
+  .preset-tags {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    margin-top: 4px;
+  }
+  .preset-tag {
+    font-size: 10px;
+    padding: 2px 7px;
+    background: rgba(31,111,235,0.12);
+    color: #79c0ff;
+    border-radius: 10px;
+    font-family: ui-monospace, monospace;
+  }
+  .example-thumb {
+    width: 100%;
+    aspect-ratio: 9/16;
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #30363d;
+    background: #0d1117;
+  }
+  .example-brief {
+    font-size: 11px; color: #8b949e;
+    line-height: 1.35;
+    max-height: 44px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+  .empty-tab {
+    padding: 40px; text-align: center;
+    color: #6e7681; font-size: 13px;
+  }
 </style>
 </head>
 <body>
@@ -275,24 +401,44 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
   <div id="new-run-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0;
        background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center;">
     <div style="background:#161b22; border:1px solid #30363d; border-radius:10px; padding:24px;
-         max-width:640px; width:92%; max-height:92vh; overflow-y:auto;">
+         max-width:720px; width:92%; max-height:92vh; overflow-y:auto;">
       <h3 style="margin:0 0 8px 0; font-size:16px;">Nova execução</h3>
       <div style="color:#7d8590; font-size:13px; margin-bottom:14px;">
         Receita: <b id="new-run-recipe-name"></b>
       </div>
-      <label style="display:block;color:#7d8590;font-size:12px;margin-bottom:6px;">
-        Input
-        <a href="#" id="new-run-mode-toggle" style="margin-left:10px;font-size:11px;color:#1f6feb;text-decoration:none;">⚙ modo JSON</a>
-      </label>
-      <textarea id="new-run-input" rows="4"
-        placeholder="ex.: Curso IA pra empreendedores, 30 dias resultados"
-        style="width:100%; background:#0d1117; color:#e6edf3; border:1px solid #30363d;
-               padding:10px; border-radius:6px; font-size:13px; font-family:ui-monospace, monospace;"></textarea>
 
-      <!-- Opções avançadas específicas por receita -->
-      <div id="advanced-opts" style="margin-top:14px;"></div>
+      <!-- Tabs: Formulário / Presets / Exemplos -->
+      <div class="modal-tabs">
+        <button class="modal-tab active" data-tab="form" onclick="switchTab('form')">📝 Formulário</button>
+        <button class="modal-tab" data-tab="presets" onclick="switchTab('presets')">🎨 Presets</button>
+        <button class="modal-tab" data-tab="examples" onclick="switchTab('examples')">🖼 Exemplos</button>
+      </div>
 
-      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
+      <!-- Aba 1: Formulário -->
+      <div id="tab-form" class="modal-tab-content active">
+        <label style="display:block;color:#7d8590;font-size:12px;margin-bottom:6px;">
+          Input
+          <a href="#" id="new-run-mode-toggle" style="margin-left:10px;font-size:11px;color:#1f6feb;text-decoration:none;">⚙ modo JSON</a>
+        </label>
+        <textarea id="new-run-input" rows="4"
+          placeholder="ex.: Curso IA pra empreendedores, 30 dias resultados"
+          style="width:100%; background:#0d1117; color:#e6edf3; border:1px solid #30363d;
+                 padding:10px; border-radius:6px; font-size:13px; font-family:ui-monospace, monospace;"></textarea>
+        <div id="advanced-opts" style="margin-top:14px;"></div>
+      </div>
+
+      <!-- Aba 2: Presets (renderizada on-demand) -->
+      <div id="tab-presets" class="modal-tab-content" style="display:none;">
+        <div class="empty-tab">carregando presets…</div>
+      </div>
+
+      <!-- Aba 3: Exemplos (renderizada on-demand) -->
+      <div id="tab-examples" class="modal-tab-content" style="display:none;">
+        <div class="empty-tab">carregando exemplos…</div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;
+                  padding-top:14px; border-top:1px solid #21262d;">
         <button class="ghost" onclick="closeNewRunDialog()">Cancelar</button>
         <button onclick="submitNewRun()">▶ Rodar</button>
       </div>
@@ -414,6 +560,175 @@ let newRunMode = 'text';  // text | json
 
 // Schemas de opções avançadas por receita. Cada campo é renderizado
 // como input apropriado. O valor final é serializado em input JSON.
+// Mapeamento field.key → seção. Usado pra agrupar em <details> no form.
+// Field sem mapeamento cai em 'general'.
+const FIELD_SECTIONS = {
+  // 🖼 IMAGES
+  image_count: 'images', image_model: 'images', model: 'images',
+  image_source: 'images', bg_prompts: 'images',
+  image_reference: 'images', image_reference_note: 'images',
+  image_background_color: 'images', image_formats: 'images',
+  formats: 'images', detect_text_in_bg: 'images',
+  // ✍ DESIGN / TEXT
+  slide_count: 'text', language: 'text', voice_style: 'text',
+  platform_targets: 'text', template: 'text', style: 'text',
+  handle: 'text', title: 'text', captions: 'text', cta: 'text',
+  use_vignette: 'text', use_perspective_grid: 'text', use_grain: 'text',
+  // 🎬 VIDEO
+  video_mode: 'video', platform: 'video', transition: 'video',
+  hold_final: 'video', hold_final_s: 'video', pacing: 'video',
+  loop_visual: 'video', use_karaoke: 'video', use_sfx: 'video',
+  kinetic_presets: 'video', freeze_frames: 'video',
+  use_parallax: 'video', depth_ai: 'video', narration_speed: 'video',
+  chrome_text_overlay: 'video', chrome_text_mode: 'video',
+  use_crossfade: 'video', use_color_grading: 'video',
+  use_brand_overlay: 'video', video_template: 'video',
+  video_audio: 'video', tts_provider: 'video',
+  // ⚙ GENERAL / META
+  approval_mode: 'general', with_research: 'general',
+  hook_variants: 'general', cta_variants: 'general',
+  ab_ai_suggest: 'general', combinations_to_render: 'general',
+  skip_image: 'general', skip_video: 'general',
+};
+
+const SECTION_META = [
+  ['images', '🖼 Geração de imagens', 'modelo SD, prompts, formatos'],
+  ['text', '✍ Design & Texto', 'templates, tipografia, linguagem'],
+  ['video', '🎬 Vídeo', 'transições, motion, plataforma, overlays'],
+  ['general', '⚙ Geral', 'aprovação, pesquisa, variantes'],
+];
+
+// Presets por recipe — click aplica overrides no form e troca pra aba Formulário.
+const PRESETS = {
+  'campanha-marketing': [
+    {
+      name: '🚀 TikTok viral (quick)',
+      desc: 'Reels/Shorts rápidos com chrome text full_slide, pacing tight, whip streak.',
+      input: {
+        video_mode: 'quick', platform: 'tiktok', image_count: 4,
+        pacing: 'tight', transition: 'whip_streak', hold_final_s: 5.0,
+        chrome_text_overlay: true, chrome_text_mode: 'full_slide',
+      },
+    },
+    {
+      name: '🎭 Cinematic premium (pro)',
+      desc: 'Pro mode com crossfade longo, freeze frames e parallax. Outro 5s.',
+      input: {
+        video_mode: 'pro', platform: 'instagram_reels', image_count: 5,
+        transition: 'crossfade_long', freeze_frames: true, use_parallax: true,
+        hold_final_s: 5.0, chrome_text_overlay: true, chrome_text_mode: 'overlay',
+      },
+    },
+    {
+      name: '📊 Data-viz B2B',
+      desc: 'Stats + freeze frame quando aparece número. Pro + chrome overlay.',
+      input: {
+        video_mode: 'pro', platform: '', image_count: 4,
+        freeze_frames: true, transition: 'crossfade_short',
+        chrome_text_overlay: true,
+      },
+    },
+    {
+      name: '🎬 Hero film (pro premium)',
+      desc: 'Kinetic + karaoke + parallax depth AI + hold longo. Experiência cinema.',
+      input: {
+        video_mode: 'pro', platform: 'tiktok', image_count: 5,
+        kinetic_presets: true, use_karaoke: true, use_parallax: true,
+        depth_ai: true, hold_final_s: 6.0,
+        transition: 'crossfade_long', chrome_text_overlay: true,
+      },
+    },
+    {
+      name: '⚡ Fast punch (quick + zoom)',
+      desc: 'Quick + zoom_punch + pacing tight. Impacto imediato em reels.',
+      input: {
+        video_mode: 'quick', platform: 'shorts', image_count: 4,
+        pacing: 'tight', transition: 'zoom_punch', hold_final_s: 4.0,
+      },
+    },
+    {
+      name: '🌿 Wellness suave',
+      desc: 'Pro + crossfade longo, sem SFX, kinetic off. Mood calmo.',
+      input: {
+        video_mode: 'pro', platform: 'instagram_reels', image_count: 4,
+        transition: 'crossfade_long', use_sfx: false,
+        hold_final_s: 4.0, chrome_text_overlay: true,
+      },
+    },
+  ],
+  'campanha-marketing-ab': [
+    {
+      name: '🔀 A/B auto (LLM sugere)',
+      desc: 'Pro + ab_ai_suggest ligado, 3 variantes de hook automáticas.',
+      input: {
+        video_mode: 'pro', image_count: 3, ab_ai_suggest: true,
+      },
+    },
+    {
+      name: '🎯 Manual (3 hooks × 2 CTAs)',
+      desc: 'Quick + hook_variants manuais pra comparar.',
+      input: {
+        video_mode: 'quick', image_count: 3,
+        hook_variants: 'pattern_interrupt\nstat_shot\nquestion_abrupt',
+        cta_variants: 'inema.club\nvem pra equipe',
+      },
+    },
+  ],
+  'carrossel-rico': [
+    {
+      name: '✨ Editorial Chrome (c79)',
+      desc: 'Template chrome italic + perspective grid + vignette + grain. 7 slides.',
+      input: {
+        slide_count: 7, template: 'editorial_chrome', image_source: 'generate',
+        use_vignette: true, use_perspective_grid: true, use_grain: true,
+      },
+    },
+    {
+      name: '📰 Magazine clássico',
+      desc: 'Tipografia Playfair grande, editorial tradicional.',
+      input: {
+        slide_count: 7, template: 'magazine', image_source: 'generate',
+      },
+    },
+    {
+      name: '📊 Data Viz B2B',
+      desc: 'Template data_viz + style corporate_clean. Pra carrosséis de dados.',
+      input: {
+        slide_count: 6, template: 'data_viz', style: 'corporate_clean',
+      },
+    },
+    {
+      name: '🌈 Bold Pop',
+      desc: 'Cores saturadas, impacto direto. Gen-Z/streetwear.',
+      input: {
+        slide_count: 5, template: 'bold_pop', style: 'bold_pop',
+      },
+    },
+    {
+      name: '🌿 Wellness Soft',
+      desc: 'Pastels + serif, calmo e premium.',
+      input: {
+        slide_count: 7, template: 'wellness_soft', style: 'wellness_soft',
+      },
+    },
+  ],
+  'carrossel-simples': [
+    {
+      name: '✨ Chrome minimal',
+      desc: 'Editorial chrome com vignette + grain. 3 formatos.',
+      input: {
+        template: 'editorial_chrome', model: 'flux2-klein',
+        use_vignette: true, use_perspective_grid: true, use_grain: true,
+      },
+    },
+    {
+      name: '📰 Magazine classic',
+      desc: 'Playfair serif padrão. Magazine mkt3-style.',
+      input: { template: 'magazine', model: 'flux2-klein' },
+    },
+  ],
+};
+
 const RECIPE_FIELDS = {
   'carrossel-simples': [
     {key: 'title', label: 'Título (capa)', type: 'text',
@@ -643,16 +958,35 @@ function renderAdvancedOpts(recipeName) {
     return;
   }
 
-  const det = document.createElement('details');
-  det.style.cssText = 'margin-top:6px; background:#0d1117; border:1px solid #30363d; border-radius:6px; padding:10px 12px;';
-  det.open = true;
-  const sum = document.createElement('summary');
-  sum.style.cssText = 'cursor:pointer; color:#1f6feb; font-size:12px; font-weight:600; user-select:none;';
-  sum.textContent = '⚙ Opções específicas da receita';
-  det.appendChild(sum);
+  // Cria um <details> por seção (images/text/video/general). Mostra só
+  // as seções que têm fields. Primeira seção com fields abre por default.
+  const sectionBodies = {};  // sec_key → <div.form-section-body>
+  const sectionDets = {};    // sec_key → <details>
+  SECTION_META.forEach(([secKey, title, desc], idx) => {
+    const det = document.createElement('details');
+    det.className = 'form-section';
+    det.dataset.section = secKey;
+    const sum = document.createElement('summary');
+    sum.innerHTML = `<span class="caret">▶</span> <span>${title}</span>` +
+                    `<span class="form-section-desc">${desc}</span>`;
+    det.appendChild(sum);
+    const body = document.createElement('div');
+    body.className = 'form-section-body';
+    det.appendChild(body);
+    sectionBodies[secKey] = body;
+    sectionDets[secKey] = det;
+  });
 
-  const body = document.createElement('div');
-  body.style.cssText = 'margin-top:12px; display:flex; flex-direction:column; gap:10px;';
+  // Conta fields por seção pra decidir qual abre por default
+  const fieldsBySection = {};
+  fields.forEach(f => {
+    const sec = FIELD_SECTIONS[f.key] || 'general';
+    (fieldsBySection[sec] = fieldsBySection[sec] || []).push(f);
+  });
+  // Primeira seção com fields fica aberta
+  const firstSecWithFields = SECTION_META.map(([k]) => k)
+    .find(k => (fieldsBySection[k] || []).length > 0);
+  if (firstSecWithFields) sectionDets[firstSecWithFields].open = true;
 
   fields.forEach(f => {
     const wrap = document.createElement('div');
@@ -823,11 +1157,18 @@ function renderAdvancedOpts(recipeName) {
       h.textContent = f.hint;
       wrap.appendChild(h);
     }
-    body.appendChild(wrap);
+    // Append no body da seção correta (ao invés de um body global)
+    const sec = FIELD_SECTIONS[f.key] || 'general';
+    const sbody = sectionBodies[sec] || sectionBodies['general'];
+    sbody.appendChild(wrap);
   });
 
-  det.appendChild(body);
-  container.appendChild(det);
+  // Anexa só as seções que tiveram fields
+  SECTION_META.forEach(([secKey]) => {
+    if ((fieldsBySection[secKey] || []).length > 0) {
+      container.appendChild(sectionDets[secKey]);
+    }
+  });
 
   // Aplica dependsOn: esconde/mostra campos conforme o valor do campo-pai
   function refreshDepends() {
@@ -917,7 +1258,162 @@ function openNewRunDialog() {
   newRunMode = 'text';
   document.getElementById('new-run-mode-toggle').textContent = '⚙ modo JSON';
   renderAdvancedOpts(selectedRecipe);
+  switchTab('form');  // sempre abre no formulário
   document.getElementById('new-run-modal').style.display = 'flex';
+}
+
+// Troca de aba no modal. Carrega presets/exemplos sob demanda (primeira vez).
+function switchTab(tabName) {
+  const tabs = ['form', 'presets', 'examples'];
+  tabs.forEach(t => {
+    const btn = document.querySelector(`.modal-tab[data-tab="${t}"]`);
+    const content = document.getElementById(`tab-${t}`);
+    if (!btn || !content) return;
+    if (t === tabName) {
+      btn.classList.add('active');
+      content.style.display = 'block';
+      content.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+      content.style.display = 'none';
+      content.classList.remove('active');
+    }
+  });
+  // Carrega conteúdo lazy
+  if (tabName === 'presets') renderPresetsTab(selectedRecipe);
+  if (tabName === 'examples') renderExamplesTab(selectedRecipe);
+}
+
+// Render da aba Presets — scaffolding (commit 2 preenche)
+function renderPresetsTab(recipeName) {
+  const tab = document.getElementById('tab-presets');
+  if (!tab) return;
+  const presets = (typeof PRESETS !== 'undefined' && PRESETS[recipeName]) || [];
+  if (!presets.length) {
+    tab.innerHTML = `<div class="empty-tab">
+      Nenhum preset disponível pra <b>${escapeHtml(recipeName)}</b>.
+    </div>`;
+    return;
+  }
+  let html = '<div class="preset-grid">';
+  presets.forEach((p, i) => {
+    const tags = Object.entries(p.input || {})
+      .filter(([k,v]) => k !== 'brief' && v !== null && v !== undefined && v !== '')
+      .slice(0, 5)
+      .map(([k,v]) => `<span class="preset-tag">${escapeHtml(k)}=${escapeHtml(String(v).slice(0,20))}</span>`)
+      .join('');
+    html += `
+      <div class="preset-card" onclick="applyPreset('${recipeName}', ${i})">
+        <div class="preset-name">${escapeHtml(p.name)}</div>
+        <div class="preset-desc">${escapeHtml(p.desc || '')}</div>
+        <div class="preset-tags">${tags}</div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  tab.innerHTML = html;
+}
+
+function applyPreset(recipeName, index) {
+  const preset = (PRESETS[recipeName] || [])[index];
+  if (!preset) return;
+  // Preserva brief digitado antes de aplicar preset (se houver)
+  const currentBrief = document.getElementById('new-run-input').value.trim();
+  const inp = { ...preset.input };
+  if (currentBrief && !inp.brief) inp.brief = currentBrief;
+  // Re-render form + preenche
+  renderAdvancedOpts(recipeName);
+  setTimeout(() => populateFormFromInput(recipeName, inp), 0);
+  if (inp.brief && !currentBrief) {
+    document.getElementById('new-run-input').value = inp.brief;
+  }
+  switchTab('form');
+}
+
+// Render da aba Exemplos — scaffolding (commit 3 preenche)
+async function renderExamplesTab(recipeName) {
+  const tab = document.getElementById('tab-examples');
+  if (!tab) return;
+  tab.innerHTML = `<div class="empty-tab">carregando exemplos…</div>`;
+  try {
+    const r = await api(`/runs?recipe=${encodeURIComponent(recipeName)}&limit=24`);
+    if (!r.ok) {
+      tab.innerHTML = `<div class="empty-tab">Erro ao carregar runs.</div>`;
+      return;
+    }
+    const runs = await r.json();
+    const successful = runs.filter(x => x.status === 'success');
+    if (!successful.length) {
+      tab.innerHTML = `<div class="empty-tab">
+        Nenhuma run bem-sucedida ainda pra <b>${escapeHtml(recipeName)}</b>.
+      </div>`;
+      return;
+    }
+    await renderExampleCards(tab, successful.slice(0, 12), recipeName);
+  } catch (e) {
+    tab.innerHTML = `<div class="empty-tab">Erro: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// Busca detalhe de cada run pra extrair thumb; monta grid
+async function renderExampleCards(tab, runs, recipeName) {
+  // Busca detalhes em paralelo (já só mostramos inputs — thumb requer detail)
+  const details = await Promise.all(runs.map(async (run) => {
+    try {
+      const rr = await api('/runs/' + run.run_id);
+      if (!rr.ok) return { run, thumb: null };
+      const detail = await rr.json();
+      // Pega primeira URL de imagem dos stages
+      let thumb = null;
+      for (const stg of Object.values(detail.stages || {})) {
+        for (const out of (stg.outputs || [])) {
+          const walk = (v) => {
+            if (thumb) return;
+            if (typeof v === 'string' && /\.(png|jpg|jpeg|webp)(\?|$)/i.test(v)) {
+              thumb = v;
+            } else if (Array.isArray(v)) v.forEach(walk);
+            else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+          };
+          walk(out);
+          if (thumb) break;
+        }
+        if (thumb) break;
+      }
+      return { run, thumb };
+    } catch (e) {
+      return { run, thumb: null };
+    }
+  }));
+
+  let html = '<div class="example-grid">';
+  details.forEach(({run, thumb}) => {
+    const brief = (run.input && (run.input.brief || run.input.topic || run.input.prompt)) || '—';
+    const briefShort = String(brief).replace(/\s+/g, ' ').slice(0, 100);
+    html += `
+      <div class="example-card" onclick="applyExample('${recipeName}', '${run.run_id}')">
+        ${thumb ? `<img class="example-thumb" src="${escapeHtml(thumb)}" loading="lazy" alt="">` : ''}
+        <div class="preset-name" style="font-size:11px;color:#8b949e;">${run.run_id.slice(0,8)}</div>
+        <div class="example-brief">${escapeHtml(briefShort)}</div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  tab.innerHTML = html;
+}
+
+async function applyExample(recipeName, runId) {
+  const r = await api('/runs/' + runId);
+  if (!r.ok) return;
+  const run = await r.json();
+  const inp = run.input || {};
+  renderAdvancedOpts(recipeName);
+  setTimeout(() => populateFormFromInput(recipeName, inp), 0);
+  const ta = document.getElementById('new-run-input');
+  const TEXT_KEYS = ['brief', 'topic', 'prompt', 'text', 'query'];
+  for (const k of TEXT_KEYS) {
+    if (typeof inp[k] === 'string' && inp[k].trim()) { ta.value = inp[k]; break; }
+  }
+  switchTab('form');
 }
 function closeNewRunDialog() {
   document.getElementById('new-run-modal').style.display = 'none';
