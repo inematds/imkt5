@@ -1098,6 +1098,68 @@ def create_app(
             raise HTTPException(404, f"thumb não encontrada: {slug}")
         return FileResponse(p, media_type="image/jpeg")
 
+    # Extrai thumbnail de vídeo via ffmpeg (cache em /tmp).
+    # Aceita apenas URLs /s3/... ou /artifacts/... (anti-SSRF).
+    @app.get("/video-thumb")
+    async def video_thumb(u: str, t: float = 2.0) -> FileResponse:
+        import hashlib
+        import subprocess
+        if not (u.startswith("/s3/") or u.startswith("/artifacts/")):
+            raise HTTPException(400, "url inválida (só /s3/ ou /artifacts/)")
+        cache_dir = Path("/tmp/imkt4-video-thumbs")
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_key = hashlib.sha256(f"{u}|{t}".encode()).hexdigest()[:16]
+        cache_path = cache_dir / f"{cache_key}.jpg"
+        if cache_path.exists() and cache_path.stat().st_size > 0:
+            return FileResponse(cache_path, media_type="image/jpeg")
+
+        # Resolve source path (download pra /tmp se /s3/, ffmpeg não
+        # consegue seek confiável via proxy streaming).
+        tmp_video: Path | None = None
+        if u.startswith("/artifacts/"):
+            src = (ARTIFACT_ROOT / u[len("/artifacts/"):]).resolve()
+            if not str(src).startswith(str(ARTIFACT_ROOT)) or not src.exists():
+                raise HTTPException(404, "vídeo não encontrado")
+            src_arg = str(src)
+        else:
+            # /s3/... — baixa via HTTPX pro /tmp antes de extrair
+            import httpx
+            port = os.environ.get("GATEWAY_PORT", "8080")
+            tmp_video = cache_dir / f"{cache_key}.mp4"
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    r = await client.get(f"http://127.0.0.1:{port}{u}")
+                    if r.status_code != 200:
+                        raise HTTPException(404, f"fonte respondeu {r.status_code}")
+                    tmp_video.write_bytes(r.content)
+            except httpx.HTTPError as exc:
+                raise HTTPException(502, f"erro baixando fonte: {exc}") from exc
+            src_arg = str(tmp_video)
+
+        # Extrai frame
+        try:
+            proc = subprocess.run(
+                ["ffmpeg", "-y", "-ss", f"{t:.2f}", "-i", src_arg,
+                 "-frames:v", "1", "-vf", "scale=360:-1",
+                 "-q:v", "3", str(cache_path)],
+                capture_output=True, timeout=20,
+            )
+            if proc.returncode != 0 or not cache_path.exists():
+                proc = subprocess.run(
+                    ["ffmpeg", "-y", "-ss", "0.1", "-i", src_arg,
+                     "-frames:v", "1", "-vf", "scale=360:-1",
+                     "-q:v", "3", str(cache_path)],
+                    capture_output=True, timeout=20,
+                )
+        except subprocess.TimeoutExpired:
+            raise HTTPException(504, "ffmpeg timeout") from None
+        finally:
+            if tmp_video is not None and tmp_video.exists():
+                tmp_video.unlink(missing_ok=True)
+        if not cache_path.exists() or cache_path.stat().st_size == 0:
+            raise HTTPException(500, "extração de frame falhou")
+        return FileResponse(cache_path, media_type="image/jpeg")
+
     # Catálogo dinâmico dos text overlay styles (lido de styles.json)
     @app.get("/text-style-catalog")
     async def text_style_catalog() -> dict[str, Any]:

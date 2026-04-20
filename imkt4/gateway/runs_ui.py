@@ -364,6 +364,26 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
     border: 1px solid #30363d;
     background: #0d1117;
   }
+  .example-thumb-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 9/16;
+    max-height: 200px;
+  }
+  .example-thumb-wrap .example-thumb {
+    max-height: 200px;
+    width: 100%; height: 100%;
+  }
+  .example-thumb-wrap .play-badge {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px; color: white;
+    text-shadow: 0 4px 12px rgba(0,0,0,0.85);
+    pointer-events: none;
+    opacity: 0.88;
+    transition: opacity 0.15s;
+  }
+  .example-card:hover .example-thumb-wrap .play-badge { opacity: 1; }
   .example-brief {
     font-size: 11px; color: #8b949e;
     line-height: 1.35;
@@ -1538,26 +1558,48 @@ async function renderExampleCards(tab, runs, recipeName) {
       day: '2-digit', month: '2-digit', year: '2-digit',
     });
     let thumbHtml = '';
+    let previewUrl = '';
     if (thumb) {
+      previewUrl = thumb.url;
       if (thumb.type === 'video') {
-        // video: mostra ícone ▶ sobre frame dark placeholder
-        thumbHtml = `<div class="example-thumb" style="background:#0d1117;display:flex;align-items:center;justify-content:center;">
-          <span style="font-size:28px;color:white;text-shadow:0 2px 8px rgba(0,0,0,.8);">▶</span>
-        </div>`;
+        // Thumb REAL do vídeo via /video-thumb?u=... (extrai frame via ffmpeg)
+        const thumbSrc = '/video-thumb?u=' + encodeURIComponent(thumb.url);
+        thumbHtml = `
+          <div class="example-thumb-wrap">
+            <img class="example-thumb" src="${thumbSrc}" loading="lazy" alt=""
+                 onerror="this.style.display='none'; this.nextElementSibling.style.background='#0d1117';">
+            <div class="play-badge">▶</div>
+          </div>`;
       } else {
-        thumbHtml = `<img class="example-thumb" src="${escapeHtml(thumb.url)}" loading="lazy" alt="">`;
+        thumbHtml = `<div class="example-thumb-wrap">
+          <img class="example-thumb" src="${escapeHtml(thumb.url)}" loading="lazy" alt="">
+        </div>`;
       }
     } else {
-      thumbHtml = `<div class="example-thumb" style="background:#21262d;display:flex;align-items:center;justify-content:center;color:#6e7681;font-size:11px;">sem thumb</div>`;
+      thumbHtml = `<div class="example-thumb-wrap">
+        <div class="example-thumb" style="background:#21262d;display:flex;align-items:center;justify-content:center;color:#6e7681;font-size:11px;">sem thumb</div>
+      </div>`;
     }
+    // Click na thumb → abre modal de preview. Botão "usar config" aplica o preset.
+    const previewAttr = previewUrl
+      ? `onclick="event.stopPropagation(); openMediaModal('${escapeHtml(previewUrl)}');"`
+      : '';
     html += `
-      <div class="example-card" onclick="applyExample('${recipeName}', '${run.run_id}')">
-        ${thumbHtml}
+      <div class="example-card">
+        <div ${previewAttr} style="cursor:${previewUrl ? 'zoom-in' : 'default'};">
+          ${thumbHtml}
+        </div>
         <div style="display:flex;justify-content:space-between;font-size:10px;color:#6e7681;">
           <span style="font-family:ui-monospace,monospace;">${run.run_id.slice(0,8)}</span>
           <span>${when}</span>
         </div>
         <div class="example-brief">${escapeHtml(briefShort)}</div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          ${previewUrl ? `<button type="button" onclick="event.stopPropagation();openMediaModal('${escapeHtml(previewUrl)}');"
+                   style="flex:1;padding:5px 8px;border:1px solid #30363d;background:#0d1117;color:#c9d1d9;border-radius:4px;font-size:10.5px;cursor:pointer;">👁 preview</button>` : ''}
+          <button type="button" onclick="event.stopPropagation();applyExample('${recipeName}', '${run.run_id}');"
+                  style="flex:1;padding:5px 8px;border:1px solid #1f6feb;background:rgba(31,111,235,0.12);color:#79c0ff;border-radius:4px;font-size:10.5px;cursor:pointer;font-weight:600;">📋 usar config</button>
+        </div>
       </div>
     `;
   });
