@@ -1224,14 +1224,25 @@ function renderAdvancedOpts(recipeName) {
   function refreshDepends() {
     container.querySelectorAll('[data-depends-key]').forEach(wrap => {
       const dk = wrap.dataset.dependsKey;
-      const dv = wrap.dataset.dependsValue;
+      const dv = wrap.dataset.dependsValue;  // vem como string do DOM
       const parent = container.querySelector(`[data-fkey="${dk}"]`);
       if (!parent) return;
-      // Se parent é pill container, lê dataset.value; senão lê .value
-      const parentVal = parent.dataset.ftype === 'pills'
-        ? parent.dataset.value
-        : (parent.value || '');
-      wrap.style.display = (parentVal === dv) ? '' : 'none';
+      let match = false;
+      const ftype = parent.dataset.ftype || '';
+      if (ftype === 'pills' || ftype === 'style-gallery') {
+        match = String(parent.dataset.value) === String(dv);
+      } else if (ftype === 'boolean' || ftype === 'boolean_default_on') {
+        // Checkbox: compara o estado booleano com dv normalizado
+        const want = (dv === 'true' || dv === true || dv === '1');
+        match = parent.checked === want;
+      } else if (parent.type === 'checkbox') {
+        // Fallback pra qualquer input checkbox sem ftype marcado
+        const want = (dv === 'true' || dv === true || dv === '1');
+        match = parent.checked === want;
+      } else {
+        match = String(parent.value || '') === String(dv);
+      }
+      wrap.style.display = match ? '' : 'none';
     });
   }
   container.querySelectorAll('[data-fkey]').forEach(el => {
