@@ -161,6 +161,72 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
     font-family: ui-monospace, monospace;
   }
   .input-card-rest .input-kv b { color: #e6edf3; font-weight: 600; }
+
+  /* Formulário completo (echo do modal Nova Execução com valores usados) */
+  .form-echo {
+    margin-top: 12px; padding: 14px;
+    background: #0d1117;
+    border: 1px solid #30363d; border-radius: 8px;
+  }
+  .form-echo-title {
+    font-size: 10px; color: #58a6ff; font-weight: 700;
+    letter-spacing: 1px; margin-bottom: 12px;
+  }
+  .form-echo-field {
+    margin-bottom: 14px; padding-bottom: 10px;
+    border-bottom: 1px solid #21262d;
+  }
+  .form-echo-field:last-child { border-bottom: none; margin-bottom: 0; }
+  .form-echo-label {
+    font-size: 12px; font-weight: 600; color: #c9d1d9;
+    margin-bottom: 6px; display: block;
+  }
+  .form-echo-label .used-marker {
+    font-size: 10px; color: #3fb950; margin-left: 6px;
+    font-weight: 500;
+  }
+  .form-echo-label .default-marker {
+    font-size: 10px; color: #8b949e; margin-left: 6px;
+    font-weight: 400; font-style: italic;
+  }
+  .form-echo-hint {
+    font-size: 10px; color: #8b949e; margin-top: 4px;
+  }
+  .form-echo-pills {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .form-echo-pill {
+    padding: 4px 10px; border-radius: 14px;
+    font-size: 11px; border: 1px solid #30363d;
+    background: #161b22; color: #8b949e;
+  }
+  .form-echo-pill.used {
+    background: rgba(63,185,80,0.12);
+    border-color: #3fb950; color: #3fb950;
+    font-weight: 600;
+  }
+  .form-echo-pill.default-on {
+    background: rgba(31,111,235,0.10);
+    border-color: #58a6ff; color: #79c0ff;
+  }
+  .form-echo-value {
+    padding: 4px 10px; border-radius: 4px;
+    font-family: ui-monospace, monospace; font-size: 12px;
+    background: rgba(63,185,80,0.12); color: #3fb950;
+    border: 1px solid rgba(63,185,80,0.3);
+    display: inline-block;
+  }
+  .form-echo-value.empty {
+    background: #21262d; color: #6e7681;
+    border-color: #30363d; font-style: italic;
+  }
+  .form-echo-bool {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px;
+  }
+  .form-echo-bool .checkbox-icon { font-size: 14px; }
+  .form-echo-bool.on { color: #3fb950; font-weight: 600; }
+  .form-echo-bool.off { color: #6e7681; }
 </style>
 </head>
 <body>
@@ -1022,8 +1088,13 @@ async function renderDetail(runId, opts) {
       <code>${run.run_id}</code> · tenant <b>${run.tenant_id}</b>
     </div>
     ${renderInputCard(run.input)}
+    ${renderFormEcho(run.recipe, run.input)}
     <div class="toolbar">
       <button onclick="rerunAll('${run.run_id}')">▶ Rodar de novo</button>
+      <button class="ghost" onclick="cloneRunToModal('${run.run_id}')"
+              style="color:#79c0ff;border-color:#1f3a5f;">
+         📋 Clonar com ajustes
+      </button>
       <a class="ghost" href="/runs/${run.run_id}/bundle.zip"
          style="text-decoration:none;padding:7px 14px;border-radius:6px;border:1px solid #30363d;color:#e6edf3;font-size:13px;">
          📥 Baixar bundle.zip
@@ -1110,6 +1181,184 @@ function renderInputCard(input) {
       ${rest ? `<div class="input-card-rest">${rest}</div>` : ''}
     </details>
   `;
+}
+
+// Formulário completo com valores usados destacados (igual ao modal de
+// Nova Execução, mas read-only). Facilita repetir/ajustar.
+function renderFormEcho(recipeName, input) {
+  const fields = RECIPE_FIELDS[recipeName];
+  if (!fields || !Array.isArray(fields) || fields.length === 0) return '';
+  const inp = input || {};
+  const TEXT_KEYS = ['brief', 'topic', 'prompt', 'text', 'query'];
+
+  let html = '<details class="form-echo">';
+  html += '<summary style="cursor:pointer;outline:none;list-style:none;">';
+  html += '<span class="form-echo-title">📋 FORMULÁRIO COMPLETO — valores usados vs defaults</span>';
+  html += '</summary>';
+
+  for (const f of fields) {
+    // Campos de texto principal já mostrados no input-card; pula pra evitar duplicação
+    if (f.type === 'text' && TEXT_KEYS.includes(f.key)) continue;
+
+    const raw = inp[f.key];
+    const isSet = raw !== undefined && raw !== null && raw !== '' &&
+                  !(Array.isArray(raw) && raw.length === 0);
+    const marker = isSet
+      ? '<span class="used-marker">✓ enviado</span>'
+      : '<span class="default-marker">— default</span>';
+
+    html += `<div class="form-echo-field">`;
+    html += `<label class="form-echo-label">${escapeHtml(f.label)} ${marker}</label>`;
+
+    if (f.type === 'pills') {
+      const used = isSet ? String(raw) : (f.default !== undefined ? String(f.default) : '');
+      const opts = f.options || [];
+      html += '<div class="form-echo-pills">';
+      for (const [val, label] of opts) {
+        const isUsed = String(val) === used && isSet;
+        const isDefault = !isSet && String(val) === String(f.default || '');
+        const cls = isUsed ? 'used' : (isDefault ? 'default-on' : '');
+        html += `<span class="form-echo-pill ${cls}">${escapeHtml(label)}</span>`;
+      }
+      html += '</div>';
+    } else if (f.type === 'pills-multi') {
+      const used = Array.isArray(raw) ? raw.map(String) : (Array.isArray(f.default) ? f.default.map(String) : []);
+      const opts = f.options || [];
+      html += '<div class="form-echo-pills">';
+      for (const [val, label] of opts) {
+        const isUsed = used.includes(String(val));
+        const cls = isUsed ? (isSet ? 'used' : 'default-on') : '';
+        html += `<span class="form-echo-pill ${cls}">${escapeHtml(label)}</span>`;
+      }
+      html += '</div>';
+    } else if (f.type === 'boolean') {
+      const on = isSet && (raw === true || raw === 'true' || raw === 1);
+      html += `<span class="form-echo-bool ${on ? 'on' : 'off'}">`;
+      html += `<span class="checkbox-icon">${on ? '☑' : '☐'}</span>`;
+      html += `${on ? 'ON' : 'OFF'}${!isSet ? ' (default)' : ''}`;
+      html += '</span>';
+    } else if (f.type === 'boolean_default_on') {
+      const off = isSet && (raw === false || raw === 'false' || raw === 0);
+      const on = !off;
+      html += `<span class="form-echo-bool ${on ? 'on' : 'off'}">`;
+      html += `<span class="checkbox-icon">${on ? '☑' : '☐'}</span>`;
+      html += `${on ? 'ON' : 'OFF'}${!isSet ? ' (default ON)' : ''}`;
+      html += '</span>';
+    } else if (f.type === 'number') {
+      const val = isSet ? String(raw) : (f.default !== undefined ? String(f.default) + ' (default)' : '—');
+      const cls = isSet ? '' : 'empty';
+      html += `<span class="form-echo-value ${cls}">${escapeHtml(val)}</span>`;
+    } else if (f.type === 'lines') {
+      if (isSet && typeof raw === 'string') {
+        html += `<div class="form-echo-value" style="white-space:pre-wrap;display:block;max-width:100%;">${escapeHtml(raw.slice(0,500))}</div>`;
+      } else if (Array.isArray(raw) && raw.length) {
+        html += `<div class="form-echo-value" style="white-space:pre-wrap;display:block;max-width:100%;">${escapeHtml(raw.join('\n').slice(0,500))}</div>`;
+      } else {
+        html += '<span class="form-echo-value empty">(não preenchido)</span>';
+      }
+    } else {
+      // text / default
+      if (isSet) {
+        const sv = typeof raw === 'object' ? JSON.stringify(raw) : String(raw);
+        html += `<span class="form-echo-value">${escapeHtml(sv.slice(0, 200))}</span>`;
+      } else {
+        html += '<span class="form-echo-value empty">—</span>';
+      }
+    }
+
+    if (f.hint) {
+      html += `<div class="form-echo-hint">${escapeHtml(f.hint)}</div>`;
+    }
+    html += '</div>';
+  }
+
+  html += '</details>';
+  return html;
+}
+
+// Pré-preenche os campos advanced (pills/booleans/numbers) com valores
+// do input. Deve rodar DEPOIS de renderAdvancedOpts pra o DOM estar pronto.
+function populateFormFromInput(recipeName, input) {
+  const fields = RECIPE_FIELDS[recipeName];
+  if (!fields) return;
+  const container = document.getElementById('advanced-opts');
+  if (!container) return;
+  for (const f of fields) {
+    const wrap = container.querySelector(`[data-fwrap="${f.key}"]`);
+    if (!wrap) continue;
+    const val = input[f.key];
+    if (val === undefined || val === null) continue;
+
+    if (f.type === 'text' || f.type === 'number') {
+      const el = wrap.querySelector(`[data-fkey="${f.key}"]`);
+      if (el) el.value = String(val);
+    } else if (f.type === 'lines') {
+      const el = wrap.querySelector(`[data-fkey="${f.key}"]`);
+      if (el) el.value = Array.isArray(val) ? val.join('\n') : String(val);
+    } else if (f.type === 'select') {
+      const el = wrap.querySelector(`select[data-fkey="${f.key}"]`);
+      if (el) el.value = String(val);
+    } else if (f.type === 'pills') {
+      const box = wrap.querySelector(`[data-fkey="${f.key}"][data-ftype="pills"]`);
+      if (box) {
+        const target = [...box.children].find(c => c.dataset && c.dataset.val === String(val));
+        if (target) target.click();  // triggers restyle + refreshDepends
+      }
+    } else if (f.type === 'pills-multi') {
+      const box = wrap.querySelector(`[data-fkey="${f.key}"][data-ftype="pills-multi"]`);
+      if (!box) continue;
+      const wanted = new Set((Array.isArray(val) ? val : [val]).map(String));
+      [...box.children].forEach(pill => {
+        const isOn = pill.dataset.on === '1';
+        const shouldBeOn = wanted.has(String(pill.dataset.val));
+        if (isOn !== shouldBeOn) pill.click();
+      });
+    } else if (f.type === 'checkboxes') {
+      const box = wrap.querySelector(`[data-fkey="${f.key}"]`);
+      if (!box) continue;
+      const wanted = new Set((Array.isArray(val) ? val : [val]).map(String));
+      box.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.checked = wanted.has(cb.value);
+      });
+    } else if (f.type === 'boolean' || f.type === 'boolean_default_on') {
+      const cb = wrap.querySelector(`input[type="checkbox"][data-fkey="${f.key}"]`);
+      if (cb) cb.checked = (val === true || val === 'true' || val === 1);
+    }
+  }
+}
+
+// Abre o modal Nova Execução pré-preenchido com valores da run original
+function openNewRunModal(recipe, input) {
+  if (typeof selectedRecipe !== 'undefined') {
+    window.selectedRecipe = recipe;
+  }
+  // nome da receita no header
+  const nameEl = document.getElementById('new-run-recipe-name');
+  if (nameEl) nameEl.textContent = recipe;
+  // textarea principal (brief/topic)
+  const ta = document.getElementById('new-run-input');
+  const TEXT_KEYS = ['brief', 'topic', 'prompt', 'text', 'query'];
+  let mainText = '';
+  for (const k of TEXT_KEYS) {
+    if (typeof input[k] === 'string' && input[k].trim()) { mainText = input[k]; break; }
+  }
+  if (ta) ta.value = mainText;
+  window.newRunMode = 'text';
+  const tog = document.getElementById('new-run-mode-toggle');
+  if (tog) tog.textContent = '⚙ modo JSON';
+  renderAdvancedOpts(recipe);
+  // espera o DOM pintar os pills antes de popular
+  setTimeout(() => populateFormFromInput(recipe, input), 0);
+  document.getElementById('new-run-modal').style.display = 'flex';
+}
+
+// Clonar valores de uma run pro modal Nova Execução — pré-preenche e abre
+async function cloneRunToModal(runId) {
+  const r = await api('/runs/' + runId);
+  if (!r.ok) { alert('Run não encontrada'); return; }
+  const run = await r.json();
+  const inp = run.input || {};
+  openNewRunModal(run.recipe, inp);
 }
 
 function extractArtifactUrls(outputs) {
