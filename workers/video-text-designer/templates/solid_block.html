@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: {{ width }}px; height: {{ height }}px;
+    overflow: hidden; background: rgba(0,0,0,0);
+    font-family: 'Inter', sans-serif; position: relative;
+  }
+  /* Bold Pop — solid colored block with harsh contrast text */
+  .block-wrap {
+    position: absolute;
+    {% if text_position == 'bottom' %}
+    bottom: {{ safe_bottom // 2 }}px;
+    {% elif text_position == 'center' %}
+    top: 50%; transform: translateY(-50%);
+    {% else %}
+    top: {{ safe_top }}px;
+    {% endif %}
+    left: {{ pad_h // 2 }}px;
+    right: {{ pad_h // 2 }}px;
+    background: {{ block_color | default('#FFD600') }};
+    padding: 36px 42px;
+    border-radius: 4px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.65);
+    transform: {% if text_position == 'center' %}translateY(-50%) rotate(-2deg){% else %}rotate(-2deg){% endif %};
+  }
+  .block-headline {
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    font-size: {{ font_size }}px;
+    line-height: 1.0;
+    letter-spacing: -0.02em;
+    color: {{ block_text_color | default('#000000') }};
+    text-transform: uppercase;
+    text-align: left;
+  }
+</style>
+</head>
+<body>
+  <div class="block-wrap">
+    <div class="block-headline">{{ text_overlay }}</div>
+  </div>
+</body>
+</html>

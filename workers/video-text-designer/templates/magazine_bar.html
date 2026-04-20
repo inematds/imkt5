@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Inter:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: {{ width }}px; height: {{ height }}px;
+    overflow: hidden; background: rgba(0,0,0,0);
+    font-family: 'Inter', sans-serif;
+    position: relative;
+  }
+  /* Dark bar centered horizontal, full-width */
+  .mag-bar {
+    position: absolute;
+    left: 0; right: 0;
+    {% if text_position == 'bottom' %}bottom: {{ safe_bottom }}px;
+    {% elif text_position == 'center' %}top: 50%; transform: translateY(-50%);
+    {% else %}top: {{ safe_top }}px;
+    {% endif %}
+    background: linear-gradient(90deg,
+      rgba(0,0,0,0) 0%,
+      rgba(0,0,0,0.88) 12%,
+      rgba(0,0,0,0.95) 50%,
+      rgba(0,0,0,0.88) 88%,
+      rgba(0,0,0,0) 100%);
+    padding: 42px {{ pad_h }}px;
+    text-align: center;
+  }
+  .mag-headline {
+    font-family: 'Playfair Display', serif;
+    font-weight: 900;
+    font-size: {{ font_size }}px;
+    line-height: 1.05;
+    letter-spacing: 0.005em;
+    color: #ffffff;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.9), 0 0 1px rgba(255,255,255,0.3);
+    text-transform: uppercase;
+    max-width: {{ max_text_width }}px;
+    margin: 0 auto;
+  }
+</style>
+</head>
+<body>
+  <div class="mag-bar">
+    <div class="mag-headline">{{ text_overlay }}</div>
+  </div>
+</body>
+</html>

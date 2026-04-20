@@ -398,7 +398,7 @@ RUNS_UI_HTML = r"""<!DOCTYPE html>
   </aside>
 
   <!-- Modal: nova execução -->
-  <div id="new-run-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+  <div id="new-run-modal" data-modal-no-dismiss="1" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0;
        background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center;">
     <div style="background:#161b22; border:1px solid #30363d; border-radius:10px; padding:24px;
          max-width:720px; width:92%; max-height:92vh; overflow-y:auto;">
@@ -581,6 +581,7 @@ const FIELD_SECTIONS = {
   kinetic_presets: 'video', freeze_frames: 'video',
   use_parallax: 'video', depth_ai: 'video', narration_speed: 'video',
   chrome_text_overlay: 'video', chrome_text_mode: 'video',
+  text_overlay_style: 'video',
   use_crossfade: 'video', use_color_grading: 'video',
   use_brand_overlay: 'video', video_template: 'video',
   video_audio: 'video', tts_provider: 'video',
@@ -867,16 +868,20 @@ const RECIPE_FIELDS = {
     {key: 'chrome_text_overlay', label: '✨ Chrome text overlay (carrossel-rico style)',
      type: 'boolean',
      hint: 'c79 fase α-bis. Pré-renderiza texto de cena via Playwright (Instrument Serif italic + chrome gradient + halo glow) em vez do drawtext ffmpeg. +1 stage, ~5-8s extra por run. Default OFF.'},
-    {key: 'chrome_text_mode', label: 'Modo do chrome text',
-     type: 'pills',
+    {key: 'text_overlay_style', label: 'Estilo do texto sobre o vídeo',
+     type: 'style-gallery',
      options: [
-       ['', 'Overlay (default — texto no topo, imagem visível)'],
-       ['overlay', 'Overlay (texto no topo, imagem visível)'],
-       ['full_slide', '✨ Full slide (layout carrossel completo, imagem dimmed)'],
+       ['chrome_overlay',    'Chrome Overlay',    'chrome italic no topo + halo (carrossel-rico default)'],
+       ['chrome_fullslide',  'Chrome Full Slide', 'chrome centrado, imagem dimmed estilo carrossel'],
+       ['magazine_bar',      'Magazine Bar',      'barra preta horizontal + Playfair serif'],
+       ['solid_block',       'Solid Block',       'bloco amarelo/colorido + Inter bold rotacionado'],
+       ['stamp_diagonal',    'Stamp Diagonal',    'stamp rotacionado c79 estilo "NO BUSINESS"'],
+       ['kinetic_pop',       'Kinetic Pop',       'Bebas Neue enorme + neon glow'],
+       ['minimal_caption',   'Minimal Caption',   'texto pequeno bottom-left doc style'],
      ],
-     default: '',
+     default: 'chrome_overlay',
      dependsOn: {key: 'chrome_text_overlay', value: true},
-     hint: 'Full slide replica o layout editorial_chrome do carrossel: texto CENTRADO grande, vignette, grain, accent lines, brand moment no CTA.'},
+     hint: 'Clique na imagem pra escolher. chrome_text_overlay precisa estar ON.'},
     {key: 'loop_visual', label: 'Loop visual (rewatch rate)', type: 'boolean',
      hint: 'Última cena usa imagem da primeira (rima visual pro TikTok/Reels).'},
     {key: 'kinetic_presets', label: 'Kinetic presets por style', type: 'boolean',
@@ -977,16 +982,18 @@ function renderAdvancedOpts(recipeName) {
     sectionDets[secKey] = det;
   });
 
-  // Conta fields por seção pra decidir qual abre por default
+  // Agrupa fields por seção
   const fieldsBySection = {};
   fields.forEach(f => {
     const sec = FIELD_SECTIONS[f.key] || 'general';
     (fieldsBySection[sec] = fieldsBySection[sec] || []).push(f);
   });
-  // Primeira seção com fields fica aberta
-  const firstSecWithFields = SECTION_META.map(([k]) => k)
-    .find(k => (fieldsBySection[k] || []).length > 0);
-  if (firstSecWithFields) sectionDets[firstSecWithFields].open = true;
+  // Todas as seções com fields abrem por default (user pode fechar)
+  SECTION_META.forEach(([secKey]) => {
+    if ((fieldsBySection[secKey] || []).length > 0) {
+      sectionDets[secKey].open = true;
+    }
+  });
 
   fields.forEach(f => {
     const wrap = document.createElement('div');
@@ -1039,6 +1046,49 @@ function renderAdvancedOpts(recipeName) {
       });
       if (f.default !== undefined) sel.value = f.default;
       wrap.appendChild(sel);
+    } else if (f.type === 'style-gallery') {
+      // Grid de cards com thumbnail + nome + descrição. Um selecionável.
+      const box = document.createElement('div');
+      box.style.cssText = 'display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px;';
+      box.dataset.fkey = f.key;
+      box.dataset.ftype = 'style-gallery';
+      const defaultVal = f.default !== undefined ? f.default : (f.options?.[0]?.[0] ?? '');
+      box.dataset.value = defaultVal;
+      (f.options || []).forEach(([val, label, desc]) => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.dataset.val = val;
+        const isActive = val === defaultVal;
+        card.style.cssText = `
+          padding: 0; border-radius: 6px;
+          cursor: pointer; user-select: none; transition: all 0.15s;
+          background: ${isActive ? 'rgba(31,111,235,0.15)' : '#0d1117'};
+          border: 2px solid ${isActive ? '#1f6feb' : '#30363d'};
+          display: flex; flex-direction: column;
+          overflow: hidden; text-align: left;
+        `;
+        card.innerHTML = `
+          <img src="/text-style-thumbs/${val}.jpg" loading="lazy"
+               style="width:100%;aspect-ratio:9/16;object-fit:cover;display:block;
+                      background:#0d1117;border-bottom:1px solid #30363d;">
+          <div style="padding:6px 8px;">
+            <div style="color:#e6edf3;font-size:11px;font-weight:600;margin-bottom:2px;">${escapeHtml(label)}</div>
+            <div style="color:#8b949e;font-size:9.5px;line-height:1.3;">${escapeHtml(desc || '')}</div>
+          </div>
+        `;
+        card.onclick = (ev) => {
+          ev.preventDefault();
+          box.dataset.value = val;
+          [...box.children].forEach(c => {
+            const on = c.dataset.val === val;
+            c.style.background = on ? 'rgba(31,111,235,0.15)' : '#0d1117';
+            c.style.borderColor = on ? '#1f6feb' : '#30363d';
+          });
+          box.dispatchEvent(new Event('change', {bubbles: true}));
+        };
+        box.appendChild(card);
+      });
+      wrap.appendChild(box);
     } else if (f.type === 'pills') {
       // Radio-style: clicar em uma desmarca a outra. Default destacada.
       const box = document.createElement('div');
@@ -1210,6 +1260,11 @@ function collectAdvancedOpts(recipeName) {
       if (vals.length && JSON.stringify(vals) !== JSON.stringify(def)) {
         out[f.key] = vals;
       }
+    } else if (f.type === 'style-gallery') {
+      const box = container.querySelector(`[data-fkey="${f.key}"][data-ftype="style-gallery"]`);
+      if (!box) return;
+      const v = box.dataset.value;
+      if (v) out[f.key] = v;
     } else if (f.type === 'pills') {
       const box = container.querySelector(`[data-fkey="${f.key}"][data-ftype="pills"]`);
       if (!box) return;
@@ -1716,17 +1771,29 @@ function renderFormEcho(recipeName, input) {
     html += `<div class="form-echo-field">`;
     html += `<label class="form-echo-label">${escapeHtml(f.label)} ${marker}</label>`;
 
-    if (f.type === 'pills') {
+    if (f.type === 'pills' || f.type === 'style-gallery') {
       const used = isSet ? String(raw) : (f.default !== undefined ? String(f.default) : '');
       const opts = f.options || [];
-      html += '<div class="form-echo-pills">';
-      for (const [val, label] of opts) {
-        const isUsed = String(val) === used && isSet;
-        const isDefault = !isSet && String(val) === String(f.default || '');
-        const cls = isUsed ? 'used' : (isDefault ? 'default-on' : '');
-        html += `<span class="form-echo-pill ${cls}">${escapeHtml(label)}</span>`;
+      if (f.type === 'style-gallery') {
+        // Mostra só o card do estilo usado
+        const chosen = opts.find(([v]) => String(v) === used);
+        if (chosen) {
+          const [val, label, desc] = chosen;
+          html += `<div style="display:flex;gap:10px;align-items:center;">
+            <img src="/text-style-thumbs/${escapeHtml(val)}.jpg" style="width:64px;height:auto;aspect-ratio:9/16;object-fit:cover;border-radius:4px;border:1px solid #30363d;">
+            <div><b style="color:#e6edf3;">${escapeHtml(label)}</b><br><span style="font-size:10.5px;color:#8b949e;">${escapeHtml(desc || '')}</span></div>
+          </div>`;
+        }
+      } else {
+        html += '<div class="form-echo-pills">';
+        for (const [val, label] of opts) {
+          const isUsed = String(val) === used && isSet;
+          const isDefault = !isSet && String(val) === String(f.default || '');
+          const cls = isUsed ? 'used' : (isDefault ? 'default-on' : '');
+          html += `<span class="form-echo-pill ${cls}">${escapeHtml(label)}</span>`;
+        }
+        html += '</div>';
       }
-      html += '</div>';
     } else if (f.type === 'pills-multi') {
       const used = Array.isArray(raw) ? raw.map(String) : (Array.isArray(f.default) ? f.default.map(String) : []);
       const opts = f.options || [];
@@ -1804,6 +1871,12 @@ function populateFormFromInput(recipeName, input) {
     } else if (f.type === 'select') {
       const el = wrap.querySelector(`select[data-fkey="${f.key}"]`);
       if (el) el.value = String(val);
+    } else if (f.type === 'style-gallery') {
+      const box = wrap.querySelector(`[data-fkey="${f.key}"][data-ftype="style-gallery"]`);
+      if (box) {
+        const target = [...box.children].find(c => c.dataset && c.dataset.val === String(val));
+        if (target) target.click();
+      }
     } else if (f.type === 'pills') {
       const box = wrap.querySelector(`[data-fkey="${f.key}"][data-ftype="pills"]`);
       if (box) {

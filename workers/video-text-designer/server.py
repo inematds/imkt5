@@ -84,12 +84,30 @@ class VideoTextDesignerWorker(BaseWorker):
         if not scenes:
             return {"outputs": []}
 
-        # mode: "overlay" (default) | "full_slide"
-        mode = (payload.get("mode") or payload.get("chrome_text_mode") or "overlay").lower()
-        if mode == "full_slide":
-            template_name = payload.get("template", "editorial_chrome_fullslide")
-        else:
-            template_name = payload.get("template", "editorial_chrome_textonly")
+        # text_overlay_style (preferred) > mode > default
+        style = (
+            payload.get("text_overlay_style")
+            or payload.get("style")
+            or payload.get("mode")
+            or payload.get("chrome_text_mode")
+            or "chrome_overlay"
+        ).lower()
+
+        # Mapeia style → template
+        STYLE_TO_TEMPLATE = {
+            "chrome_overlay":    "editorial_chrome_textonly",    # chrome top/center/bottom (opt-in dark fade)
+            "chrome_fullslide":  "editorial_chrome_fullslide",   # chrome centrado + dark overlay 82%
+            "magazine_bar":      "magazine_bar",                 # dark bar horizontal + Playfair
+            "solid_block":       "solid_block",                  # bloco colorido sólido + Inter bold
+            "stamp_diagonal":    "stamp_diagonal",               # stamp rotacionado estilo c79
+            "kinetic_pop":       "kinetic_pop",                  # Bebas Neue + neon glow
+            "minimal_caption":   "minimal_caption",              # small caption bottom-left
+            # aliases legados
+            "overlay":           "editorial_chrome_textonly",
+            "full_slide":        "editorial_chrome_fullslide",
+        }
+        # Override direto se passou template explícito
+        template_name = payload.get("template") or STYLE_TO_TEMPLATE.get(style, "editorial_chrome_textonly")
         tmpl = _jinja.get_template(f"{template_name}.html")
         use_dark_bar = bool(payload.get("use_dark_bar", False))
         use_dark_top_fade = payload.get("use_dark_top_fade")
@@ -167,6 +185,19 @@ class VideoTextDesignerWorker(BaseWorker):
                         # full_slide extras
                         "badge": sc.get("badge") or "INEMA",
                         "slide_label": sc.get("slide_label") or "",
+                        # solid_block extras
+                        "block_color": payload.get("block_color") or "#FFD600",
+                        "block_text_color": payload.get("block_text_color") or "#000000",
+                        # stamp_diagonal extras
+                        "stamp_color": payload.get("stamp_color") or "#F09025",
+                        "stamp_glow": payload.get("stamp_glow") or "rgba(240,144,37,0.55)",
+                        # kinetic_pop extras
+                        "pop_color": payload.get("pop_color") or "#00E5FF",
+                        "pop_glow1": payload.get("pop_glow1") or "rgba(0,229,255,0.85)",
+                        "pop_glow2": payload.get("pop_glow2") or "rgba(0,229,255,0.55)",
+                        "pop_glow3": payload.get("pop_glow3") or "rgba(0,229,255,0.35)",
+                        # minimal_caption
+                        "caption_prefix": sc.get("caption_prefix") or "",
                     }
 
                     html = tmpl.render(**ctx)

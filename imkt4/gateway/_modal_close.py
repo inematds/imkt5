@@ -107,6 +107,8 @@ UNIVERSAL_MODAL_HTML = r"""
   function ensureOverlayClickClose(el) {
     if (el.dataset.imkt4OverlayBound === '1') return;
     el.dataset.imkt4OverlayBound = '1';
+    // opt-out: data-modal-no-dismiss="1" desabilita fechar por click-fora
+    if (el.dataset.modalNoDismiss === '1') return;
     el.addEventListener('click', function(ev) {
       // Se clicou no próprio overlay (não dentro de um filho), fecha
       if (ev.target === el) {
@@ -125,9 +127,12 @@ UNIVERSAL_MODAL_HTML = r"""
   }
 
   // ESC global — fecha o modal visível mais "superior" (maior z-index)
+  // Ignora modais com data-modal-no-dismiss="1" (ex.: form de nova execução)
   document.addEventListener('keydown', function(ev) {
     if (ev.key !== 'Escape') return;
-    const modals = [...findManagedModals()].filter(isVisible);
+    const modals = [...findManagedModals()]
+      .filter(isVisible)
+      .filter(el => el.dataset.modalNoDismiss !== '1');
     if (!modals.length) return;
     // pega o de maior z-index
     modals.sort((a, b) => {

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: {{ width }}px; height: {{ height }}px;
+    overflow: hidden; background: rgba(0,0,0,0);
+    font-family: 'Inter', sans-serif; position: relative;
+  }
+  /* Minimal caption — pequeno texto bottom-left estilo documentário */
+  .cap-wrap {
+    position: absolute;
+    bottom: {{ safe_bottom }}px;
+    left: {{ pad_h }}px;
+    max-width: {{ (max_text_width * 0.80) | int }}px;
+    padding: 12px 18px;
+    background: rgba(8,12,18,0.72);
+    backdrop-filter: blur(8px);
+    border-left: 3px solid rgba(255,255,255,0.60);
+    border-radius: 2px 6px 6px 2px;
+  }
+  .cap-text {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: {{ (font_size * 0.35) | int }}px;
+    line-height: 1.35;
+    letter-spacing: 0.012em;
+    color: rgba(255,255,255,0.93);
+  }
+  .cap-dot {
+    font-size: {{ (font_size * 0.24) | int }}px;
+    color: rgba(255,255,255,0.55);
+    margin-right: 8px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+  <div class="cap-wrap">
+    <div class="cap-text">
+      {% if caption_prefix %}<span class="cap-dot">{{ caption_prefix }}</span>{% endif %}{{ text_overlay }}
+    </div>
+  </div>
+</body>
+</html>

@@ -151,11 +151,18 @@ stages:
       width: $.stages.video.output.scene_plan.width
       height: $.stages.video.output.scene_plan.height
       tenant_id: $.tenant.tenant_id
-      # "overlay" (default, texto no topo) ou "full_slide" (layout carrossel completo)
+      # text_overlay_style: chrome_overlay (default) | chrome_fullslide |
+      #   magazine_bar | solid_block | stamp_diagonal | kinetic_pop | minimal_caption
+      text_overlay_style: $.input.text_overlay_style
       mode: $.input.chrome_text_mode
       brand_logo: $.input.brand_logo
       brand_tag: $.input.brand_tag
       brand_handle: $.input.brand_handle
+      # Cores custom para solid_block / stamp / kinetic
+      block_color: $.input.block_color
+      block_text_color: $.input.block_text_color
+      stamp_color: $.input.stamp_color
+      pop_color: $.input.pop_color
     approval: {mode: none}
 
   - id: video_render

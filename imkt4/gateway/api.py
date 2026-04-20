@@ -1078,6 +1078,26 @@ def create_app(
             raise HTTPException(404, "artefato não encontrado")
         return FileResponse(abs_path)
 
+    # ── thumbs dos estilos de text overlay (worker video-text-designer) ─
+    # Pré-renderizados pelo script gen_text_style_thumbs.py pra UI mostrar
+    # visualmente cada estilo antes do user escolher.
+    TEXT_STYLE_THUMBS = Path(
+        "./workers/video-text-designer/assets/thumbs"
+    ).resolve()
+
+    @app.get("/text-style-thumbs/{slug}.jpg")
+    async def get_text_style_thumb(slug: str) -> FileResponse:
+        # Só aceita slugs alfanum + underscore (sem path traversal)
+        import re
+        if not re.fullmatch(r"[a-z0-9_]+", slug):
+            raise HTTPException(400, "slug inválido")
+        p = (TEXT_STYLE_THUMBS / f"{slug}.jpg").resolve()
+        if not str(p).startswith(str(TEXT_STYLE_THUMBS)):
+            raise HTTPException(403, "forbidden")
+        if not p.exists() or not p.is_file():
+            raise HTTPException(404, f"thumb não encontrada: {slug}")
+        return FileResponse(p, media_type="image/jpeg")
+
     # ── proxy S3/MinIO: streama bytes pelo gateway ────────────────────
     # Soluciona "localhost:9000 quebra em outra máquina" — UI recebe
     # `/s3/<bucket>/<key>` e o gateway busca do MinIO internamente.
