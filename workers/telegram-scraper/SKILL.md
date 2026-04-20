@@ -4,114 +4,134 @@ Capability: `telegram.group_fetch`. Porta 8117.
 
 ## Papel
 
-Coleta mensagens de grupos Telegram (privados ou públicos) via **MTProto**
-(`telethon`) usando sessão de usuário — tem acesso a histórico completo e
-search nativo (Bot API não consegue).
+Extrai mensagens de **grupos Telegram com tópicos** (grupo fórum) via
+MTProto (telethon, user session). Reusa padrões testados do projeto
+`telegramtopicosindex` — parse de link `t.me/c/`, `GetForumTopicsRequest`
+paginado, `iter_messages(reply_to=topic_id)`, download opcional de mídia.
+
+**Pipeline:** este worker **produz** → `telegram-topics-search` **consome**
+(no mesmo diretório `TG_TOPICS_DATA_DIR`).
 
 ## Pré-requisitos (setup 1×)
 
-1. Pega `API_ID` + `API_HASH` em https://my.telegram.org/apps (grátis,
-   5 min).
-2. Coloca no `.env`:
+1. Pega `API_ID` + `API_HASH` em https://my.telegram.org/apps (grátis).
+2. `.env`:
    ```
    TELEGRAM_API_ID=1234567
    TELEGRAM_API_HASH=abcdef...
    TELEGRAM_SESSION_DIR=./data/tg-sessions
+   TG_TOPICS_DATA_DIR=/caminho/pasta/out   # onde os tópicos serão salvos
    ```
-3. Roda **uma vez** o script de autenticação pra gerar session file:
+3. Roda 1× pra autenticar:
    ```bash
    python scripts/tg_auth.py +55SEU_NUMERO inema
    ```
-   Pede código SMS (e senha 2FA se configurada). Session fica em
-   `data/tg-sessions/inema.session`. Depois disso o worker usa essa
-   sessão sem precisar login.
-4. Sua conta já deve ser **membro** dos grupos que quer scrapeear.
+   Pede código SMS + senha 2FA. Session fica em
+   `data/tg-sessions/inema.session`.
+4. Sua conta já deve ser **membro** do grupo.
+
+## 4 Modos
+
+| Mode | O que faz | Requer link com topic? |
+|---|---|---|
+| `list_topics` | Só lista tópicos do grupo, salva `grupo_metadata.json`. **Não extrai mensagens.** | não |
+| `extract_topic` | Extrai mensagens de **1 tópico** específico | ✅ sim (ou passar `topic_id` no payload) |
+| `extract_all` | Lista tudo + extrai todos os tópicos | não |
+| `incremental` | Igual `extract_all`, mas **pula tópicos que já existem** em disco (tem `metadata.json`) | não |
 
 ## Input
 
 ```json
 {
-  "group": "https://t.me/meu_grupo" | "@meu_grupo" | -1001234567890,
-  "mode": "search" | "all" | "since_last",
-  "query": "ia agentes",
-  "limit": 200,
-  "since_date": "2026-04-01T00:00:00",
-  "include_media": false,
+  "group_link": "https://t.me/c/2517011104",
+  "mode": "extract_all",
+  "max_topics": 10,
+  "baixar_midia": false,
+  "file_filter": ["pdf", "jpg"],
+  "somidia": false,
+  "output_dir": null,
   "tenant_id": "inema"
 }
 ```
 
-- **`mode: "since_last"`** (default) — busca só mensagens depois do
-  `last_message_id` salvo pra esse grupo (idempotente). Na primeira
-  chamada pega do zero (ou `since_date` se fornecido).
-- **`mode: "search"`** — busca mensagens contendo `query` (Telegram
-  server-side, rápido). Respeita `limit`.
-- **`mode: "all"`** — re-fetch de tudo (ignora state). Use pra reindexar.
+- `group_link` — aceita URL `t.me/c/<grupo>[/<topic>]` OU chat_id numérico
+  (ex: `-1002517011104`).
+- `baixar_midia` — baixa fotos (60s timeout) e documentos (120s timeout).
+- `file_filter` — só baixa extensões específicas (`["pdf","jpg"]`).
+- `somidia` — baixa SÓ mídia, não cria `messages.json`/`content.txt`.
+- `output_dir` — default = `TG_TOPICS_DATA_DIR` do `.env`.
+- `tenant_id` — determina qual session file usar.
 
 ## Output
 
+### Mode list_topics
 ```json
 {
-  "messages": [
-    {
-      "id": 12345,
-      "date": "2026-04-18T14:23:00Z",
-      "from_id": 987654321,
-      "from_name": "Fulano",
-      "text": "Pessoal, alguém viu o post do...",
-      "views": 132,
-      "forwards": 3,
-      "reply_to": 12340,
-      "reactions": {"👍": 5, "🔥": 2},
-      "media": null
-    }
-  ],
-  "count": 50,
-  "group": {
-    "id": -1001234567890,
-    "title": "Meu Grupo",
-    "username": "meu_grupo",
-    "members_count": 1234
+  "mode": "list_topics",
+  "group": {"id": 2517011104, "chat_id": -1002517011104, "title": "INEMA.FTD", "internal_id": "2517011104"},
+  "topics_count": 38,
+  "topics": [{"id": 163, "title": "MENU Links Formação", "date": "...", "from_id": 7388953786}, ...],
+  "topics_truncated": false,
+  "output_dir": "/.../out/2517011104"
+}
+```
+
+### Mode extract_topic
+```json
+{
+  "mode": "extract_topic",
+  "group": {"chat_id": -1002517011104, "internal_id": "2517011104"},
+  "topic": {
+    "topic_id": 163,
+    "topic_title": "MENU Links Formação",
+    "path": "/.../out/2517011104/163",
+    "messages_count": 20,
+    "media_count": 0
   },
-  "state": {
-    "last_message_id": 12399,
-    "last_fetched_at": "2026-04-20T02:58:12Z",
-    "total_fetched_lifetime": 487
-  }
+  "output_dir": "/.../out/2517011104"
 }
 ```
 
-## Tracking do "já buscou"
-
-Arquivo `data/tg-sessions/state.json`:
+### Mode extract_all / incremental
 ```json
 {
-  "<tenant>": {
-    "<group_id>": {
-      "last_message_id": 12399,
-      "last_fetched_at": "2026-04-20T02:58:12Z",
-      "total_fetched_lifetime": 487
-    }
-  }
+  "mode": "extract_all",
+  "group": {...},
+  "topics_listed": 38,
+  "topics_extracted": 35,
+  "topics_skipped": 0,
+  "topics_failed": [{"id": 1234, "title": "...", "error": "..."}],
+  "extracted": [{"topic_id", "path", "messages_count", "media_count"}, ...],
+  "output_dir": "/.../out/2517011104",
+  "extraction_date": "2026-04-20T..."
 }
 ```
 
-Atualizado após cada fetch bem-sucedido. Thread-safe via lock async.
+## Estrutura de saída
 
-## Limites
+Segue exatamente o padrão do `telegramtopicosindex`:
 
-- Rate limit do Telegram: ~30-50 req/min pra listagem; search ~20/min.
-  Worker respeita via `FloodWaitError` handler (sleep + retry).
-- Mensagens muito antigas (>1 ano) podem ter text truncado pelo
-  servidor.
-- Se o grupo é muito grande (>500k msgs), modo `all` pode demorar — use
-  `since_date` pra limitar.
-- Max 200 msgs/request (Telegram API hard limit). Worker paginciona
-  automaticamente se `limit > 200`.
+```
+<output_dir>/
+└── <grupo_id>/
+    ├── grupo_metadata.json           # {titulo, total_topicos, topicos: [...]}
+    └── <topic_id>/
+        ├── metadata.json              # {topic_id, total_messages, topic_title, ...}
+        ├── messages.json              # [{id, author, date, text, has_media, ...}]
+        ├── content.txt                # legível pra humano
+        ├── photo_<msgid>_NNN.jpg      # se baixar_midia
+        └── document_<msgid>_NNN.*     # se baixar_midia
+```
 
-## Segurança
+O `telegram-topics-search` (port 8118) lê exatamente essa estrutura pra
+responder queries offline.
 
-- Sessão fica em `data/tg-sessions/<tenant>.session` — **sensível**
-  (equivale a login). Não commitar, adicionar ao `.gitignore`.
-- Worker nunca escreve mensagens (read-only por design).
-- Não armazena contas de usuário além do session file.
+## Limites conhecidos
+
+- `GetForumTopicsRequest` limit 100/pg × 50 pg = 5000 tópicos max por grupo.
+- Rate limit Telegram: ~30-50 req/min. Pra grupos com muitos tópicos,
+  usar `max_topics` em batches ou `mode: incremental`.
+- `iter_messages(reply_to=...)` pega TODAS as mensagens do tópico de uma
+  vez — se o tópico é muito grande (10k+ msgs), pode demorar alguns
+  minutos.
+- Download de mídia é opcional pela performance — default OFF.
