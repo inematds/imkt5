@@ -294,6 +294,31 @@ workers:
     timeout_seconds: 120
     max_concurrent: 2
 
+  # telegram-scraper — coleta mensagens de grupos Telegram via MTProto
+  # (user session, não bot). Suporta 3 modos: since_last (incremental),
+  # search (nativo do servidor), all (re-fetch). Tracking por (tenant,
+  # group) em data/tg-sessions/state.json.
+  # Pré-requisito: rodar scripts/tg_auth.py <phone> <tenant> uma vez.
+  - name: telegram-scraper
+    capabilities: [telegram.group_fetch]
+    endpoint: http://localhost:8117
+    local: true
+    priority: 50
+    timeout_seconds: 300   # fetch grande pode demorar
+    max_concurrent: 1      # Telegram rate limits são agressivos
+
+  # telegram-topics-search — busca OFFLINE no dataset já extraído pelo
+  # projeto telegramtopicosindex. Zero API calls, milissegundos de
+  # latência. Lê <root>/<group>/<topic>/{metadata,messages}.json.
+  # Config: env TG_TOPICS_DATA_DIR (default ../telegramtopicosindex/out).
+  - name: telegram-topics-search
+    capabilities: [telegram.topics_search]
+    endpoint: http://localhost:8118
+    local: true
+    priority: 50
+    timeout_seconds: 30
+    max_concurrent: 4
+
   # # ── plataformas (da absorção do timesmkt3) ───────────────────────
   # - name: platform-instagram
   # capabilities: [platform.instagram]
