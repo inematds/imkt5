@@ -38,20 +38,21 @@ _jinja = jinja2.Environment(
 
 
 def _font_size_for(text: str, width: int, height: int) -> int:
-    """Font size adaptativo (mkt3-style): <30chars=80px, 30-60=64, 60+=52.
-    Escala pelo width (reel 1080 = baseline)."""
+    """Font size adaptativo — carrossel-rico style (c79 law 8 "type as character").
+    Maior que drawtext tradicional, menor pra textos longos."""
     chars = max(1, len(text.strip()))
-    if chars < 20:
-        base = 108
-    elif chars < 40:
-        base = 84
+    if chars < 15:
+        base = 148   # hero short (ex: "INEMA", "87%")
+    elif chars < 25:
+        base = 128   # short hook
+    elif chars < 45:
+        base = 102
     elif chars < 70:
-        base = 64
+        base = 80
     else:
-        base = 52
-    # Escala pelo width (>=1080 = 1.0, landscape 1920 = 1.4)
+        base = 64
     scale = width / 1080.0
-    return max(36, int(base * scale))
+    return max(48, int(base * scale))
 
 
 def _safe_zones(width: int, height: int) -> tuple[int, int, int]:
@@ -83,9 +84,22 @@ class VideoTextDesignerWorker(BaseWorker):
         if not scenes:
             return {"outputs": []}
 
-        template_name = payload.get("template", "editorial_chrome_textonly")
+        # mode: "overlay" (default) | "full_slide"
+        mode = (payload.get("mode") or payload.get("chrome_text_mode") or "overlay").lower()
+        if mode == "full_slide":
+            template_name = payload.get("template", "editorial_chrome_fullslide")
+        else:
+            template_name = payload.get("template", "editorial_chrome_textonly")
         tmpl = _jinja.get_template(f"{template_name}.html")
         use_dark_bar = bool(payload.get("use_dark_bar", False))
+        use_dark_top_fade = payload.get("use_dark_top_fade")
+        use_dark_top_fade = True if use_dark_top_fade is None else bool(use_dark_top_fade)
+        use_accent_line = payload.get("use_accent_line")
+        use_accent_line = True if use_accent_line is None else bool(use_accent_line)
+        # Brand moment config (aparece no scene CTA final)
+        brand_logo = payload.get("brand_logo") or "INEMA"
+        brand_tag = payload.get("brand_tag") or ""
+        brand_handle = payload.get("brand_handle") or "@inema.tds"
         # Defaults globais (vindos do scene_plan do recipe)
         default_w = int(payload.get("width", 1080))
         default_h = int(payload.get("height", 1920))
@@ -114,11 +128,19 @@ class VideoTextDesignerWorker(BaseWorker):
                     font_size = _font_size_for(text, width, height)
                     max_text_width = int(width - 2 * pad_h)
 
-                    # Stat mode: quando cena tem stat_a.number E o tipo é proof/solution
+                    # Stat mode: quando cena tem stat_a.number E tipo proof/solution
                     stat_number = None
                     stat_a = sc.get("stat_a") or {}
                     if isinstance(stat_a, dict) and scene_type in ("proof", "solution"):
                         stat_number = stat_a.get("number")
+                    # Brand moment: última cena com scene_type=cta vira INEMA logo gigante
+                    is_last = (i == len(scenes) - 1)
+                    is_brand_moment = (
+                        scene_type == "cta" and is_last
+                        and bool(payload.get("brand_moment_on_cta", True))
+                    )
+                    # fade height ~10% da altura, min 160px
+                    fade_top_height = max(160, int(height * 0.12))
 
                     ctx = {
                         "width": width,
@@ -133,7 +155,18 @@ class VideoTextDesignerWorker(BaseWorker):
                         "pad_h": pad_h,
                         "bar_pad_y": int(font_size * 0.40),
                         "stat_number": stat_number,
+                        "stat_a": stat_a if isinstance(stat_a, dict) else None,
                         "use_dark_bar": use_dark_bar,
+                        "use_dark_top_fade": use_dark_top_fade,
+                        "use_accent_line": use_accent_line,
+                        "fade_top_height": fade_top_height,
+                        "is_brand_moment": is_brand_moment,
+                        "brand_logo": brand_logo,
+                        "brand_tag": brand_tag,
+                        "brand_handle": brand_handle,
+                        # full_slide extras
+                        "badge": sc.get("badge") or "INEMA",
+                        "slide_label": sc.get("slide_label") or "",
                     }
 
                     html = tmpl.render(**ctx)

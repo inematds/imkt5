@@ -151,6 +151,11 @@ stages:
       width: $.stages.video.output.scene_plan.width
       height: $.stages.video.output.scene_plan.height
       tenant_id: $.tenant.tenant_id
+      # "overlay" (default, texto no topo) ou "full_slide" (layout carrossel completo)
+      mode: $.input.chrome_text_mode
+      brand_logo: $.input.brand_logo
+      brand_tag: $.input.brand_tag
+      brand_handle: $.input.brand_handle
     approval: {mode: none}
 
   - id: video_render

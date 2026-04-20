@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width={{ width }}">
+<!-- FULL-SLIDE MODE: o PNG cobre a cena quase toda com overlay escuro,
+     replicando o layout do carrossel-rico editorial_chrome. A imagem
+     da cena fica de fundo fantasma (~25% visível). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: {{ width }}px;
+    height: {{ height }}px;
+    overflow: hidden;
+    background: rgba(0,0,0,0);
+    font-family: 'Inter', sans-serif;
+    position: relative;
+  }
+
+  /* Overlay radial denso — imagem fica como "sombra" */
+  .full-overlay {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center,
+      rgba(10,10,15,0.58) 0%,
+      rgba(0,0,0,0.82) 70%,
+      rgba(0,0,0,0.92) 100%);
+  }
+
+  /* Vignette (c79 law 2) */
+  .vignette {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 28%, rgba(0,0,0,0.80) 100%);
+  }
+
+  /* Film grain CSS puro (determinístico, c79 law 10) */
+  .grain {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    opacity: 0.22;
+    background-image:
+      radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px),
+      radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+      radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 3px 3px, 5px 5px, 7px 7px;
+    background-position: 0 0, 1px 2px, 2px 1px;
+    mix-blend-mode: overlay;
+  }
+
+  /* Chrome accent lines top + bottom */
+  .accent-line-top {
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(to right, transparent 0%,
+      rgba(255,255,255,0.65) 20%, rgba(255,255,255,0.95) 50%,
+      rgba(255,255,255,0.65) 80%, transparent 100%);
+    filter: drop-shadow(0 0 12px rgba(255,255,255,0.55));
+  }
+  .accent-line-bottom {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(to right, transparent 0%,
+      rgba(255,255,255,0.45) 20%, rgba(255,255,255,0.75) 50%,
+      rgba(255,255,255,0.45) 80%, transparent 100%);
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.42));
+  }
+
+  /* Badge top-left igual ao carrossel */
+  .badge {
+    position: absolute;
+    top: {{ (safe_top * 0.6) | int }}px;
+    left: {{ pad_h }}px;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.30);
+    border-radius: 9999px;
+    padding: 12px 24px;
+    font-size: {{ (font_size * 0.22) | int }}px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    backdrop-filter: blur(10px);
+  }
+
+  /* Label top-right: scene_type ou número */
+  .slide-label {
+    position: absolute;
+    top: {{ (safe_top * 0.6) | int }}px;
+    right: {{ pad_h }}px;
+    font-family: 'Inter', sans-serif;
+    font-size: {{ (font_size * 0.20) | int }}px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.50);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* Handle bottom-right */
+  .handle {
+    position: absolute;
+    bottom: {{ (safe_bottom * 0.55) | int }}px;
+    right: {{ pad_h }}px;
+    font-family: 'Inter', sans-serif;
+    font-size: {{ (font_size * 0.22) | int }}px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 0.08em;
+  }
+
+  .stage {
+    position: relative;
+    z-index: 2;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: {{ safe_top + 40 }}px {{ pad_h }}px {{ safe_bottom + 40 }}px;
+    text-align: center;
+  }
+
+  /* Chrome headline — bem maior (c79 law 8 type as character) */
+  .headline-big {
+    font-family: 'Instrument Serif', 'Playfair Display', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: {{ (font_size * 1.35) | int }}px;
+    line-height: 1.06;
+    letter-spacing: 0.003em;
+    max-width: {{ max_text_width }}px;
+
+    background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 40%, #b0b0b0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+
+    filter:
+      drop-shadow(0 0 40px rgba(255,255,255,0.70))
+      drop-shadow(0 0 80px rgba(255,255,255,0.30))
+      drop-shadow(0 6px 22px rgba(0,0,0,0.80));
+  }
+
+  /* Stat block grande (glass) */
+  {% if stat_number %}
+  .stat-wrap-big {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 22px;
+    background: rgba(15,15,20,0.55);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 28px;
+    padding: 60px 72px;
+    min-width: {{ (width * 0.60) | int }}px;
+    filter: drop-shadow(0 30px 80px rgba(0,0,0,0.75));
+  }
+  .stat-num-big {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: {{ (font_size * 2.6) | int }}px;
+    line-height: 0.85;
+    background: linear-gradient(180deg, #ffffff 0%, #c0c0c0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 42px rgba(255,255,255,0.62));
+  }
+  .stat-lbl-big {
+    font-family: 'Inter', sans-serif;
+    font-size: {{ (font_size * 0.34) | int }}px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.86);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    text-align: center;
+    max-width: 80%;
+    line-height: 1.35;
+  }
+  {% endif %}
+
+  /* Brand moment pro último CTA */
+  {% if is_brand_moment %}
+  .brand-full {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 36px;
+  }
+  .brand-logo-huge {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: {{ (font_size * 3.2) | int }}px;
+    line-height: 0.92;
+    letter-spacing: -0.02em;
+    background: linear-gradient(180deg, #ffffff 0%, #c8c8c8 60%, #ffffff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter:
+      drop-shadow(0 0 50px rgba(255,255,255,0.80))
+      drop-shadow(0 0 100px rgba(255,255,255,0.38));
+  }
+  .brand-tag-big {
+    font-family: 'Inter', sans-serif;
+    font-size: {{ (font_size * 0.38) | int }}px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.85);
+    max-width: 80%;
+    line-height: 1.4;
+    letter-spacing: 0.015em;
+  }
+  .brand-handle-big {
+    font-family: 'Inter', sans-serif;
+    font-size: {{ (font_size * 0.32) | int }}px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.72);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  {% endif %}
+</style>
+</head>
+<body>
+  <div class="full-overlay"></div>
+  <div class="vignette"></div>
+  <div class="grain"></div>
+  <div class="accent-line-top"></div>
+  <div class="accent-line-bottom"></div>
+
+  <div class="badge">{{ badge or 'INEMA' }}</div>
+  <div class="slide-label">{{ slide_label or scene_type or '' }}</div>
+  <div class="handle">{{ brand_handle or '@inema.tds' }}</div>
+
+  <div class="stage">
+    {% if is_brand_moment %}
+      <div class="brand-full">
+        <div class="brand-logo-huge">{{ brand_logo or text_overlay }}</div>
+        {% if brand_tag %}<div class="brand-tag-big">{{ brand_tag }}</div>{% endif %}
+        <div class="brand-handle-big">{{ brand_handle or '@inema.tds' }}</div>
+      </div>
+    {% elif stat_number %}
+      <div class="stat-wrap-big">
+        <div class="stat-num-big">{{ stat_number }}</div>
+        <div class="stat-lbl-big">{{ text_overlay }}</div>
+      </div>
+    {% else %}
+      <div class="headline-big">{{ text_overlay }}</div>
+    {% endif %}
+  </div>
+</body>
+</html>

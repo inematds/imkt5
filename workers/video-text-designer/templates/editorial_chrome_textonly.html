@@ -15,7 +15,52 @@
     overflow: hidden;
     background: rgba(0,0,0,0);  /* transparent for overlay */
     font-family: 'Inter', sans-serif;
+    position: relative;
   }
+
+  /* Dark gradient fade no topo — dá contraste garantido pro chrome text
+     mesmo quando a imagem por baixo é brilhante (c79 law 2 "black canvas"). */
+  {% if use_dark_top_fade | default(true) %}
+  .dark-top {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: {{ fade_top_height }}px;
+    background: linear-gradient(180deg,
+      rgba(0,0,0,0.72) 0%,
+      rgba(0,0,0,0.45) 55%,
+      rgba(0,0,0,0) 100%);
+    pointer-events: none;
+  }
+  {% endif %}
+
+  {% if text_position == 'bottom' and (use_dark_top_fade | default(true)) %}
+  .dark-bottom {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: {{ fade_top_height }}px;
+    background: linear-gradient(0deg,
+      rgba(0,0,0,0.72) 0%,
+      rgba(0,0,0,0.45) 55%,
+      rgba(0,0,0,0) 100%);
+    pointer-events: none;
+  }
+  {% endif %}
+
+  /* Chrome accent line top (c79 unifying texture) */
+  {% if use_accent_line | default(true) %}
+  .accent-line-top {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(to right,
+      transparent 0%,
+      rgba(255,255,255,0.65) 20%,
+      rgba(255,255,255,0.95) 50%,
+      rgba(255,255,255,0.65) 80%,
+      transparent 100%);
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.55));
+  }
+  {% endif %}
 
   .stage {
     position: relative;
@@ -37,120 +82,162 @@
     padding-right: {{ pad_h }}px;
   }
 
-  /* Barra escura (magazine style) — opcional, default false */
-  {% if use_dark_bar %}
-  .headline-bar {
-    position: absolute;
-    left: 0; right: 0;
-    {% if text_position == 'center' %}top: 50%; transform: translateY(-50%);
-    {% elif text_position == 'bottom' %}bottom: {{ safe_bottom - 20 }}px;
-    {% else %}top: {{ safe_top - 20 }}px;
-    {% endif %}
-    height: auto;
-    padding: {{ bar_pad_y }}px {{ pad_h }}px;
-    background: linear-gradient(90deg,
-      rgba(0,0,0,0) 0%,
-      rgba(0,0,0,0.55) 15%,
-      rgba(0,0,0,0.72) 50%,
-      rgba(0,0,0,0.55) 85%,
-      rgba(0,0,0,0) 100%);
-    backdrop-filter: blur(3px);
-  }
-  {% endif %}
-
-  /* Chrome gradient headline (c79 law 3 — light is the brand) */
+  /* Chrome gradient headline — BIGGER + stronger halo (c79 law 3 + 8) */
   .headline {
     font-family: 'Instrument Serif', 'Playfair Display', Georgia, serif;
     font-style: italic;
     font-weight: 400;
     font-size: {{ font_size }}px;
-    line-height: 1.08;
+    line-height: 1.06;
     letter-spacing: 0.005em;
     text-align: center;
     max-width: {{ max_text_width }}px;
 
-    background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 40%, #b8b8b8 100%);
+    background: linear-gradient(180deg, #ffffff 0%, #f5f5f5 35%, #b8b8b8 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     color: transparent;
 
-    /* Halo glow duplo — premium depth (c79 law 3) */
+    /* Halo triplo — mais premium (drop-shadow stacks) */
     filter:
-      drop-shadow(0 0 24px rgba(255,255,255,0.55))
-      drop-shadow(0 0 48px rgba(255,255,255,0.22))
-      drop-shadow(0 4px 18px rgba(0,0,0,0.82));
+      drop-shadow(0 0 32px rgba(255,255,255,0.62))
+      drop-shadow(0 0 64px rgba(255,255,255,0.28))
+      drop-shadow(0 6px 20px rgba(0,0,0,0.85));
   }
 
-  /* Variante: badge/stat module (scene_type = proof com stat) */
+  /* Stat module quando cena proof/solution com número */
   {% if stat_number %}
   .stat-wrap {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    background: rgba(20,20,25,0.50);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255,255,255,0.14);
-    border-radius: 20px;
-    padding: 36px 48px;
-    min-width: {{ (width * 0.50) | int }}px;
-    filter: drop-shadow(0 20px 60px rgba(0,0,0,0.55));
+    gap: 16px;
+    background: rgba(15,15,20,0.55);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 24px;
+    padding: 48px 64px;
+    min-width: {{ (width * 0.58) | int }}px;
+    filter: drop-shadow(0 24px 70px rgba(0,0,0,0.65));
   }
   .stat-number {
     font-family: 'Instrument Serif', serif;
     font-style: italic;
-    font-size: {{ (font_size * 1.6) | int }}px;
+    font-size: {{ (font_size * 1.8) | int }}px;
     line-height: 0.85;
     background: linear-gradient(180deg, #ffffff 0%, #c8c8c8 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 30px rgba(255,255,255,0.45));
+    filter: drop-shadow(0 0 36px rgba(255,255,255,0.55));
   }
   .stat-label {
     font-family: 'Inter', sans-serif;
     font-size: {{ (font_size * 0.28) | int }}px;
     font-weight: 600;
-    color: rgba(255,255,255,0.85);
+    color: rgba(255,255,255,0.88);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     text-align: center;
+    max-width: 80%;
   }
   {% endif %}
 
-  /* CTA scene — com borda de luz em baixo */
-  {% if scene_type == 'cta' %}
-  .cta-accent {
+  /* Brand moment: cena CTA final vira logo INEMA grande (c79 law 9 "hero shot") */
+  {% if is_brand_moment %}
+  .brand-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+    text-align: center;
+  }
+  .brand-logo-big {
+    font-family: 'Instrument Serif', 'Playfair Display', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: {{ (font_size * 2.2) | int }}px;
+    line-height: 0.92;
+    letter-spacing: -0.02em;
+    background: linear-gradient(180deg, #ffffff 0%, #c8c8c8 60%, #ffffff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter:
+      drop-shadow(0 0 44px rgba(255,255,255,0.72))
+      drop-shadow(0 0 88px rgba(255,255,255,0.32));
+  }
+  .brand-tag {
+    font-family: 'Inter', sans-serif;
+    font-size: {{ (font_size * 0.32) | int }}px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.78);
+    max-width: 80%;
+    line-height: 1.35;
+    letter-spacing: 0.02em;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.7);
+  }
+  .brand-handle {
+    font-family: 'Inter', sans-serif;
+    font-size: {{ (font_size * 0.28) | int }}px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.66);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+  {% endif %}
+
+  /* CTA accent line — scene_type = cta e não-brand */
+  {% if scene_type == 'cta' and not is_brand_moment %}
+  .cta-accent-bottom {
     position: absolute;
-    left: 15%; right: 15%;
-    bottom: {{ safe_bottom - 40 }}px;
+    left: 18%; right: 18%;
+    bottom: {{ safe_bottom // 2 }}px;
     height: 2px;
     background: linear-gradient(to right,
       transparent 0%,
       rgba(255,255,255,0.55) 20%,
-      rgba(255,255,255,0.85) 50%,
+      rgba(255,255,255,0.95) 50%,
       rgba(255,255,255,0.55) 80%,
       transparent 100%);
-    filter: drop-shadow(0 0 10px rgba(255,255,255,0.5));
+    filter: drop-shadow(0 0 12px rgba(255,255,255,0.55));
   }
   {% endif %}
 </style>
 </head>
 <body>
-  <div class="stage">
-    {% if use_dark_bar %}<div class="headline-bar"></div>{% endif %}
-
-    {% if stat_number %}
-    <div class="stat-wrap">
-      <div class="stat-number">{{ stat_number }}</div>
-      <div class="stat-label">{{ text_overlay }}</div>
-    </div>
+  {% if use_dark_top_fade | default(true) %}
+    {% if text_position == 'bottom' %}
+      <div class="dark-bottom"></div>
     {% else %}
-    <div class="headline">{{ text_overlay }}</div>
+      <div class="dark-top"></div>
+    {% endif %}
+  {% endif %}
+
+  {% if use_accent_line | default(true) %}<div class="accent-line-top"></div>{% endif %}
+
+  <div class="stage">
+    {% if is_brand_moment %}
+      <div class="brand-block">
+        <div class="brand-logo-big">{{ brand_logo or text_overlay }}</div>
+        {% if brand_tag %}<div class="brand-tag">{{ brand_tag }}</div>{% endif %}
+        <div class="brand-handle">{{ brand_handle or '@inema.tds' }}</div>
+      </div>
+    {% elif stat_number %}
+      <div class="stat-wrap">
+        <div class="stat-number">{{ stat_number }}</div>
+        <div class="stat-label">{{ text_overlay }}</div>
+      </div>
+    {% else %}
+      <div class="headline">{{ text_overlay }}</div>
     {% endif %}
 
-    {% if scene_type == 'cta' %}<div class="cta-accent"></div>{% endif %}
+    {% if scene_type == 'cta' and not is_brand_moment %}
+      <div class="cta-accent-bottom"></div>
+    {% endif %}
   </div>
 </body>
 </html>
