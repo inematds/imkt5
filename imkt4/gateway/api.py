@@ -663,6 +663,10 @@ def create_app(
                 if row:
                     recipe_name = row.get("recipe_name", "")
                     raw = row.get("stages") or {}
+                    # Converte file:// → /artifacts/ nos outputs aninhados
+                    for _sid, _stg in (raw or {}).items():
+                        if isinstance(_stg, dict) and _stg.get("outputs"):
+                            _stg["outputs"] = _urls_in_output(_stg["outputs"])
                     return {
                         "run_id": row["run_id"],
                         "recipe": recipe_name,
@@ -680,7 +684,8 @@ def create_app(
                 "status": s.status.value,
                 "job_ids": list(s.job_ids),
                 "error": s.error,
-                "outputs": s.outputs,
+                # Converte file:// → /artifacts/ recursivamente pra UI carregar
+                "outputs": _urls_in_output(list(s.outputs)) if s.outputs else s.outputs,
                 "requires": _recipe_caps.get(sid),
             }
             for sid, s in run.stages.items()
@@ -1146,17 +1151,22 @@ def _job_rec_dict(r) -> dict[str, Any]:
     }
 
 
-def _urls_in_output(output: dict[str, Any]) -> dict[str, Any]:
-    """Converte `file://...data/artifacts/<path>` em `/artifacts/<path>`
-    pra UI conseguir carregar no browser."""
-    if not output:
+def _urls_in_output(output: Any) -> Any:
+    """Converte recursivamente `file://...data/artifacts/<path>` em
+    `/artifacts/<path>` pra UI conseguir carregar no browser.
+    Percorre dicts e listas aninhados (ex: outputs[*].text_png_url)."""
+    if output is None:
         return output
-    out = dict(output)
-    for k, v in list(out.items()):
-        if isinstance(v, str) and v.startswith("file://"):
-            s = v[len("file://"):]
+    if isinstance(output, str):
+        if output.startswith("file://"):
+            s = output[len("file://"):]
             marker = "/data/artifacts/"
             idx = s.find(marker)
             if idx >= 0:
-                out[k] = "/artifacts/" + s[idx + len(marker):]
-    return out
+                return "/artifacts/" + s[idx + len(marker):]
+        return output
+    if isinstance(output, list):
+        return [_urls_in_output(x) for x in output]
+    if isinstance(output, dict):
+        return {k: _urls_in_output(v) for k, v in output.items()}
+    return output
