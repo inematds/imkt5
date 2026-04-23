@@ -90,6 +90,9 @@ start_bg "video-ab-suggest" "$VENV" workers/video-ab-suggest/server.py
 start_bg "video-text-designer" "$VENV" workers/video-text-designer/server.py
 start_bg "telegram-scraper" "$VENV" workers/telegram-scraper/server.py
 start_bg "telegram-topics-search" "$VENV" workers/telegram-topics-search/server.py
+start_bg "script-to-queue" "$VENV" workers/script-to-queue/server.py
+start_bg "skyreels-adapter" "$VENV" workers/skyreels-adapter/server.py
+start_bg "queue-audio-patch" "$VENV" workers/queue-audio-patch/server.py
 
 # inemaimg-adapter — só se o upstream responder em /health
 INEMAIMG_HEALTH_URL="${INEMAIMG_URL:-http://localhost:8000}/health"

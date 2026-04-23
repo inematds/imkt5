@@ -319,6 +319,46 @@ workers:
     timeout_seconds: 30
     max_concurrent: 4
 
+  # script-to-queue — fase 1 da recipe roteiro-video. LLM decompõe
+  # roteiro livre em array de cenas JSON no formato /nqueues/import do
+  # SkyReels V3 (reference_to_video / extension / shot_switching /
+  # talking_avatar). Resolve ref_imgs por nome de personagem/ambiente
+  # e computa seeds determinísticas.
+  - name: script-to-queue
+    capabilities: [video.script_to_queue]
+    endpoint: http://localhost:8119
+    local: true
+    priority: 50
+    timeout_seconds: 180
+    max_concurrent: 2
+
+  # skyreels-adapter — fase 2 da recipe roteiro-video. Proxy fino que
+  # aceita {queue_json, project, queue_name} e dispara no webui do
+  # SkyReels V3 (/nqueues/import + /nqueues/<id>/run com callback).
+  # Bloqueia até receber o callback do skyreelsv3 no próprio adapter
+  # (asyncio.Event por nq_id). Opcionalmente chama /finalize ao final.
+  # Pré-requisito: SKYREELS_URL no env (default http://localhost:7861).
+  # Timeout alto porque queues podem levar 30min-2h.
+  - name: skyreels-adapter
+    capabilities: [video.skyreels_queue]
+    endpoint: http://localhost:8120
+    local: true
+    priority: 50
+    timeout_seconds: 7200     # 2h — queue grande pode passar disso
+    max_concurrent: 1         # serializa (skyreelsv3 processa 1 queue por vez)
+
+  # queue-audio-patch — fase 4 da recipe roteiro-video. Pure-python
+  # (sem LLM). Recebe queue_json + audio_urls (paralela, da TTS)
+  # e patcha input_audio nas cenas que têm audio_text não-vazio.
+  # Evita a necessidade de rodar script-to-queue duas vezes.
+  - name: queue-audio-patch
+    capabilities: [video.queue_audio_patch]
+    endpoint: http://localhost:8121
+    local: true
+    priority: 50
+    timeout_seconds: 10
+    max_concurrent: 8
+
   # # ── plataformas (da absorção do timesmkt3) ───────────────────────
   # - name: platform-instagram
   # capabilities: [platform.instagram]

@@ -1,0 +1,122 @@
+name: roteiro-video
+version: 2
+# Pipeline: roteiro livre (pt-BR) → imagens de referência (inemaimg) →
+#           JSON de cenas (script-to-queue) → [voiceover (inemavox) +
+#           audio patch] → render no skyreelsv3 via skyreels-adapter →
+#           mp4 finalizado.
+#
+# 3 modos de áudio (campo `audio_mode` no input):
+#   - "auto" (default) — gera MP3 automaticamente via inemavox pra cada
+#     cena que tem audio_text e patcha no queue_json. Requer inemavox
+#     rodando.
+#   - "provided" — caller passa `voiceovers` pronto no input com os
+#     audio_url dos MP3s já gravados. Stages voiceover/audio_patch são
+#     skipados; script-to-queue matcha por scene_idx/scene_label.
+#   - "none" — vídeo sai mudo. Cenas talking_avatar ficam sem fala
+#     (renderizam só a boca mexendo). Use se vai colocar áudio em
+#     edição depois, ou se o roteiro não tem diálogos.
+#
+# Input:
+#   script                 string    (obrigatório) — roteiro em pt-BR
+#   project                string    (opcional) — namespacing no skyreelsv3
+#   characters             object[]  [{name, desc?, ref_image_url?, voice_id?}]
+#   ambients               object[]  [{name, desc?, ref_image_url?}]
+#   voiceovers             object[]  (só em audio_mode=provided)
+#                                     [{scene_idx?, scene_label?, audio_url, character?}]
+#   auto_gen_characters    bool      (default false) — se true, gera ref_imgs
+#                                     via inemaimg pros characters sem ref
+#   auto_gen_ambients      bool      (default false) — mesmo pra ambients
+#   style                  string    (opcional) — direção visual global
+#   target_duration        int       (opcional) — segundos totais
+#   aspect_ratio           string    (default "16:9")
+#   resolution             string    (default "540P")
+#   image_model            string    (opcional, passthrough pro inemaimg)
+#   audio_mode             string    "auto" | "provided" | "none" (default "auto")
+#   tts_provider           string    (opcional, passthrough pro inemavox; default "edge")
+#   auto_finalize          bool      (default true) — skyreels roda /finalize
+#   timeout_s              int       (default 3600)
+#
+# Output (no último stage skyreels_render):
+#   external_id, upstream_url, output_videos[], finalized_video,
+#   duration_s, queue_name, project, status, failed_jobs
+
+stages:
+
+  # 1) Imagens de referência dos personagens (fanout via inemaimg).
+  #    Só roda se auto_gen_characters == true.
+  - id: char_refs
+    requires: image.generation
+    when: $.input.auto_gen_characters == true
+    fanout_over: $.input.characters
+    payload_from:
+      prompt: $.fanout_item.desc
+      model: $.input.image_model
+    approval: {mode: none}
+
+  # 2) Imagens de referência dos ambientes/locais (mesmo padrão).
+  - id: ambient_refs
+    requires: image.generation
+    when: $.input.auto_gen_ambients == true
+    fanout_over: $.input.ambients
+    payload_from:
+      prompt: $.fanout_item.desc
+      model: $.input.image_model
+    approval: {mode: none}
+
+  # 3) LLM decompõe roteiro em array JSON de cenas no formato do
+  #    /nqueues/import do skyreelsv3. Zipa ref_imgs por índice dos fanouts.
+  - id: script_plan
+    requires: video.script_to_queue
+    needs: [char_refs, ambient_refs]
+    payload_from:
+      script: $.input.script
+      characters: $.input.characters
+      ambients: $.input.ambients
+      voiceovers: $.input.voiceovers
+      character_image_urls: $.stages.char_refs.output.outputs[*].image_url
+      ambient_image_urls:   $.stages.ambient_refs.output.outputs[*].image_url
+      style: $.input.style
+      target_duration: $.input.target_duration
+      aspect_ratio: $.input.aspect_ratio
+      resolution: $.input.resolution
+      project: $.input.project
+    approval: {mode: none}
+
+  # 4) TTS por cena (só em audio_mode="auto"). Fanout sobre todas as
+  #    cenas; inemavox-adapter devolve silent-stub pra audio_text vazio,
+  #    então o fanout não explode. O audio_patch filtra depois.
+  - id: voiceover
+    requires: audio.tts
+    needs: [script_plan]
+    when: $.input.audio_mode == "auto"
+    fanout_over: $.stages.script_plan.output.queue_json
+    payload_from:
+      text: $.fanout_item.audio_text
+      lang: pt-BR
+      engine: $.input.tts_provider
+      voice: $.fanout_item.voice_id
+    approval: {mode: none}
+
+  # 5) Patcha input_audio no queue_json por índice (só onde a cena
+  #    tem audio_text não-vazio — evita stub silencioso vazar).
+  - id: audio_patch
+    requires: video.queue_audio_patch
+    needs: [script_plan, voiceover]
+    when: $.input.audio_mode == "auto"
+    payload_from:
+      queue_json: $.stages.script_plan.output.queue_json
+      audio_urls: $.stages.voiceover.output.outputs[*].audio_url
+    approval: {mode: none}
+
+  # 6) Dispara queue no skyreelsv3 via adapter. queue_json vem do
+  #    audio_patch em modo "auto"; senão direto do script_plan.
+  - id: skyreels_render
+    requires: video.skyreels_queue
+    needs: [script_plan, audio_patch]
+    payload_from:
+      queue_json: $.stages.audio_patch.output.queue_json || $.stages.script_plan.output.queue_json
+      queue_name: $.stages.script_plan.output.queue_name
+      project:    $.stages.script_plan.output.project
+      auto_finalize: $.input.auto_finalize || true
+      timeout_s:     $.input.timeout_s || 3600
+    approval: {mode: none}
