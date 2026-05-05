@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from imkt4.memory import MemoryCategory, MemoryStore
+from imkt5.memory import MemoryCategory, MemoryStore
 
 
 @pytest.fixture

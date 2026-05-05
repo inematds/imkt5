@@ -2,7 +2,7 @@
 
 import pytest
 
-from imkt4.types import (
+from imkt5.types import (
     Approval,
     ApprovalMode,
     BindingKind,

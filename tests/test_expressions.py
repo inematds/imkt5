@@ -2,7 +2,7 @@
 
 import pytest
 
-from imkt4.recipes.expressions import evaluate_when, resolve
+from imkt5.recipes.expressions import evaluate_when, resolve
 
 
 @pytest.fixture

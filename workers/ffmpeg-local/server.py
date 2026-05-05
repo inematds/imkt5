@@ -33,7 +33,7 @@ from typing import Any
 
 import httpx
 
-log = logging.getLogger("imkt4.ffmpeg")
+log = logging.getLogger("imkt5.ffmpeg")
 
 from workers._base import BaseWorker
 from workers._base.storage import get_storage
@@ -1538,7 +1538,7 @@ async def _fetch_to(url: str, dest: Path) -> None:
         dest.write_bytes(src.read_bytes())
         return
     if url.startswith("/artifacts/"):
-        root = os.environ.get("IMKT4_ARTIFACT_ROOT", "./data/artifacts")
+        root = os.environ.get("IMKT5_ARTIFACT_ROOT", "./data/artifacts")
         src = Path(root) / url[len("/artifacts/"):]
         dest.write_bytes(Path(src).read_bytes())
         return

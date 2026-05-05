@@ -1,7 +1,7 @@
 # Telegram Watcher — plano (parked)
 
 > Worker daemon que escuta novas mensagens em grupos Telegram via
-> telethon events e dispara recipes do imkt4 automaticamente com o
+> telethon events e dispara recipes do imkt5 automaticamente com o
 > texto da mensagem como brief.
 >
 > Status: **parked** — plano aprovado, implementação pendente.

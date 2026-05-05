@@ -42,7 +42,7 @@ vídeo tenha tipografia no mesmo nível visual do carrossel rico.
   "outputs": [
     {
       "scene_index": 0,
-      "text_png_url": "/s3/imkt4/inema/<job>/scene_00_text.png",
+      "text_png_url": "/s3/imkt5/inema/<job>/scene_00_text.png",
       "width": 1080,
       "height": 1920,
       "has_text": true

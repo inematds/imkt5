@@ -1,4 +1,4 @@
-# Método de Análise e Proposta Modular — imkt4
+# Método de Análise e Proposta Modular — imkt5
 
 > Relatório inicial. Define (1) como os projetos existentes serão analisados e (2) a arquitetura-alvo para unificá-los preservando execução individual.
 

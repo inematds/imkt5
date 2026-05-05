@@ -40,7 +40,7 @@ if _ROOT not in sys.path:
 
 from workers._base import BaseWorker  # noqa: E402
 
-log = logging.getLogger("imkt4.workers.telegram-scraper")
+log = logging.getLogger("imkt5.workers.telegram-scraper")
 
 SESSION_DIR = Path(os.environ.get("TELEGRAM_SESSION_DIR", "./data/tg-sessions"))
 DEFAULT_OUTPUT = Path(

@@ -1,8 +1,8 @@
-# Video Style Study — mkt3 + cchyperframes → imkt4
+# Video Style Study — mkt3 + cchyperframes → imkt5
 
 > Relatório consolidado da análise dos templates, estilos e técnicas de
 > rendering de vídeo do **timesmkt3** + do **cchyperframes**
-> (MOTION_PHILOSOPHY), com comparação ao estado atual do **imkt4** e
+> (MOTION_PHILOSOPHY), com comparação ao estado atual do **imkt5** e
 > lista priorizada de melhorias.
 >
 > Data: 2026-04-19. Commits relevantes: `3d81316` (editorial magazine),
@@ -29,7 +29,7 @@
 | 11 | **Playful Colorful** | kids, apps | pastels + saturados | breathe | whip_pan | ukulele_pop |
 | 12 | **Editorial Documentary** | jornalismo, factual | earthy + sober | static | crossfade_short | piano_minimal |
 
-**imkt4 status:** ✅ portados todos os 12 via `video-art-director` worker
+**imkt5 status:** ✅ portados todos os 12 via `video-art-director` worker
 (porta 8114) com a mesma nomenclatura. Hook_pattern/motion/transition/music
 mapeados no dict `DEFAULTS_PER_STYLE`.
 
@@ -50,7 +50,7 @@ pro Remotion.
 | 20_performance_ad | `setpts=0.5,tblend=average` | - | - | urgency |
 | inema_hightech | **default INEMA** — high-tech + urgency | - | - | conversion |
 
-**imkt4 status:** ❌ NÃO portado. Temos só color_grading (cool/warm)
+**imkt5 status:** ❌ NÃO portado. Temos só color_grading (cool/warm)
 genérico + letterbox via padding implícito. Cada preset aqui é uma
 "receita completa" de render (grain + color curve + fps).
 
@@ -88,7 +88,7 @@ além de `style`. Ativaria filter_chain completo por preset.
 
 7. **Font size adaptativo**: `<30chars=80px, 30-60=64, 60+=52`.
 
-**imkt4 status:**
+**imkt5 status:**
 - ✅ Fade in/out: NÃO tem (mkt3 faz `fade=t=in:st=0:d=0.4`)
 - ✅ Safe margin 120px: adicionado no último commit editorial
 - ❌ Detecção `imageHasText`: NÃO temos (mas temos prevenção via
@@ -119,7 +119,7 @@ Repo `github.com/inematds/cchyperframes` — engenharia reversa do
 
 ### 2.1 Vocabulário visual (11 técnicas principais)
 
-| # | Técnica | Impl HF/GSAP | Impl via ffmpeg | imkt4? |
+| # | Técnica | Impl HF/GSAP | Impl via ffmpeg | imkt5? |
 |---|---|---|---|---|
 | 1 | Perspective grid floor | CSS `rotateX(60deg)` + repeating-gradient | overlay PNG pré-gerada | ❌ |
 | 2 | Vignette radial | absolute overlay radial-gradient | `vignette=PI/4:eval=init` | ✅ pro mode |
@@ -135,7 +135,7 @@ Repo `github.com/inematds/cchyperframes` — engenharia reversa do
 
 ---
 
-## 3. imkt4 — estado atual
+## 3. imkt5 — estado atual
 
 ### 3.1 O que temos alinhado ao mkt3
 

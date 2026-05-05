@@ -28,7 +28,7 @@ if _ROOT not in sys.path:
 
 from workers._base import BaseWorker  # noqa: E402
 
-log = logging.getLogger("imkt4.workers.telegram-topics-search")
+log = logging.getLogger("imkt5.workers.telegram-topics-search")
 
 DEFAULT_ROOT = Path(
     os.environ.get("TG_TOPICS_DATA_DIR") or

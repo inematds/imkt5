@@ -1,9 +1,9 @@
 """inemaimg-adapter — wrapper HTTP real sobre o servidor inemaimg.
 
-Adapta o contrato do imkt4 (`capability=image.generation`) para a API do
+Adapta o contrato do imkt5 (`capability=image.generation`) para a API do
 inemaimg (`POST /generate`). Fluxo:
 
-  imkt4 Job payload → POST inemaimg/generate → base64 PNG
+  imkt5 Job payload → POST inemaimg/generate → base64 PNG
                     → storage.save_base64 → URL (file:// em dev, s3:// em prod)
 
 Payload esperado (mínimo):
@@ -35,11 +35,11 @@ from typing import Any
 
 import httpx
 
-from imkt4.config import load as _load_cfg
+from imkt5.config import load as _load_cfg
 from workers._base import BaseWorker
 from workers._base.storage import get_storage
 
-log = logging.getLogger("imkt4.workers.inemaimg")
+log = logging.getLogger("imkt5.workers.inemaimg")
 logging.basicConfig(level=logging.INFO)
 
 _CFG = _load_cfg().workers.inemaimg_adapter
@@ -278,5 +278,5 @@ class InemaimgAdapter(BaseWorker):
 
 if __name__ == "__main__":
     InemaimgAdapter().run(
-        port=int(os.environ.get("IMKT4_INEMAIMG_ADAPTER_PORT", _CFG.port))
+        port=int(os.environ.get("IMKT5_INEMAIMG_ADAPTER_PORT", _CFG.port))
     )

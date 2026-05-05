@@ -13,7 +13,7 @@
 |---|---|
 | `53b1538` | Estudo video-style (mkt3 + c79), plano 4a-4e |
 | `3d81316` | video-quick editorial magazine style (mkt3) |
-| `c7deb44` | Relatório c79 × imkt4 (MD + PDF + tabela consolidada) |
+| `c7deb44` | Relatório c79 × imkt5 (MD + PDF + tabela consolidada) |
 | `4c51df0` | **Fase α**: chrome gradient + grid + vignette + whip_streak opt-in |
 | `9c6d132` | **Fase α-bis**: chrome text overlay no vídeo (worker video-text-designer :8116) |
 | `3cfab7c` | Overlay reforçado + modo `full_slide` (carrossel-rico) |
@@ -45,8 +45,8 @@
 
 | Doc | Conteúdo |
 |---|---|
-| `doc/c79-vs-imkt4-comparison.md` + `.pdf` | Análise completa cchyperframes × imkt4 |
-| `doc/c79-vs-imkt4-table.md` + `.pdf` | Tabela consolidada |
+| `doc/c79-vs-imkt5-comparison.md` + `.pdf` | Análise completa cchyperframes × imkt5 |
+| `doc/c79-vs-imkt5-table.md` + `.pdf` | Tabela consolidada |
 | `doc/video-style-study.md` | Estudo mkt3 + c79 (270 linhas) |
 | `doc/telegram-scraper-refactor.md` | Análise extrator_rapido → refactor scraper |
 | `doc/telegram-watcher-plan.md` | Plano parkeado ~4-5h |
@@ -109,7 +109,7 @@ Gateway + 12 workers:
 | Item | Doc de referência | Esforço |
 |---|---|---|
 | `telegram-watcher` daemon (real-time NewMessage events) | `doc/telegram-watcher-plan.md` | ~4-5h |
-| Fase β cchyperframes (worker HTML+GSAP paralelo) | `doc/c79-vs-imkt4-comparison.md` | 3-4 dias |
+| Fase β cchyperframes (worker HTML+GSAP paralelo) | `doc/c79-vs-imkt5-comparison.md` | 3-4 dias |
 | Style presets mkt3 (8 ffmpeg filter_chains) | `doc/video-style-study.md` | ~3-4h |
 | Recipe UI + form field pro telegram-scraper | — | ~1-2h |
 
@@ -143,7 +143,7 @@ olha `TaskList` (esperado: vazio ou com próximas parked).
 
 Comandos úteis pra validar estado:
 ```bash
-cd ~/projetos/imkt4
+cd ~/projetos/imkt5
 ./scripts/start-dev.sh                                 # sobe tudo
 curl -s http://localhost:8080/ | head -1               # gateway OK?
 curl -s http://localhost:8118/health                   # topics-search OK?

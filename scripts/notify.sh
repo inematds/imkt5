@@ -6,10 +6,10 @@
 #   echo "texto" | ./scripts/notify.sh
 #
 # Lê credenciais de:
-#   1. $IMKT4_NOTIFY_BOT_TOKEN + $IMKT4_NOTIFY_CHAT_ID (se setado)
+#   1. $IMKT5_NOTIFY_BOT_TOKEN + $IMKT5_NOTIFY_CHAT_ID (se setado)
 #   2. .env do openpcbot (default — bot pessoal, não rouba msgs do timesmkt3)
 #
-# Usa parse_mode=Markdown, prefixa [imkt4] pra distinguir na timeline.
+# Usa parse_mode=Markdown, prefixa [imkt5] pra distinguir na timeline.
 
 set -euo pipefail
 
@@ -23,22 +23,22 @@ if [ -z "$MSG" ]; then
   exit 1
 fi
 
-if [ -n "${IMKT4_NOTIFY_BOT_TOKEN:-}" ] && [ -n "${IMKT4_NOTIFY_CHAT_ID:-}" ]; then
-  TOKEN="$IMKT4_NOTIFY_BOT_TOKEN"
-  CHAT="$IMKT4_NOTIFY_CHAT_ID"
+if [ -n "${IMKT5_NOTIFY_BOT_TOKEN:-}" ] && [ -n "${IMKT5_NOTIFY_CHAT_ID:-}" ]; then
+  TOKEN="$IMKT5_NOTIFY_BOT_TOKEN"
+  CHAT="$IMKT5_NOTIFY_CHAT_ID"
 elif [ -f "$(dirname "$0")/../.env" ]; then
-  # prefere o bot dedicado @imkt4bot do proprio imkt4/.env
-  IMKT4_ENV="$(dirname "$0")/../.env"
-  TOKEN="$(grep -E '^TELEGRAM_BOT_TOKEN=' "$IMKT4_ENV" | head -1 | cut -d= -f2-)"
-  CHAT="$(grep -E '^TELEGRAM_ALLOWED_CHAT_IDS=' "$IMKT4_ENV" | head -1 | cut -d= -f2- | cut -d, -f1)"
+  # prefere o bot dedicado @imkt5bot do proprio imkt5/.env
+  IMKT5_ENV="$(dirname "$0")/../.env"
+  TOKEN="$(grep -E '^TELEGRAM_BOT_TOKEN=' "$IMKT5_ENV" | head -1 | cut -d= -f2-)"
+  CHAT="$(grep -E '^TELEGRAM_ALLOWED_CHAT_IDS=' "$IMKT5_ENV" | head -1 | cut -d= -f2- | cut -d, -f1)"
 
   # fallback: admin bot (openpcbot)
   if [ -z "$TOKEN" ] || [ -z "$CHAT" ]; then
-    TOKEN="$(grep -E '^TELEGRAM_ADMIN_BOT_TOKEN=' "$IMKT4_ENV" | head -1 | cut -d= -f2-)"
-    CHAT="$(grep -E '^TELEGRAM_ADMIN_CHAT_ID=' "$IMKT4_ENV" | head -1 | cut -d= -f2-)"
+    TOKEN="$(grep -E '^TELEGRAM_ADMIN_BOT_TOKEN=' "$IMKT5_ENV" | head -1 | cut -d= -f2-)"
+    CHAT="$(grep -E '^TELEGRAM_ADMIN_CHAT_ID=' "$IMKT5_ENV" | head -1 | cut -d= -f2-)"
   fi
 else
-  echo "notify: sem IMKT4_NOTIFY_* setado e .env ausente" >&2
+  echo "notify: sem IMKT5_NOTIFY_* setado e .env ausente" >&2
   exit 2
 fi
 
@@ -47,7 +47,7 @@ if [ -z "$TOKEN" ] || [ -z "$CHAT" ]; then
   exit 3
 fi
 
-BODY="[imkt4] ${MSG}"
+BODY="[imkt5] ${MSG}"
 
 RESP=$(curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
   -d "chat_id=${CHAT}" \

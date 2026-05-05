@@ -20,7 +20,7 @@ narrativa) e gera metadata formatado para a plataforma-alvo.
 
 ## Por que foram diferidos
 
-1. **Escopo inicial do `imkt4` não precisa.** Gerar imagem, áudio,
+1. **Escopo inicial do `imkt5` não precisa.** Gerar imagem, áudio,
    vídeo e campanha curta não exige formatação por plataforma ainda.
 2. **Maioria das decisões é específica por rede e muda com frequência**
    (algoritmo do TikTok, limites do Threads, formato de carrossel IG).

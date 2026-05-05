@@ -1,6 +1,6 @@
 # Modelo de concorrência
 
-> Como o `imkt4` lida com múltiplos pedidos simultâneos quando os
+> Como o `imkt5` lida com múltiplos pedidos simultâneos quando os
 > serviços upstream (`inemaimg`, `inemavox`, etc.) serializam internamente.
 
 ## Realidade do upstream
@@ -13,17 +13,17 @@
 Ambos são **single-slot** por instância, por design. Conta de envelope:
 1 imagem = 10–60s no inemaimg → vazão ≈ 60–360 imagens/hora por GPU.
 
-## Estratégia do `imkt4`
+## Estratégia do `imkt5`
 
 Resposta em três camadas, todas já implementadas:
 
-### Camada 1 — Fila do imkt4 absorve a rajada
+### Camada 1 — Fila do imkt5 absorve a rajada
 
 Pedidos chegam → enfileirados em Redis (RQ) ou `InMemoryDispatcher`. O
 cliente recebe `job_id` na hora; nunca bloqueia. Múltiplos pedidos do
 mesmo usuário viram múltiplos jobs com `parent_job_id` correlato.
 
-Implementação: `imkt4/gateway/queue.py`.
+Implementação: `imkt5/gateway/queue.py`.
 
 ### Camada 2 — `max_concurrent` por worker (saturação)
 
@@ -82,7 +82,7 @@ local→remoto sob saturação, e modo escape.
   max_concurrent: 1
 ```
 
-Vazão limitada à GPU; fila do imkt4 absorve picos. Suficiente para
+Vazão limitada à GPU; fila do imkt5 absorve picos. Suficiente para
 desenvolvimento e testes.
 
 ### Produção pequena (1 máquina, múltiplas GPUs)
@@ -96,7 +96,7 @@ CUDA_VISIBLE_DEVICES=1 python server.py --port 8001 &
 ```
 
 Registrar as duas em `config/workers.yaml` (gpu0/gpu1). 2x a vazão
-sem mudar uma linha do `imkt4`.
+sem mudar uma linha do `imkt5`.
 
 ### Produção grande (múltiplas máquinas, opcional cloud)
 
@@ -110,10 +110,10 @@ matcher só os usa quando os locais saturam.
 - **Fork em `inemaimg2`, `inemaimg3`** seguindo o padrão antigo do
   `yt-pub-lives`. A escala correta é múltiplas *instâncias* do mesmo
   código rodando em portas/GPUs diferentes, registradas no registry.
-- **Fila própria dentro do adapter**. Já existe a fila do imkt4
+- **Fila própria dentro do adapter**. Já existe a fila do imkt5
   (Redis/RQ) — adapter é apenas tradução de contrato, sem estado.
 
 ## Resumo em 1 frase
 
-**Concorrência interna do upstream é = 1; concorrência do `imkt4` é = N
+**Concorrência interna do upstream é = 1; concorrência do `imkt5` é = N
 por escala horizontal de instâncias, com fila absorvendo picos.**

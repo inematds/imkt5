@@ -3,9 +3,9 @@
 import asyncio
 import pytest
 
-from imkt4.capabilities import CapabilityRegistry, select_worker
-from imkt4.capabilities.matcher import NoWorkerAvailable
-from imkt4.types.capabilities import RegisteredWorker, WorkerHealth
+from imkt5.capabilities import CapabilityRegistry, select_worker
+from imkt5.capabilities.matcher import NoWorkerAvailable
+from imkt5.types.capabilities import RegisteredWorker, WorkerHealth
 
 
 async def _healthy(_):

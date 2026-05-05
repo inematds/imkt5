@@ -12,9 +12,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: imkt4
-      POSTGRES_PASSWORD: imkt4
-      POSTGRES_DB: imkt4
+      POSTGRES_USER: imkt5
+      POSTGRES_PASSWORD: imkt5
+      POSTGRES_DB: imkt5
     ports:
       - "5432:5432"
     volumes:

@@ -12,15 +12,15 @@ implementando a mesma interface.
 
 **Três fontes**:
 
-- **1. Upload direto do `imkt4`** — usuário manda arquivo via chat
-  (`@imkt4bot`) ou UI. Arquivo vai pra `data/artifacts/<tenant>/<job_id>/`
+- **1. Upload direto do `imkt5`** — usuário manda arquivo via chat
+  (`@imkt5bot`) ou UI. Arquivo vai pra `data/artifacts/<tenant>/<job_id>/`
   e é registrado como `material` na DB.
 - **2. Redes sociais** (plugin-based) — scan de canais registrados em
   `source_bindings` do tenant. Fetchers: TikTok (hoje), Instagram Reels,
   YouTube Shorts de canais terceiros (futuros).
 - **3. Diretório (filesystem watcher)** — watcher por polling.
   - `profiles/<tenant>/import/` — arquivos entram pro tenant específico.
-  - `/var/imkt4/import/` **global** — compatibilidade com o comportamento
+  - `/var/imkt5/import/` **global** — compatibilidade com o comportamento
     atual do `yt-pub-lives` (inbox compartilhado). Arquivos entram como
     material do tenant "inema" (default configurável); os clips gerados
     se distribuem em sequência entre os `publish_bindings` do tenant
@@ -30,7 +30,7 @@ implementando a mesma interface.
 ```yaml
 # config/defaults.yaml
 sources_import:
-  watcher_poll_seconds: 60   # env: IMKT4_WATCHER_POLL
+  watcher_poll_seconds: 60   # env: IMKT5_WATCHER_POLL
 ```
 
 Capability: `video.source_ingest` (fanout sobre `source_bindings`).
@@ -101,10 +101,10 @@ Regra global: **aprovações default = auto_reviewer** (ver `doc/approval-policy
 ```
 ╔══════════════════════════════════════════════════════════════════╗
 ║  1. FONTES DE IMPORT                                             ║
-║  ├─ @imkt4bot recebe arquivo          (upload direto)            ║
+║  ├─ @imkt5bot recebe arquivo          (upload direto)            ║
 ║  ├─ tiktok_scanner (plugin)           (redes sociais)            ║
 ║  ├─ watcher profiles/<t>/import/      (diretório per-tenant)     ║
-║  └─ watcher /var/imkt4/import/        (diretório global)         ║
+║  └─ watcher /var/imkt5/import/        (diretório global)         ║
 ║                                                                  ║
 ║                       ↓ sources-import                           ║
 ║                                                                  ║

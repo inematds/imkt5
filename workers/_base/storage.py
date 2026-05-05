@@ -3,10 +3,10 @@
 Backends:
 - LocalStorage (default): salva em disco sob ./data/artifacts/,
   devolve file:// (o gateway converte pra /artifacts/ quando serve).
-- S3Storage: S3/MinIO-compatible. Ativado via IMKT4_STORAGE=s3 +
+- S3Storage: S3/MinIO-compatible. Ativado via IMKT5_STORAGE=s3 +
   env S3_ENDPOINT/S3_BUCKET/S3_ACCESS_KEY/S3_SECRET_KEY.
 
-Escolha automática via env IMKT4_STORAGE (local|s3).
+Escolha automática via env IMKT5_STORAGE (local|s3).
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import os
 from pathlib import Path
 from typing import Literal, Protocol
 
-log = logging.getLogger("imkt4.storage")
+log = logging.getLogger("imkt5.storage")
 
 
 Kind = Literal["image", "audio", "video", "document"]
@@ -43,10 +43,10 @@ class LocalStorage:
     def __init__(self, root: str | Path | None = None) -> None:
         if root is None:
             try:
-                from imkt4.config import load
+                from imkt5.config import load
                 root = load().storage.artifact_root
             except Exception:  # noqa: BLE001
-                root = os.environ.get("IMKT4_ARTIFACT_ROOT", "./data/artifacts")
+                root = os.environ.get("IMKT5_ARTIFACT_ROOT", "./data/artifacts")
         self._root = Path(root).resolve()
 
     def save_bytes(
@@ -187,12 +187,12 @@ class S3Storage:
 
 
 def get_storage() -> Storage:
-    backend = os.environ.get("IMKT4_STORAGE", "local").lower()
+    backend = os.environ.get("IMKT5_STORAGE", "local").lower()
     if backend == "s3":
         try:
             return S3Storage(
                 endpoint=os.environ["S3_ENDPOINT"],
-                bucket=os.environ.get("S3_BUCKET", "imkt4-artifacts"),
+                bucket=os.environ.get("S3_BUCKET", "imkt5-artifacts"),
                 access_key=os.environ["S3_ACCESS_KEY"],
                 secret_key=os.environ["S3_SECRET_KEY"],
                 region=os.environ.get("S3_REGION", "us-east-1"),

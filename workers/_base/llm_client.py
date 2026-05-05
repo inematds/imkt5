@@ -19,7 +19,7 @@ from typing import Any
 
 import httpx
 
-log = logging.getLogger("imkt4.workers.llm")
+log = logging.getLogger("imkt5.workers.llm")
 
 
 def _provider_order() -> list[str]:
@@ -221,8 +221,8 @@ async def _call_openrouter(
             f"{url}/chat/completions",
             headers={
                 "Authorization": f"Bearer {key}",
-                "HTTP-Referer": "https://github.com/inematds/imkt4",
-                "X-Title": "imkt4 worker",
+                "HTTP-Referer": "https://github.com/inematds/imkt5",
+                "X-Title": "imkt5 worker",
             },
             json=body,
         )

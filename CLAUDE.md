@@ -4,17 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-`imkt4` é uma plataforma multi-tenant que unifica serviços de pipeline (geração de imagem, processamento de vídeo, ingestão de lives do YouTube, etc.) sob uma fila de jobs, com entrada conversacional por Telegram, WhatsApp e Web.
+`imkt5` é uma plataforma multi-tenant que unifica serviços de pipeline (geração de imagem, processamento de vídeo, ingestão de lives do YouTube, etc.) sob uma fila de jobs, com entrada conversacional por Telegram, WhatsApp e Web.
 
 Está em fase **scaffold** — contratos e tipos canônicos já existem; adapters, providers e workers serão absorvidos em fases posteriores a partir de projetos existentes.
 
 ## Linhagem arquitetural
 
-A arquitetura segue o blueprint do projeto `intelecto` (`/home/nmaldaner/projetos/intelecto/`) — que é spec, não código. O Intelecto desenha contratos abstratos limpos (`BaseProvider`, `BaseChannel`, `BaseTool`) e uma stack de identidade em Markdown. `imkt4` implementa esses contratos **multi-tenant desde o schema**, não retrofitando single-user.
+A arquitetura segue o blueprint do projeto `intelecto` (`/home/nmaldaner/projetos/intelecto/`) — que é spec, não código. O Intelecto desenha contratos abstratos limpos (`BaseProvider`, `BaseChannel`, `BaseTool`) e uma stack de identidade em Markdown. `imkt5` implementa esses contratos **multi-tenant desde o schema**, não retrofitando single-user.
 
 Peças de código reutilizadas vêm de `/home/nmaldaner/projetos/openpcbot/` — especialmente o schema SQLite (já keyed por `chat_id`), a ponte WhatsApp em `scripts/wa-daemon.ts`, o wrapper Claude Agent SDK em `src/agent.ts` e a base do dashboard web em `src/dashboard.ts`. Quando houver dúvida sobre um shape, olhe primeiro lá.
 
-**Não** importar os componentes de `openpcbot/src/router.ts`, `openpcbot/src/scheduler.ts`, nem a árvore `openpcbot/agents/` — são incompatíveis com o modelo de pipeline do `imkt4` (classificador de LLM em vez de router de jobs; cron em vez de fila; chat-loops em vez de workers stateless).
+**Não** importar os componentes de `openpcbot/src/router.ts`, `openpcbot/src/scheduler.ts`, nem a árvore `openpcbot/agents/` — são incompatíveis com o modelo de pipeline do `imkt5` (classificador de LLM em vez de router de jobs; cron em vez de fila; chat-loops em vez de workers stateless).
 
 ## Princípios não-negociáveis
 
@@ -28,8 +28,8 @@ Peças de código reutilizadas vêm de `/home/nmaldaner/projetos/openpcbot/` —
 ## Estrutura
 
 ```
-imkt4/
-├── imkt4/               # pacote Python principal
+imkt5/
+├── imkt5/               # pacote Python principal
 │   ├── types/           # dataclasses canônicas (IncomingMessage, Job, Tenant, ...)
 │   ├── channels/        # BaseChannel + adapters (a portar de openpcbot)
 │   ├── providers/       # BaseProvider + LLM adapters
@@ -69,11 +69,11 @@ Resumo do mais comum: `flux2-klein` → `steps: 4` (destilado); `SDXL` → `25�
 - Não criar stubs vazios de adapter (ex.: `channels/telegram.py` só com `pass`). Adapter é criado quando é portado do projeto fonte, com comportamento real.
 - Não introduzir um "default tenant" para simplificar — isso mata multi-tenancy depois.
 - Não usar a palavra `chat_id` como sinônimo de `tenant_id`. `chat_id` é do transporte; `tenant_id` é do domínio.
-- Não mover workers para dentro do pacote `imkt4/` — eles são subprojetos independentes em `workers/`.
+- Não mover workers para dentro do pacote `imkt5/` — eles são subprojetos independentes em `workers/`.
 
 ## Documentos de referência
 
-- `/home/nmaldaner/projetos/imkt4/ANALISE_METODO_E_PROPOSTA.md` — método de análise dos projetos a absorver + arquitetura-alvo em texto.
-- `/home/nmaldaner/projetos/imkt4/doc/architecture.md` — arquitetura canônica detalhada.
-- `/home/nmaldaner/projetos/imkt4/doc/provider-tuning.md` — parâmetros/prompts por modelo (steps, cfg, estilo de prompt).
+- `/home/nmaldaner/projetos/imkt5/ANALISE_METODO_E_PROPOSTA.md` — método de análise dos projetos a absorver + arquitetura-alvo em texto.
+- `/home/nmaldaner/projetos/imkt5/doc/architecture.md` — arquitetura canônica detalhada.
+- `/home/nmaldaner/projetos/imkt5/doc/provider-tuning.md` — parâmetros/prompts por modelo (steps, cfg, estilo de prompt).
 - `/home/nmaldaner/.claude/plans/steady-wobbling-fountain.md` — plano aprovado que originou este scaffold.

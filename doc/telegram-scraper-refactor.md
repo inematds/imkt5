@@ -190,6 +190,6 @@ Mesmo diretório, contrato compartilhado, zero cross-coupling de código.
 ## 6. Decisão
 
 **Refactor aprovado.** Copiar a lógica do `extrator_rapido.py` pro
-worker do imkt4 (não import cross-project — evita acoplamento).
+worker do imkt5 (não import cross-project — evita acoplamento).
 
 Reuso = padrões + contratos, não código importado direto.

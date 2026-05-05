@@ -14,10 +14,10 @@ from typing import Any
 
 import pytest
 
-from imkt4.gateway import InMemoryDispatcher
-from imkt4.recipes import RecipeRunner, load_recipe
-from imkt4.recipes.approvals import CompositeApprovalGate
-from imkt4.types.approvals import ApprovalDecision
+from imkt5.gateway import InMemoryDispatcher
+from imkt5.recipes import RecipeRunner, load_recipe
+from imkt5.recipes.approvals import CompositeApprovalGate
+from imkt5.types.approvals import ApprovalDecision
 
 
 # ── mock auto_reviewer: sempre aprova ─────────────────────────────

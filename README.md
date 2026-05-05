@@ -1,4 +1,4 @@
-# imkt4
+# imkt5
 
 Plataforma modular multi-tenant para pipelines de mídia (imagem, áudio, vídeo, texto) com **entrada conversacional** (Telegram/WhatsApp/Web), **fila de jobs**, e **local-first com fallback remoto**.
 
@@ -71,8 +71,8 @@ Diagramas em `doc/diagrams/` (SVG + PNG).
 ## Estrutura
 
 ```
-imkt4/
-├── imkt4/              pacote Python (gateway, dispatcher, runner, tipos)
+imkt5/
+├── imkt5/              pacote Python (gateway, dispatcher, runner, tipos)
 │   ├── config.py       loader de config 3-níveis
 │   ├── gateway/        HTTP dispatcher, FastAPI, UI web, jobs store
 │   ├── capabilities/   registry + matcher (local-first)

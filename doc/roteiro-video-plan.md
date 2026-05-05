@@ -8,7 +8,7 @@
 
 ## Contexto
 
-Usuário pediu recipe nova no imkt4: recebe roteiro → gera plano de vídeo →
+Usuário pediu recipe nova no imkt5: recebe roteiro → gera plano de vídeo →
 imagens iniciais/finais por cena → prompt de movimentação → animação →
 concat final. Default API local, kie.ai como 2ª alternativa.
 
@@ -31,9 +31,9 @@ natural da recipe.
 
 ## Decisão arquitetural
 
-**Usar skyreelsv3 como worker macro** do imkt4, não reconstruir a
-funcionalidade. O imkt4 vira orquestrador de alto nível; o skyreelsv3
-mantém seu próprio ciclo de vida (consumível standalone ou via imkt4).
+**Usar skyreelsv3 como worker macro** do imkt5, não reconstruir a
+funcionalidade. O imkt5 vira orquestrador de alto nível; o skyreelsv3
+mantém seu próprio ciclo de vida (consumível standalone ou via imkt5).
 
 Aderente ao princípio #1 do CLAUDE.md ("worker = caixa preta com
 contrato único") e #2 ("cada worker continua executável individualmente").
@@ -57,7 +57,7 @@ webhook/callback (bloqueador).
 
 ## Gaps bloqueadores pra virar worker confiável
 
-1. Sem `/health` estruturado — imkt4 não sabe se está vivo ou pendurado
+1. Sem `/health` estruturado — imkt5 não sabe se está vivo ou pendurado
 2. Sem callback webhook — só SSE (frágil em desconexão) ou polling de `/status`
 3. `{{prev}}` quebra silenciosamente se job anterior falha — sem retry/resume
 4. `result/` global sem namespace por projeto — INETUSX e outros clientes
@@ -112,9 +112,9 @@ ao rodar cada job, salvar <seed>_<ts>.input.json com payload original
 
 ---
 
-## Fase 1 — Worker `script-to-queue` no imkt4 ~1 dia
+## Fase 1 — Worker `script-to-queue` no imkt5 ~1 dia
 
-LLM (Claude subprocess, igual outros workers-cérebro do imkt4) que recebe:
+LLM (Claude subprocess, igual outros workers-cérebro do imkt5) que recebe:
 
 - `script` (roteiro livre em texto)
 - `characters[]` (opcional — lista com `{name, ref_image_url?}`)
@@ -134,9 +134,9 @@ Capability nova: `video.script_to_queue`. Porta `:8119`.
 
 ---
 
-## Fase 2 — Worker `skyreels-adapter` no imkt4 ~1 dia
+## Fase 2 — Worker `skyreels-adapter` no imkt5 ~1 dia
 
-Proxy fino que traduz contrato `/execute` do imkt4 pra skyreelsv3:
+Proxy fino que traduz contrato `/execute` do imkt5 pra skyreelsv3:
 
 1. Recebe payload `{queue_json, project, callback_hint}`
 2. POSTa `/nqueues/import` → pega `nq_id`
@@ -147,12 +147,12 @@ Proxy fino que traduz contrato `/execute` do imkt4 pra skyreelsv3:
 
 Capability nova: `video.skyreels_queue`. Porta `:8120`.
 
-**Endpoint novo no gateway imkt4:** `POST /queue-callback/<job_id>` — só
+**Endpoint novo no gateway imkt5:** `POST /queue-callback/<job_id>` — só
 aceita do IP do skyreelsv3.
 
 ---
 
-## Fase 3 — Recipe `roteiro-video.yaml` no imkt4 ~half-day
+## Fase 3 — Recipe `roteiro-video.yaml` no imkt5 ~half-day
 
 5 stages:
 
@@ -181,7 +181,7 @@ Atualização no `config/workers.yaml`: registrar os 2 workers novos.
 
 ## Sugestões independentes para o skyreelsv3 amadurecer
 
-(Não são pré-requisito da integração imkt4, mas aumentam robustez do
+(Não são pré-requisito da integração imkt5, mas aumentam robustez do
 produto standalone.)
 
 - **CORS configurável** (hoje webui é rede interna — fica frágil se mudar)
@@ -205,7 +205,7 @@ produto standalone.)
    (mais rápido, gambiarra).
 2. **Escopo de `project`/namespacing:** se INETUSX é único consumidor
    planejado pros próximos meses, PR 4 da fase 0 pode ser adiado.
-3. **Reconciliação com workers video-* atuais do imkt4**
+3. **Reconciliação com workers video-* atuais do imkt5**
    (`video-quick`, `video-pro`, `video-art-director`, `ffmpeg-local`):
    continuam servindo o caminho "marketing curto" (campanha-marketing);
    não são substituídos pelo skyreels. Dois pipelines distintos coexistem.
@@ -221,15 +221,15 @@ produto standalone.)
   + talking_avatar)
 - `/home/nmaldaner/projetos/skyreelsv3/projetos/INETUSX/` — projeto real
   consumindo o skyreelsv3 hoje
-- `/home/nmaldaner/projetos/imkt4/recipes/campanha-marketing.yaml` —
+- `/home/nmaldaner/projetos/imkt5/recipes/campanha-marketing.yaml` —
   referência do padrão de recipe
-- `/home/nmaldaner/projetos/imkt4/config/workers.yaml` — onde registrar
+- `/home/nmaldaner/projetos/imkt5/config/workers.yaml` — onde registrar
   workers novos
-- `/home/nmaldaner/projetos/imkt4/doc/telegram-watcher-plan.md` — mesmo
+- `/home/nmaldaner/projetos/imkt5/doc/telegram-watcher-plan.md` — mesmo
   padrão de "plano parkeado" deste
 
 ## Pick up
 
 Se retomar: começar pela fase 0 PR 1 (health check no skyreelsv3) —
-menor risco, desbloqueia testes de conectividade do adapter imkt4 antes
+menor risco, desbloqueia testes de conectividade do adapter imkt5 antes
 de qualquer outra coisa. 30min de trabalho.

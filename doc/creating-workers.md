@@ -75,7 +75,7 @@ class MemeGeneratorWorker(BaseWorker):
 
 if __name__ == "__main__":
     import os
-    from imkt4.config import load
+    from imkt5.config import load
     # config central: defaults.yaml → workers.meme_generator.port
     default_port = 8300
     port = int(os.environ.get("MEME_GENERATOR_PORT", default_port))
@@ -229,4 +229,4 @@ Padrão `inemaimg-adapter` e `inemavox-adapter` é esse.
 - ❌ **Clonar o código do worker** pra rodar múltiplas instâncias. Em vez disso, registre N entradas no `config/workers.yaml` apontando pra portas/máquinas diferentes.
 - ❌ **Worker com estado persistente em disco local**. Se precisa persistir, usa Postgres ou S3.
 - ❌ **Worker que conhece outros workers**. Se precisa compor várias capabilities, isso é trabalho de **receita**, não de worker.
-- ❌ **Escrever em `prj/<cliente>/outputs/`** (padrão do timesmkt3). No imkt4, tudo passa pelo storage helper com `tenant_id`.
+- ❌ **Escrever em `prj/<cliente>/outputs/`** (padrão do timesmkt3). No imkt5, tudo passa pelo storage helper com `tenant_id`.

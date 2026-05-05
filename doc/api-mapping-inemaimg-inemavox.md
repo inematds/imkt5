@@ -1,7 +1,7 @@
 # Mapeamento de APIs — inemaimg e inemavox
 
 > Relatório da exploração de código feita para construir os adapters do
-> `imkt4`. **Capturado em 2026-04-16**; validar antes de mudanças maiores.
+> `imkt5`. **Capturado em 2026-04-16**; validar antes de mudanças maiores.
 
 ## inemaimg
 
@@ -134,7 +134,7 @@ jobs/{job_id}/
 
 ---
 
-## Implicações para os adapters do `imkt4`
+## Implicações para os adapters do `imkt5`
 
 ### Colisão de porta em dev local
 
@@ -144,7 +144,7 @@ Ambos usam **8000** por default. Soluções possíveis:
 2. Configurar `uvicorn --port ...` distinto para cada.
 3. Docker compose separando em containers.
 
-Os adapters do `imkt4` usam `INEMAIMG_URL` e `INEMAVOX_URL` — qualquer
+Os adapters do `imkt5` usam `INEMAIMG_URL` e `INEMAVOX_URL` — qualquer
 endpoint funciona.
 
 ### Shape do adapter → backend
@@ -152,13 +152,13 @@ endpoint funciona.
 **inemaimg-adapter** (sync, trivial):
 
 ```
-imkt4 Job → POST inemaimg/generate → base64 → upload MinIO → devolve URL
+imkt5 Job → POST inemaimg/generate → base64 → upload MinIO → devolve URL
 ```
 
 **inemavox-adapter** (async, mais trabalho):
 
 ```
-imkt4 Job → POST inemavox/api/jobs/tts → job_id
+imkt5 Job → POST inemavox/api/jobs/tts → job_id
           → poll GET inemavox/api/jobs/{id}  até completed
           → GET  inemavox/api/jobs/{id}/audio → bytes
           → upload MinIO → devolve URL

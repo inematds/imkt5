@@ -1,6 +1,6 @@
 [project]
-name = "imkt4"
-version = "0.0.1"
+name = "imkt5"
+version = "5.0.0"
 description = "Plataforma modular multi-tenant para pipelines de mídia, com entrada conversacional (Telegram, WhatsApp, Web) e fila de jobs."
 requires-python = ">=3.11"
 readme = "README.md"
@@ -29,14 +29,14 @@ dev = [
 ]
 
 [project.scripts]
-imkt4 = "imkt4.main:main"
+imkt5 = "imkt5.main:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["imkt4"]
+packages = ["imkt5"]
 
 [tool.ruff]
 line-length = 100

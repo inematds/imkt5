@@ -1,4 +1,4 @@
-# Fonte única de defaults operacionais do imkt4.
+# Fonte única de defaults operacionais do imkt5.
 #
 # Regra de precedência: env var → este arquivo → fallback no código.
 # Chave-valor: cada valor tem um env var que pode sobrescrever.
@@ -11,28 +11,28 @@ gateway:
 
 dispatcher:
   # HttpDispatcher — ponte entre gateway e workers via HTTP
-  request_timeout_seconds: 1200         # env: IMKT4_DISPATCH_TIMEOUT (20min — renders educativos longos)
+  request_timeout_seconds: 1200         # env: IMKT5_DISPATCH_TIMEOUT (20min — renders educativos longos)
   retry_when_saturated_seconds: 2.0     # espera 2s entre tentativas de seleção
   max_pending_jobs: 1000
   # 2s × 1800 = 3600s = 1h. Suficiente pra 2 renders longos enfileirados.
   max_select_retries: 1800
 
 capability_registry:
-  probe_timeout_seconds: 3.0            # env: IMKT4_PROBE_TIMEOUT
+  probe_timeout_seconds: 3.0            # env: IMKT5_PROBE_TIMEOUT
   default_worker_priority: 50
   default_worker_max_concurrent: 4
   default_worker_timeout_seconds: 120
 
 jobs_store:
-  max_history: 500                       # env: IMKT4_JOBS_HISTORY
+  max_history: 500                       # env: IMKT5_JOBS_HISTORY
   # Se POSTGRES_URL setado, usa PostgresJobsStore (persistente);
   # senão, in-memory (perde no restart).
 
 approvals:
-  default_timeout_seconds: 1800          # 30 min; env: IMKT4_APPROVAL_TIMEOUT
+  default_timeout_seconds: 1800          # 30 min; env: IMKT5_APPROVAL_TIMEOUT
 
 storage:
-  artifact_root: ./data/artifacts        # env: IMKT4_ARTIFACT_ROOT
+  artifact_root: ./data/artifacts        # env: IMKT5_ARTIFACT_ROOT
 
 memory:
   db_path: ./data/memory.db              # env: MEMORY_DB_PATH
@@ -57,13 +57,13 @@ workers:
     port: 8200                           # env: AUTO_REVIEWER_PORT
 
   inemaimg_adapter:
-    port: 8020                           # env: IMKT4_INEMAIMG_ADAPTER_PORT
+    port: 8020                           # env: IMKT5_INEMAIMG_ADAPTER_PORT
     upstream_url: http://localhost:8000  # env: INEMAIMG_URL
     default_model: qwen-edit-2511        # env: INEMAIMG_MODEL
     request_timeout_seconds: 180         # env: INEMAIMG_TIMEOUT
 
   inemavox_adapter:
-    port: 8021                           # env: IMKT4_INEMAVOX_ADAPTER_PORT
+    port: 8021                           # env: IMKT5_INEMAVOX_ADAPTER_PORT
     upstream_url: http://localhost:8010  # env: INEMAVOX_URL
     poll_interval_seconds: 1.5           # env: INEMAVOX_POLL_INTERVAL
     poll_max_seconds: 600                # env: INEMAVOX_POLL_MAX_SECONDS

@@ -45,7 +45,7 @@ implementação em batch.
 - **Dedup**:
   - Hash `sha256(text + voice + lang + engine)` vira chave.
   - Armazenar em Postgres (`tts_cache` table) OU naming determinístico em
-    S3 `/s3/imkt4/tts-cache/<hash>.mp3`.
+    S3 `/s3/imkt5/tts-cache/<hash>.mp3`.
   - No adapter, antes de chamar TTS upstream, checa se o hash já existe;
     se sim, devolve `audio_url` cacheado.
   - Economia esperada: 40-60% em runs repetidos/similares.

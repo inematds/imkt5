@@ -168,7 +168,7 @@ stages:
 ```bash
 # 1) validar que carrega sem erro
 .venv/bin/python -c "
-from imkt4.recipes import load_recipe
+from imkt5.recipes import load_recipe
 r = load_recipe('recipes/minha-receita.yaml')
 print(f'OK: {r.name} v{r.version} — {len(r.stages)} stages')
 "

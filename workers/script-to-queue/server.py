@@ -71,7 +71,7 @@ class ScriptToQueueWorker(BaseWorker):
 
         characters = _normalize_named(payload.get("characters") or [])
         ambients = _normalize_named(payload.get("ambients") or [])
-        # Arrays paralelos por índice (usado pelas recipes do imkt4: fanout
+        # Arrays paralelos por índice (usado pelas recipes do imkt5: fanout
         # do inemaimg produz outputs[*].image_url na mesma ordem do input).
         # Preenche ref_image_url faltante em characters/ambients por posição.
         _zip_urls_into(characters, payload.get("character_image_urls") or [])
@@ -179,7 +179,7 @@ def _normalize_named(items: list[Any]) -> list[dict[str, Any]]:
 
 def _zip_urls_into(items: list[dict[str, Any]], urls: list[Any]) -> None:
     """Preenche ref_image_url faltante em items[] pelos URLs em ordem.
-    In-place. Usado com fanouts do imkt4 que produzem outputs paralelos."""
+    In-place. Usado com fanouts do imkt5 que produzem outputs paralelos."""
     for i, item in enumerate(items):
         if item.get("ref_image_url"):
             continue

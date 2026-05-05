@@ -1,4 +1,4 @@
-# Arquitetura — imkt4
+# Arquitetura — imkt5
 
 Documento arquitetural canônico. Leitura obrigatória antes de qualquer
 mudança estrutural.
@@ -65,7 +65,7 @@ Unidade de trabalho pesado. `Job` leva `worker_type`, `payload`, `priority`,
 `payload` e `output` é definido por cada worker.
 
 ### `BaseChannel`, `BaseProvider`, `BaseTool`
-Interfaces abstratas em `imkt4/{channels,providers,tools}/base.py`. Todo
+Interfaces abstratas em `imkt5/{channels,providers,tools}/base.py`. Todo
 adapter/provider/tool concreto herda destas. **Sem exceções.**
 
 ### `ToolContext`
@@ -222,7 +222,7 @@ Web** do Gateway — o usuário vê artefatos prontos e aciona.
 | `inemavox` | `/home/nmaldaner/projetos/inemavox/` (análise pendente) |
 
 Achado extra: o `timesmkt3` **já integra `inemaimgProvider`** como uma das
-opções de geração de imagem. O contrato que o `imkt4` define aqui ratifica
+opções de geração de imagem. O contrato que o `imkt5` define aqui ratifica
 um caminho que já estava começando.
 
 ## Receitas
@@ -246,7 +246,7 @@ approval:
 
 Todas as decisões vão para `approval_log` — auditoria unificada
 independentemente do modo. Workers de auto-review são workers normais do
-`imkt4` (iniciando com `auto-reviewer` nativo).
+`imkt5` (iniciando com `auto-reviewer` nativo).
 
 ### Exemplo: `campanha-marketing` (derivada do pipeline do timesmkt3)
 
@@ -293,22 +293,22 @@ publicar em destinos X, Y, Z — cada combinação roda em paralelo.
 
 Implementado:
 
-- Tipos canônicos (`imkt4/types/`).
-- Contratos abstratos (`imkt4/channels/base.py`, `providers/base.py`,
+- Tipos canônicos (`imkt5/types/`).
+- Contratos abstratos (`imkt5/channels/base.py`, `providers/base.py`,
   `tools/base.py` + registry).
-- `MemoryStore` SQLite multi-tenant (`imkt4/memory/store.py`).
+- `MemoryStore` SQLite multi-tenant (`imkt5/memory/store.py`).
 - Template de perfil por tenant (`profiles/_template/`).
 - Infra local via `docker-compose.yml` (Redis + Postgres + MinIO).
 
 Pendente (próximas fases, em ordem):
 
-1. **Tenancy resolver** — `imkt4/tenancy/resolver.py`: mapa
+1. **Tenancy resolver** — `imkt5/tenancy/resolver.py`: mapa
    `(channel, external_id) → (tenant_id, user_id)`.
-2. **`dispatch_job` tool** — `imkt4/tools/dispatch_job.py` + wrapper RQ em
-   `imkt4/gateway/queue.py`.
-3. **Gateway HTTP** — FastAPI (`imkt4/gateway/api.py`) expondo criar/status
+2. **`dispatch_job` tool** — `imkt5/tools/dispatch_job.py` + wrapper RQ em
+   `imkt5/gateway/queue.py`.
+3. **Gateway HTTP** — FastAPI (`imkt5/gateway/api.py`) expondo criar/status
    de jobs, e endpoint de ingest de mensagens (útil ao `WebChannel`).
-4. **Agent loop** — `imkt4/agent/loop.py` (multi-tenant) + `context.py`
+4. **Agent loop** — `imkt5/agent/loop.py` (multi-tenant) + `context.py`
    (carrega SOUL/AGENTS/USER do tenant).
 5. **Providers concretos** — `OpenRouterProvider`, `OllamaProvider`.
 6. **Canal Telegram** — primeiro adapter real, porta simplificada de

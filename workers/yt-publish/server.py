@@ -21,7 +21,7 @@ import httpx
 
 from workers._base import BaseWorker
 
-log = logging.getLogger("imkt4.workers.yt-publish")
+log = logging.getLogger("imkt5.workers.yt-publish")
 
 
 class YTPublishWorker(BaseWorker):
@@ -85,7 +85,7 @@ class YTPublishWorker(BaseWorker):
         ref = dest.get("credentials_ref")
         if ref:
             try:
-                from imkt4.security import get_kms
+                from imkt5.security import get_kms
                 kms = get_kms()
                 data = await kms.get(ref)
                 if data:
@@ -115,7 +115,7 @@ async def _fetch_to_local(url: str) -> Path:
     if url.startswith("file://"):
         return Path(url[len("file://"):])
     if url.startswith("/artifacts/"):
-        root = os.environ.get("IMKT4_ARTIFACT_ROOT", "./data/artifacts")
+        root = os.environ.get("IMKT5_ARTIFACT_ROOT", "./data/artifacts")
         return Path(root) / url[len("/artifacts/"):]
     if url.startswith("/s3/"):
         rest = url[len("/s3/"):]

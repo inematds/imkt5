@@ -41,7 +41,7 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageFilter
 from workers._base import BaseWorker
 from workers._base.storage import get_storage
 
-log = logging.getLogger("imkt4.workers.carousel")
+log = logging.getLogger("imkt5.workers.carousel")
 
 FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FONT_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
@@ -327,7 +327,7 @@ async def _fetch(url: str, dest: Path) -> None:
     if url.startswith("file://"):
         dest.write_bytes(Path(url[len("file://"):]).read_bytes()); return
     if url.startswith("/artifacts/"):
-        root = os.environ.get("IMKT4_ARTIFACT_ROOT", "./data/artifacts")
+        root = os.environ.get("IMKT5_ARTIFACT_ROOT", "./data/artifacts")
         dest.write_bytes((Path(root) / url[len("/artifacts/"):]).read_bytes()); return
     if url.startswith("/s3/"):
         rest = url[len("/s3/"):]; bucket, _, key = rest.partition("/")

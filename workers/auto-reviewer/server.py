@@ -102,6 +102,6 @@ class AutoReviewerWorker(BaseWorker):
 
 if __name__ == "__main__":
     import os
-    from imkt4.config import load
+    from imkt5.config import load
     port = int(os.environ.get("AUTO_REVIEWER_PORT", load().workers.auto_reviewer.port))
     AutoReviewerWorker().run(port=port)

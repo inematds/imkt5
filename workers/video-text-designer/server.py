@@ -29,7 +29,7 @@ if _ROOT not in sys.path:
 from workers._base import BaseWorker  # noqa: E402
 from workers._base.storage import get_storage  # noqa: E402
 
-log = logging.getLogger("imkt4.workers.video-text-designer")
+log = logging.getLogger("imkt5.workers.video-text-designer")
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 STYLES_JSON = Path(__file__).parent / "styles.json"

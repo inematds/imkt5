@@ -1,4 +1,4 @@
-# QUICKSTART — testar o `imkt4` end-to-end
+# QUICKSTART — testar o `imkt5` end-to-end
 
 > Como subir tudo, mandar requisições e ver respostas em ~5 minutos.
 
@@ -150,7 +150,7 @@ curl -s -X POST http://localhost:8080/jobs \
     "user_id": "u1",
     "capability": "audio.tts",
     "payload": {
-      "text": "Olá, este é um teste do imkt4.",
+      "text": "Olá, este é um teste do imkt5.",
       "engine": "edge",
       "lang": "pt"
     }

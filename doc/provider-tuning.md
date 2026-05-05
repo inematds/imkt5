@@ -11,7 +11,7 @@ Claude-específica. CLAUDE.md apenas aponta pra cá.
 
 ## Por que isso importa
 
-Workers no imkt4 são plugáveis por capability: `image.generation`,
+Workers no imkt5 são plugáveis por capability: `image.generation`,
 `audio.tts`, `video.render`, `llm.*`, etc. Trocar o modelo subjacente é fácil
 (campo `model:` na recipe ou env no adapter). Mas os parâmetros ótimos
 **não viajam entre modelos** — copiar `steps: 15` de um SDXL pra um flux2-klein
@@ -72,7 +72,7 @@ Ao mudar um modelo, revisar **sempre estas 3 camadas**:
    quando o payload não traz.
    - Ex.: `workers/inemaimg-adapter/server.py` → `INEMAIMG_MODEL` env +
      fallback no código.
-3. **UI defaults** — `imkt4/gateway/web_ui.py` → `CAP_CONFIG`.
+3. **UI defaults** — `imkt5/gateway/web_ui.py` → `CAP_CONFIG`.
    - Ex.: `image.generation` → `{model: "flux2-klein", steps: 4, ...}`.
    - Esses viram o payload inicial quando a UI cria um job sem override.
 
@@ -100,6 +100,6 @@ Usar `steps: 15+` nele:
 
 Default correto em todas as camadas:
 - `recipes/carrossel-simples.yaml` → `steps: 4` ✓
-- `imkt4/gateway/web_ui.py` CAP_CONFIG — **verificar/fixar** se ainda tem 15.
+- `imkt5/gateway/web_ui.py` CAP_CONFIG — **verificar/fixar** se ainda tem 15.
 
 Referência descoberta em 2026-04-18.

@@ -19,16 +19,16 @@
 
 | Variável | Default | Onde mora hoje | Pra onde deveria ir |
 |---|---|---|---|
-| `GATEWAY_HOST` | `0.0.0.0` | `.env` + `imkt4/main.py:233` | ficar |
-| `GATEWAY_PORT` | `8080` | `.env` + `imkt4/main.py:234` | ficar |
+| `GATEWAY_HOST` | `0.0.0.0` | `.env` + `imkt5/main.py:233` | ficar |
+| `GATEWAY_PORT` | `8080` | `.env` + `imkt5/main.py:234` | ficar |
 | `INEMAIMG_URL` (upstream) | `http://localhost:8000` | `.env` + `workers/inemaimg-adapter/server.py:37` | ficar |
 | `INEMAVOX_URL` (upstream) | `http://localhost:8010` | `.env` + `workers/inemavox-adapter/server.py:35` | ficar |
-| `IMKT4_INEMAIMG_ADAPTER_PORT` | `8020` | env + adapter `__main__` | `config/workers.yaml` |
-| `IMKT4_INEMAVOX_ADAPTER_PORT` | `8021` | env + adapter `__main__` | `config/workers.yaml` |
+| `IMKT5_INEMAIMG_ADAPTER_PORT` | `8020` | env + adapter `__main__` | `config/workers.yaml` |
+| `IMKT5_INEMAVOX_ADAPTER_PORT` | `8021` | env + adapter `__main__` | `config/workers.yaml` |
 | research worker port | `8100` | **hardcoded** `workers/research/server.py:96` | ❌ env ou yaml |
 | auto-reviewer port | `8200` | **hardcoded** `workers/auto-reviewer/server.py:194` | ❌ env ou yaml |
 | `REDIS_URL` | `redis://localhost:6379/0` | `.env` | ficar |
-| `POSTGRES_URL` | `postgresql://imkt4:imkt4@localhost:5432/imkt4` | `.env` | ficar |
+| `POSTGRES_URL` | `postgresql://imkt5:imkt5@localhost:5432/imkt5` | `.env` | ficar |
 | `S3_ENDPOINT` | `http://localhost:9000` | `.env` | ficar |
 
 ## Categoria B — LLM providers
@@ -47,20 +47,20 @@
 
 | Variável | Default | Onde | Comentário |
 |---|---|---|---|
-| `IMKT4_ARTIFACT_ROOT` | `./data/artifacts` | **código** `workers/_base/storage.py:23` | adicionar no `.env.example` |
+| `IMKT5_ARTIFACT_ROOT` | `./data/artifacts` | **código** `workers/_base/storage.py:23` | adicionar no `.env.example` |
 | `MEMORY_DB_PATH` | `./data/memory.db` | `.env` | ok |
 
 ## Categoria D — Timeouts / concorrência (hardcoded em código!)
 
 | Local | Default | Arquivo | ❌ |
 |---|---|---|---|
-| HttpDispatcher request timeout | `600.0s` | `imkt4/gateway/http_dispatcher.py:42` | mover |
-| HttpDispatcher retry quando saturado | `0.5s` | `imkt4/gateway/http_dispatcher.py:43` | mover |
-| HttpDispatcher max_pending | `1000` | `imkt4/gateway/http_dispatcher.py:44` | mover |
-| HttpDispatcher `_select_with_retry` max tentativas | `120` (~60s) | `imkt4/gateway/http_dispatcher.py:121` | mover |
-| CapabilityRegistry probe timeout | `3.0s` | `imkt4/capabilities/registry.py:32` | mover |
-| JobsStore max_size | `500` | `imkt4/gateway/jobs_store.py:33` | mover |
-| Approval default timeout | `1800s` (30min) | `imkt4/types/approvals.py:45` | mover |
+| HttpDispatcher request timeout | `600.0s` | `imkt5/gateway/http_dispatcher.py:42` | mover |
+| HttpDispatcher retry quando saturado | `0.5s` | `imkt5/gateway/http_dispatcher.py:43` | mover |
+| HttpDispatcher max_pending | `1000` | `imkt5/gateway/http_dispatcher.py:44` | mover |
+| HttpDispatcher `_select_with_retry` max tentativas | `120` (~60s) | `imkt5/gateway/http_dispatcher.py:121` | mover |
+| CapabilityRegistry probe timeout | `3.0s` | `imkt5/capabilities/registry.py:32` | mover |
+| JobsStore max_size | `500` | `imkt5/gateway/jobs_store.py:33` | mover |
+| Approval default timeout | `1800s` (30min) | `imkt5/types/approvals.py:45` | mover |
 
 ## Categoria E — Per-worker (já em YAML)
 
@@ -73,7 +73,7 @@
 | `timeout_seconds` | `180` | 120 |
 | `local` | `true` | `false` |
 
-Defaults implícitos estão em `RegisteredWorker` (`imkt4/types/capabilities.py`).
+Defaults implícitos estão em `RegisteredWorker` (`imkt5/types/capabilities.py`).
 
 ## Categoria F — Workers específicos
 
@@ -91,7 +91,7 @@ Defaults implícitos estão em `RegisteredWorker` (`imkt4/types/capabilities.py`
 
 ## Categoria G — Defaults de payload por capability (UI)
 
-Arquivo: `imkt4/gateway/web_ui.py` — constante `CAP_CONFIG`.
+Arquivo: `imkt5/gateway/web_ui.py` — constante `CAP_CONFIG`.
 
 Cada capability tem defaults do **payload** que a UI constrói a partir do texto:
 
@@ -108,7 +108,7 @@ Cada capability tem defaults do **payload** que a UI constrói a partir do texto
 
 ## Categoria H — Tenant / Recipe stubs
 
-Arquivo: `imkt4/main.py` — `StubTenantContext`.
+Arquivo: `imkt5/main.py` — `StubTenantContext`.
 
 | Campo | Default do tenant "demo" |
 |---|---|
@@ -178,10 +178,10 @@ storage:
   artifact_root: ./data/artifacts
 ```
 
-E um carregador central em **`imkt4/config.py`**:
+E um carregador central em **`imkt5/config.py`**:
 
 ```python
-from imkt4.config import settings
+from imkt5.config import settings
 settings.dispatcher.request_timeout_seconds  # 600
 settings.workers.individual.research.port    # 8100
 ```

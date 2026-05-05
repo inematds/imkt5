@@ -1,7 +1,7 @@
 # Inventário de credenciais — projetos-fonte
 
 > Valores reais **não** estão neste documento. Só mapeia quais chaves
-> existem em cada projeto e onde reutilizá-las no `imkt4`.
+> existem em cada projeto e onde reutilizá-las no `imkt5`.
 
 ## Resumo
 
@@ -13,7 +13,7 @@
 | `yt-pub-lives2` | `config/.env` | 10 |
 | `openpcbot` | `.env` | 20 |
 
-## Mapeamento → uso no `imkt4`
+## Mapeamento → uso no `imkt5`
 
 ### Workers de mídia (geração)
 | Capability | Key | Origem |
@@ -47,8 +47,8 @@
 | Slack | `SLACK_USER_TOKEN` | `openpcbot/.env` |
 
 **Recomendação**: não reutilizar o bot do `timesmkt3` em produção para o
-`imkt4` — roubaria mensagens do pipeline vivo. Criar bot dedicado
-(`@imkt4_bot` via BotFather) quando Fase 5 chegar. Enquanto isso,
+`imkt5` — roubaria mensagens do pipeline vivo. Criar bot dedicado
+(`@imkt5_bot` via BotFather) quando Fase 5 chegar. Enquanto isso,
 notificações administrativas (ex.: "build pronto") podem usar qualquer
 um dos dois via `sendMessage` direto.
 
@@ -71,7 +71,7 @@ um dos dois via `sendMessage` direto.
 
 ## Nota de segurança
 
-- **Nunca commitar** `imkt4/.env`; está no `.gitignore`.
+- **Nunca commitar** `imkt5/.env`; está no `.gitignore`.
 - Em produção, estas chaves **não** vão em `.env` — migrar para KMS
   (Vault/AWS/gcp-secret-manager) antes do deploy. `.env` é só ambiente
   de desenvolvimento local.
@@ -81,7 +81,7 @@ um dos dois via `sendMessage` direto.
 ## Estratégia de `credentials_ref` para bindings
 
 Tanto `SourceBinding` quanto `PublishBinding` carregam um campo
-`credentials_ref: str` (ver `imkt4/types/bindings.py`). No scaffold
+`credentials_ref: str` (ver `imkt5/types/bindings.py`). No scaffold
 atual, o ref é **o nome da variável de ambiente** (ex.:
 `env:YOUTUBE_REFRESH_TOKEN`); na migração pra produção, vira o path
 no KMS (ex.: `kms:secrets/tenant-abc/yt-source-xyz`).

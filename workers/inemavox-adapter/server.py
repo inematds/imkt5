@@ -1,9 +1,9 @@
 """inemavox-adapter — wrapper HTTP sobre o job-queue do inemavox.
 
 Esconde o modelo async do inemavox atrás de uma chamada sync do ponto de
-vista do imkt4. Fluxo:
+vista do imkt5. Fluxo:
 
-  imkt4 Job → POST inemavox/api/jobs/tts → job_id
+  imkt5 Job → POST inemavox/api/jobs/tts → job_id
             → poll GET inemavox/api/jobs/{id} até completed
             → GET inemavox/api/jobs/{id}/audio → bytes
             → storage.save_bytes → URL
@@ -34,9 +34,9 @@ import httpx
 from workers._base import BaseWorker
 from workers._base.storage import get_storage
 
-log = logging.getLogger("imkt4.inemavox")
+log = logging.getLogger("imkt5.inemavox")
 
-from imkt4.config import load as _load_cfg
+from imkt5.config import load as _load_cfg
 _CFG = _load_cfg().workers.inemavox_adapter
 INEMAVOX_URL = os.environ.get("INEMAVOX_URL", _CFG.upstream_url)
 POLL_INTERVAL = float(os.environ.get("INEMAVOX_POLL_INTERVAL", _CFG.poll_interval_seconds))
@@ -265,5 +265,5 @@ class InemavoxAdapter(BaseWorker):
 
 if __name__ == "__main__":
     InemavoxAdapter().run(
-        port=int(os.environ.get("IMKT4_INEMAVOX_ADAPTER_PORT", _CFG.port))
+        port=int(os.environ.get("IMKT5_INEMAVOX_ADAPTER_PORT", _CFG.port))
     )

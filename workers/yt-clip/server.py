@@ -20,7 +20,7 @@ from workers._base import BaseWorker
 from workers._base.llm_client import complete_json
 from workers._base.storage import get_storage
 
-log = logging.getLogger("imkt4.workers.yt-clip")
+log = logging.getLogger("imkt5.workers.yt-clip")
 
 SYSTEM_PROMPT = """\
 Você é editor de vídeo. Recebe transcrição com timestamps e um prompt

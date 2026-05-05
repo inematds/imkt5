@@ -1,6 +1,6 @@
 # Painéis — visão geral e divisão de responsabilidades
 
-> Documento consolidado. O `imkt4` tem painéis web servidos pelo próprio
+> Documento consolidado. O `imkt5` tem painéis web servidos pelo próprio
 > Gateway (`/ui/*`). Cada painel atende um papel diferente — evita
 > misturar operação diária com configuração crítica.
 
@@ -181,5 +181,5 @@ Total: ~3-5 semanas focadas.
 outra interface pra o mesmo sistema. Usuário consegue 80% do que está
 no `/ui` via comandos Telegram, sem abrir browser.
 
-Exemplo: `"@imkt4bot aprovar copy do último run"` faz a mesma coisa
+Exemplo: `"@imkt5bot aprovar copy do último run"` faz a mesma coisa
 que clicar o botão de aprovação no `/ui`.

@@ -32,7 +32,7 @@ YAML → parse → validação pydantic → escreve. Backend `GET/PUT /config` j
 
 ### Implementação
 
-**Backend** (adicionar ao `imkt4/gateway/api.py`):
+**Backend** (adicionar ao `imkt5/gateway/api.py`):
 
 ```python
 from pathlib import Path

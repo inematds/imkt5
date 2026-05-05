@@ -2,7 +2,7 @@
 
 Capability: `video.skyreels_queue`. Porta 8120.
 
-Proxy fino que traduz o contrato `/execute` do imkt4 pra webui do SkyReels V3
+Proxy fino que traduz o contrato `/execute` do imkt5 pra webui do SkyReels V3
 (default em `:7861`). Fluxo:
 
   1. POST /nqueues/import      (com queue_json + project)                 → nq_id
@@ -11,7 +11,7 @@ Proxy fino que traduz o contrato `/execute` do imkt4 pra webui do SkyReels V3
   4. opcional: POST /nqueues/<id>/finalize pra gerar mp4 concatenado
   5. devolve {external_id, output_videos, finalized_video, duration_s}
 
-Rationale: o plano original propõe um endpoint novo no gateway imkt4 (`POST
+Rationale: o plano original propõe um endpoint novo no gateway imkt5 (`POST
 /queue-callback/<job_id>`), mas consolidar callback no próprio adapter evita
 acoplamento, mantém o gateway agnóstico a esse worker e respeita o
 princípio #4 do CLAUDE.md (adapters são finos).
@@ -27,7 +27,7 @@ Variáveis de ambiente:
 Input payload (de /execute):
   {
     "queue_json":    [ ... cenas do script-to-queue ... ],
-    "queue_name":    "..." | "imkt4-<job_id[:8]>",
+    "queue_name":    "..." | "imkt5-<job_id[:8]>",
     "project":       "INETUSX" | "",
     "auto_finalize": true | false (default true),
     "timeout_s":     int (default 3600 = 1h)
@@ -108,7 +108,7 @@ class SkyReelsAdapterWorker(BaseWorker):
         project = (payload.get("project") or "").strip()
         queue_name = (payload.get("queue_name") or "").strip()
         if not queue_name:
-            queue_name = f"imkt4-{job.job_id[:8]}"
+            queue_name = f"imkt5-{job.job_id[:8]}"
         auto_finalize = bool(payload.get("auto_finalize", True))
         timeout_s = int(payload.get("timeout_s") or DEFAULT_TIMEOUT)
 
@@ -122,7 +122,7 @@ class SkyReelsAdapterWorker(BaseWorker):
             f"&project={quote_plus(project)}"
         )
         body_str = json.dumps(queue_json, ensure_ascii=False)
-        async with httpx.AsyncClient(timeout=60.0) as c:
+        async with httpx.AsyncClient(timeout=600.0) as c:
             r = await c.post(
                 import_url,
                 content=body_str.encode("utf-8"),
@@ -149,7 +149,7 @@ class SkyReelsAdapterWorker(BaseWorker):
                 f"{upstream}/nqueues/{nq_id}/run"
                 f"?callback_url={quote_plus(callback_url)}"
             )
-            async with httpx.AsyncClient(timeout=60.0) as c:
+            async with httpx.AsyncClient(timeout=600.0) as c:
                 r = await c.post(run_url)
                 if r.status_code >= 400:
                     raise RuntimeError(
@@ -189,12 +189,19 @@ class SkyReelsAdapterWorker(BaseWorker):
                 except Exception as exc:  # noqa: BLE001
                     print(f"[adapter] finalize falhou: {exc}")
 
+            def _to_url(path: str | None) -> str | None:
+                if not path or not isinstance(path, str):
+                    return path
+                if path.startswith(("http://", "https://", "/")):
+                    return path
+                return f"{upstream}/video/{path}"
+
             result = {
                 "external_id": nq_id,
                 "upstream_url": f"{upstream}/nqueues/{nq_id}",
                 "status": cb_status,
-                "output_videos": output_videos,
-                "finalized_video": finalized_video,
+                "output_videos": [_to_url(p) for p in output_videos],
+                "finalized_video": _to_url(finalized_video),
                 "failed_jobs": failed_jobs,
                 "duration_s": duration_s,
                 "queue_name": queue_name,

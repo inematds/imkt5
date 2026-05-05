@@ -18,7 +18,7 @@ from typing import Any
 
 from workers._base import BaseWorker
 
-log = logging.getLogger("imkt4.workers.tiktok-ingest")
+log = logging.getLogger("imkt5.workers.tiktok-ingest")
 
 _seen: dict[str, set[str]] = {}
 

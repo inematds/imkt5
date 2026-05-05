@@ -1,4 +1,4 @@
-# Backlog — o que falta no `imkt4`
+# Backlog — o que falta no `imkt5`
 
 > Consolida tudo que ficou pendente até agora. Organizado por prioridade
 > e com estimativas de esforço pra planejar execução.
@@ -25,14 +25,14 @@ admin UI, infra de produção.
 ### 1. Gateway conversacional — LLM decidindo
 - **Esforço:** M | **Risco:** médio | **Desbloqueia:** Telegram/WA/Web conversacional de verdade
 - **Problema hoje:** a UI força o usuário a escolher a capability no dropdown. Não é um assistente.
-- **O que fazer:** agent loop em `imkt4/agent/loop.py` que:
+- **O que fazer:** agent loop em `imkt5/agent/loop.py` que:
   - Recebe `IncomingMessage`
   - Consulta memória (MemoryStore já pronto) + SOUL/AGENTS/USER do tenant
   - Chama `BaseProvider.chat()` com as tools `dispatch_job` e `run_recipe` registradas
   - LLM decide: responde direto OR dispatch OR recipe
   - Retorna `OutgoingMessage`
 - **Precisa:** Provider concreto (OpenRouter ou Ollama local). Ambos já têm URL/key no `.env`.
-- **Arquivos:** `imkt4/agent/loop.py` (novo), `imkt4/agent/context.py` (novo), `imkt4/providers/openrouter.py` (novo), `imkt4/providers/ollama.py` (novo).
+- **Arquivos:** `imkt5/agent/loop.py` (novo), `imkt5/agent/context.py` (novo), `imkt5/providers/openrouter.py` (novo), `imkt5/providers/ollama.py` (novo).
 
 ### 2. Canal Telegram real
 - **Esforço:** M | **Risco:** baixo | **Desbloqueia:** uso diário no celular
@@ -43,15 +43,15 @@ admin UI, infra de produção.
   - Chama `on_message(msg)` do Gateway
   - Envia `OutgoingMessage` (split de mensagem >4096, upload de anexo)
 - **Precisa:** criar bot novo via BotFather (NÃO reusar token do timesmkt3 em uso).
-- **Arquivos:** `imkt4/channels/telegram.py` (novo), `imkt4/tenancy/resolver.py` (novo).
+- **Arquivos:** `imkt5/channels/telegram.py` (novo), `imkt5/tenancy/resolver.py` (novo).
 - **Referência:** `openpcbot/src/bot.ts` + `timesmkt3/telegram/bot.js` — padrão porta.
 
 ### 3. Persistência — Postgres mínimo
 - **Esforço:** M | **Risco:** baixo | **Desbloqueia:** survive restart, multi-node, audit
 - **Problema hoje:** JobsStore + RecipeRun em memória; perde tudo no restart.
 - **Tabelas mínimas:** `tenants`, `users`, `channel_bindings`, `source_bindings`, `publish_bindings`, `jobs`, `recipe_runs`, `approval_log`.
-- **Schema já tem tipos prontos** em `imkt4/types/*.py` — só falta a camada de persistência.
-- **Arquivos:** `imkt4/db/` (novo) com `schema.sql`, `jobs_repo.py`, `runs_repo.py`, `tenants_repo.py`. Trocar `JobsStore` in-memory por `PostgresJobsStore` com mesma interface.
+- **Schema já tem tipos prontos** em `imkt5/types/*.py` — só falta a camada de persistência.
+- **Arquivos:** `imkt5/db/` (novo) com `schema.sql`, `jobs_repo.py`, `runs_repo.py`, `tenants_repo.py`. Trocar `JobsStore` in-memory por `PostgresJobsStore` com mesma interface.
 - **Dep:** `asyncpg` ou `psycopg3`.
 
 ---
@@ -62,7 +62,7 @@ admin UI, infra de produção.
 - **Esforço:** S | **Risco:** baixo | **Depende de:** #1 (Gateway conv) + #2 (Telegram)
 - **Problema hoje:** `user_gate` e `reviewer_gate` em `main.py` são stubs que auto-aprovam.
 - **O que fazer:** implementar gates reais que mandam `OutgoingMessage` ("aprovar? `/aprovar <stage>` ou `/rejeitar <stage> motivo`") e bloqueiam até resposta humana.
-- **Arquivos:** `imkt4/recipes/approvals/telegram_gates.py` (novo).
+- **Arquivos:** `imkt5/recipes/approvals/telegram_gates.py` (novo).
 
 ### 5. Multi-tenant de verdade
 - **Esforço:** M | **Risco:** médio | **Depende de:** #3 (Postgres)
@@ -71,13 +71,13 @@ admin UI, infra de produção.
   - `tenancy/resolver.py` que mapeia `(channel_kind, external_id) → (tenant_id, user_id)`
   - CRUD mínimo de tenants/users (pode ser CLI inicial; UI vem depois)
   - Middleware no gateway que enforce tenant em toda rota
-- **Arquivos:** `imkt4/tenancy/` (novo).
+- **Arquivos:** `imkt5/tenancy/` (novo).
 
 ### 6. Memória conversacional plugada no agent loop
 - **Esforço:** S | **Risco:** baixo | **Depende de:** #1 (agent loop)
 - **Problema hoje:** `MemoryStore` SQLite FTS5 existe e testado (35 testes), mas não está conectado.
 - **O que fazer:** no agent loop, antes de chamar LLM, fazer `memory.search(tenant, user, query)` e injetar top-K no system prompt. Depois de responder, `memory.save(resumo)`.
-- **Arquivos:** edição de `imkt4/agent/loop.py` e `context.py`.
+- **Arquivos:** edição de `imkt5/agent/loop.py` e `context.py`.
 
 ### 7. Portar workers do timesmkt3 (escopo reduzido)
 - **Esforço:** M (um por vez, ~1–2 dias cada) | **Risco:** médio
@@ -105,7 +105,7 @@ admin UI, infra de produção.
 - **Esforço:** S | **Risco:** médio
 - **Problema hoje:** gateway é 100% aberto.
 - **O que fazer:** bearer token simples por papel (`admin-global`, `admin-tenant-X`, `user-Y`). Middleware FastAPI. Secret em `.env`.
-- **Arquivo:** `imkt4/gateway/auth.py` (novo).
+- **Arquivo:** `imkt5/gateway/auth.py` (novo).
 
 ---
 
@@ -123,7 +123,7 @@ admin UI, infra de produção.
 ### 11. Fila Redis real + RQ
 - **Esforço:** S | **Risco:** baixo
 - **Problema hoje:** `InMemoryDispatcher` (asyncio.Queue local) — sem persistência, sem workers cross-process.
-- **O que fazer:** trocar por `HttpDispatcher` + Redis LPUSH/BRPOP (já tem `JobQueue` esqueleto em `imkt4/gateway/queue.py`). Ou migrar pra RQ/Celery se quiser feature completa.
+- **O que fazer:** trocar por `HttpDispatcher` + Redis LPUSH/BRPOP (já tem `JobQueue` esqueleto em `imkt5/gateway/queue.py`). Ou migrar pra RQ/Celery se quiser feature completa.
 - **Requer:** Redis rodando (já no `docker-compose.yml`).
 
 ### 12. MinIO/S3 pra artefatos públicos
@@ -145,7 +145,7 @@ admin UI, infra de produção.
 - **Problema hoje:** todas as chaves em `.env` (gitignored mas em disco cleartext).
 - **Alternativas:** Vault HashiCorp, AWS Secrets Manager, GCP Secret Manager.
 - **Abstração:** já existe o campo `credentials_ref` em `SourceBinding`/`PublishBinding`. Só falta resolver o ref na hora de usar.
-- **Arquivo:** `imkt4/security/kms.py` (novo, interface + backend concreto).
+- **Arquivo:** `imkt5/security/kms.py` (novo, interface + backend concreto).
 
 ### 15. Audit log
 - **Esforço:** S | **Risco:** baixo | **Depende de:** #3 (Postgres)
@@ -189,7 +189,7 @@ admin UI, infra de produção.
 
 ### 22. Universal modal: botão de fechar
 - **Esforço:** S
-- `imkt4/gateway/_media_modal.py`: o modal de mídia não tem botão X
+- `imkt5/gateway/_media_modal.py`: o modal de mídia não tem botão X
   visível. ESC funciona mas user espera clique fora/botão.
 - Fix: ícone ✕ no canto superior direito, clickout closes.
 

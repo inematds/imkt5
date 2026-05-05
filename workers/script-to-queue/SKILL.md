@@ -7,7 +7,7 @@ de cenas** no formato aceito pelo endpoint `/nqueues/import` do SkyReels V3.
 Cada cena vira um job de geração de vídeo (R2V, extension, shot_switching ou
 talking_avatar) encadeado pra formar o episódio completo.
 
-A saída é consumida pelo worker `skyreels-adapter` do imkt4, que a encaminha
+A saída é consumida pelo worker `skyreels-adapter` do imkt5, que a encaminha
 pro webui do SkyReels V3 (`http://<skyreels>:7861/nqueues/import`).
 
 ## Inputs (o usuário manda)

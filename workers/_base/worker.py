@@ -28,13 +28,13 @@ from abc import ABC, abstractmethod
 from dataclasses import asdict
 from typing import Any
 
-# Adiciona raiz do imkt4 ao path pra worker importar os tipos canônicos
+# Adiciona raiz do imkt5 ao path pra worker importar os tipos canônicos
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PKG_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
 if _PKG_ROOT not in sys.path:
     sys.path.insert(0, _PKG_ROOT)
 
-from imkt4.types.jobs import Job, JobResult, JobStatus  # noqa: E402
+from imkt5.types.jobs import Job, JobResult, JobStatus  # noqa: E402
 
 
 class BaseWorker(ABC):
@@ -49,7 +49,7 @@ class BaseWorker(ABC):
     def create_app(self) -> Any:
         from fastapi import Body, FastAPI, HTTPException
 
-        app = FastAPI(title=self.name or "imkt4 worker")
+        app = FastAPI(title=self.name or "imkt5 worker")
 
         @app.get("/health")
         async def health() -> dict[str, Any]:
