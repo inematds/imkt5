@@ -1,0 +1,20 @@
+[Unit]
+Description=imkt5 — gateway FastAPI + workers (start-dev.sh)
+# Infra (redis/postgres/minio) sobe via Docker (restart=unless-stopped),
+# independente deste serviço. Esperamos a rede antes de subir.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/nmaldaner/projetos/imkt5
+# Aguarda Redis (6379) e Postgres (5432) responderem antes de subir o gateway,
+# evitando corrida com os containers Docker recém-iniciados no boot.
+ExecStartPre=/bin/bash -c 'for i in $(seq 1 30); do (exec 3<>/dev/tcp/localhost/6379) 2>/dev/null && (exec 3<>/dev/tcp/localhost/5432) 2>/dev/null && exit 0; sleep 2; done; exit 0'
+ExecStart=/bin/bash /home/nmaldaner/projetos/imkt5/scripts/start-dev.sh
+ExecStop=/bin/bash /home/nmaldaner/projetos/imkt5/scripts/stop-dev.sh
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target
