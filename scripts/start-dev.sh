@@ -16,6 +16,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
+# workers são lançados como `python workers/foo/server.py`, o que põe a pasta
+# do worker no sys.path[0] em vez de ROOT — sem isso `import workers._base`
+# (e `import imkt5`) quebram. Garante ROOT no path pra todos os subprocessos.
+export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
 LOG_DIR="$ROOT/logs"
 mkdir -p "$LOG_DIR"
 
