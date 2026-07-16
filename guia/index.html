@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>imkt5 — plataforma de pipelines de mídia com fila de jobs</title>
+<meta name="description" content="imkt5: plataforma modular multi-tenant que roteia pedidos de imagem, áudio, vídeo e texto para workers via fila de jobs. Guia de uso e instalação.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0c10; --bg2:#14141b; --card:#16161e; --line:#272730;
+    --txt:#e9e9ee; --mut:#9a9aa6; --amb:#E2A23B; --amb2:#f0c070; --sky:#38bdf8; --pro:#cbd5e1;
+    color-scheme:dark;
+  }
+  body.light{
+    --bg:#f6f7f9; --bg2:#eceef2; --card:#ffffff; --line:#e1e3ea;
+    --txt:#1a1a22; --mut:#5b5b68; --amb:#b9791d; --amb2:#a16207; --sky:#0369a1; --pro:#b45309;
+    color-scheme:light;
+  }
+  body.light .hero .glow{opacity:.5}
+  body.light pre{background:#0e0e14;color:#d6d6e0}
+  body.light pre .c{color:#8a8a98}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.65 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:Sora,sans-serif;line-height:1.15;margin:0}
+  a{color:var(--amb);text-decoration:none}
+  code,pre{font-family:"JetBrains Mono",monospace}
+  .wrap{max-width:1160px;margin:0 auto;padding:0 22px}
+  .mut{color:var(--mut)} .amb{color:var(--amb)}
+  .chip{display:inline-block;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--amb);font-weight:600;font-family:Sora}
+  nav{position:sticky;top:0;z-index:30;backdrop-filter:blur(12px);background:rgba(12,12,16,.78);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;gap:22px;height:60px}
+  nav .brand{display:flex;align-items:center;gap:8px;font-family:Sora;font-weight:800;letter-spacing:-.02em;color:var(--amb)}
+  nav .brand .emoji{font-size:1.25rem}
+  nav .sep{color:var(--mut);opacity:.45}
+  nav .inema{color:var(--sky);font-weight:600;font-size:.88rem;font-family:Sora}
+  nav .inema:hover{filter:brightness(1.15)}
+  nav .pro{color:var(--pro);font-weight:600;font-size:.88rem;font-family:Sora}
+  nav .pro:hover{filter:brightness(1.15)}
+  nav .clubpro{display:inline-flex;align-items:center;gap:6px}
+  nav .links{margin-left:auto;display:flex;align-items:center;gap:20px;font-size:.92rem}
+  nav .links a.sec{color:var(--mut)} nav .links a.sec:hover{color:var(--txt)}
+  .tgl{background:var(--bg2);border:1px solid var(--line);color:var(--txt);width:38px;height:38px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:1.05rem}
+  .tgl:hover{border-color:var(--amb)}
+  .btn{display:inline-block;background:var(--amb);color:#1a1206;font-weight:600;padding:.6em 1.05em;border-radius:10px;font-family:Sora}
+  .btn.ghost{background:transparent;color:var(--txt);border:1px solid var(--line)}
+  @media(max-width:760px){nav .links a.sec{display:none}}
+  .hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+  .hero .glow{position:absolute;inset:-40% -20% auto auto;width:70%;height:600px;background:radial-gradient(closest-side,rgba(226,162,59,.22),transparent 70%);pointer-events:none}
+  .hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;padding:74px 22px}
+  .hero h1{font-size:clamp(2.2rem,5vw,3.5rem);font-weight:800;letter-spacing:-.025em}
+  .hero p.lead{font-size:1.18rem;color:var(--mut);margin:1.1em 0 1.6em;max-width:34ch}
+  .hero .cta{display:flex;gap:12px;flex-wrap:wrap}
+  .hero figure{margin:0;border-radius:16px;overflow:hidden;border:1px solid var(--line);box-shadow:0 30px 80px -30px #000}
+  .hero figure img{width:100%;display:block}
+  @media(max-width:780px){.hero .wrap{grid-template-columns:1fr;padding:48px 22px}}
+  section{padding:62px 0;border-bottom:1px solid var(--line)}
+  section h2{font-size:clamp(1.5rem,3.4vw,2.1rem);font-weight:800;letter-spacing:-.02em}
+  section .sub{color:var(--mut);margin:.6em 0 2em;max-width:62ch}
+  .grid{display:grid;gap:16px}
+  .g3{grid-template-columns:repeat(3,1fr)} .g4{grid-template-columns:repeat(4,1fr)} .g2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:820px){.g3,.g4{grid-template-columns:1fr 1fr}}
+  @media(max-width:540px){.g2,.g3,.g4{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .card h3{font-size:1.05rem;margin-bottom:.4em}
+  .card p{color:var(--mut);font-size:.92rem;margin:0}
+  .num{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:8px;background:rgba(226,162,59,.14);color:var(--amb);font-family:Sora;font-weight:800;font-size:.9rem;margin-bottom:.7em}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+  .flow span{background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:.45em .9em;font-size:.85rem;font-family:Sora;font-weight:600}
+  .flow .arr{color:var(--amb);border:none;background:none;padding:0 .1em}
+  pre{background:#0a0a0e;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;font-size:.86rem;line-height:1.6;color:#d6d6e0}
+  pre .c{color:#6f6f7c} pre .k{color:var(--amb2)} pre .s{color:#9ece6a}
+  .step{display:grid;grid-template-columns:46px 1fr;gap:16px;margin-bottom:26px}
+  .step .b{width:46px;height:46px;border-radius:12px;background:var(--amb);color:#1a1206;font-family:Sora;font-weight:800;font-size:1.25rem;display:flex;align-items:center;justify-content:center}
+  .step h3{font-size:1.12rem;margin-bottom:.3em}
+  .step p{color:var(--mut);margin:.2em 0 .7em}
+  .ex{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:680px){.ex{grid-template-columns:1fr}}
+  .ex .card{padding:0;overflow:hidden}
+  .ex pre{border:none;border-radius:0;margin:0}
+  .ex figcaption{padding:12px 14px;font-size:.88rem;color:var(--mut);background:var(--card);border-top:1px solid var(--line)}
+  .phase{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--line)}
+  .phase:last-child{border:none}
+  .phase .tag{flex:0 0 92px;font-family:Sora;font-weight:800;color:var(--amb)}
+  .phase .d strong{display:block;margin-bottom:.2em}
+  .phase .d span{color:var(--mut);font-size:.92rem}
+  footer{padding:46px 0;text-align:center;color:var(--mut);font-size:.9rem}
+  .pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:.3em .8em;font-size:.78rem;color:var(--mut);margin:0 4px}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <a class="brand" href="#top"><span class="emoji">🧩</span> imkt5</a>
+  <span class="sep">|</span>
+  <span class="clubpro">
+    <a class="inema" href="https://inema.club" target="_blank" rel="noopener">INEMA.CLUB</a>
+    <span class="sep">-</span>
+    <a class="pro" href="https://inema.pro" target="_blank" rel="noopener">PRO</a>
+  </span>
+  <div class="links">
+    <a class="sec" href="#oque">O que é</a>
+    <a class="sec" href="#fluxo">Como funciona</a>
+    <a class="sec" href="#guia">Guia de uso</a>
+    <a class="sec" href="#exemplos">Exemplos</a>
+    <a class="sec" href="#roadmap">Roadmap</a>
+    <button class="tgl" id="themeToggle" aria-label="Alternar tema" title="Alternar tema">🌙</button>
+    <a class="btn" href="https://github.com/inematds/imkt5" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</div></nav>
+
+<header class="hero" id="top">
+  <div class="glow"></div>
+  <div class="wrap">
+    <div>
+      <span class="chip">Multi-tenant · fila de jobs · em desenvolvimento</span>
+      <h1>Um <span class="amb">gateway</span> só pra despachar pipelines de mídia</h1>
+      <p class="lead">imkt5 é uma plataforma modular que recebe um pedido — imagem, áudio, vídeo, pesquisa de mercado, texto — e despacha pro worker certo via fila de jobs, com fallback local-first e receitas declarativas em YAML pra fluxos compostos.</p>
+      <div class="cta">
+        <a class="btn" href="#guia">Começar o guia</a>
+        <a class="btn ghost" href="https://github.com/inematds/imkt5" target="_blank" rel="noopener">Ver no GitHub</a>
+      </div>
+    </div>
+    <figure><img src="assets/hero.png" alt="Ilustração do gateway imkt5 despachando jobs para workers"></figure>
+  </div>
+</header>
+
+<section id="oque"><div class="wrap">
+  <span class="chip">O que é</span>
+  <h2>Roteador de trabalho pra pipelines de mídia</h2>
+  <p class="sub">Cada worker (imagem, áudio, pesquisa, revisão) é um serviço HTTP independente, rodável sozinho. O Gateway despacha por <strong>capability</strong> (ex.: <code>image.generation</code>, <code>audio.tts</code>, <code>research.market</code>), com múltiplas instâncias distribuídas local antes de remoto. Projeto em fase de scaffold ativo — parte já funciona ponta a ponta, parte ainda está no roadmap (veja abaixo).</p>
+  <div class="grid g3">
+    <div class="card"><h3>🧩 Recipe engine</h3><p>Fluxos compostos declarados em YAML (<code>recipes/*.yaml</code>), com dependências, paralelismo (fanout) e 3 modos de aprovação por etapa.</p></div>
+    <div class="card"><h3>🔀 Capability matcher</h3><p>Registry de workers com <code>local:true/false</code> + prioridade + health-check periódico; cai pro próximo worker se o preferido estiver fora do ar.</p></div>
+    <div class="card"><h3>🏢 Multi-tenant desde o schema</h3><p><code>tenant_id</code> em toda assinatura e linha de dado — sem "tenant default" escondido. Config em 3 níveis: global / tenant / usuário.</p></div>
+  </div>
+</div></section>
+
+<section id="fluxo"><div class="wrap">
+  <span class="chip">Como funciona</span>
+  <h2>Canal → Gateway → Fila → Worker</h2>
+  <p class="sub">Hoje a entrada é via HTTP direto (<code>POST /jobs</code>) ou a UI web em <code>/ui</code>; os canais Telegram/WhatsApp ainda estão pendentes (veja Roadmap). Dois modos de despacho:</p>
+  <div class="flow">
+    <span>Canais (Web hoje · TG/WA planejados)</span><span class="arr">→</span>
+    <span>Gateway HTTP</span><span class="arr">→</span>
+    <span>Capability matcher</span><span class="arr">→</span>
+    <span>Worker(s)</span>
+  </div>
+  <div class="grid g2" style="margin-top:24px">
+    <div class="card"><h3>Quick dispatch</h3><p>Pedido simples (1 capability) — <code>POST /jobs</code> direto, sem receita. Ex.: gerar 1 imagem, rodar 1 pesquisa.</p></div>
+    <div class="card"><h3>Recipe Runner</h3><p>Fluxo composto (várias capabilities encadeadas) definido em YAML, com <code>needs</code>, <code>payload_from</code> e aprovações — ex.: <code>recipes/campanha-marketing.yaml</code>.</p></div>
+  </div>
+</div></section>
+
+<section id="pre"><div class="wrap">
+  <span class="chip">Pré-requisitos</span>
+  <h2>O que precisa estar no ar</h2>
+  <p class="sub">Só o Python + venv é obrigatório pra subir o gateway. Cada worker real depende de um upstream — sem ele, o worker simplesmente fica indisponível e o matcher pula pro próximo.</p>
+  <div class="grid g3">
+    <div class="card"><h3>Python 3.11+</h3><p>Ambiente do projeto.</p><pre><span class="c"># criar e instalar</span>
+<span class="k">python -m venv .venv</span>
+<span class="k">.venv/bin/pip install -e ".[dev]" pyyaml fakeredis httpx</span></pre></div>
+    <div class="card"><h3>Ollama local</h3><p>Necessário pro worker <code>auto-reviewer</code> (revisão via LLM).</p><pre><span class="c"># baixar o modelo usado</span>
+<span class="k">ollama pull qwen2.5:14b</span>
+<span class="k">ollama serve</span></pre></div>
+    <div class="card"><h3>TAVILY_API_KEY</h3><p>Opcional — precisa estar no <code>.env</code> pro worker <code>research</code> (pesquisa de mercado).</p><pre><span class="c"># .env</span>
+<span class="k">TAVILY_API_KEY=...</span></pre></div>
+    <div class="card"><h3>inemaimg (opcional)</h3><p>Em <code>localhost:8000</code> — necessário pra <code>image.generation</code> real (flux2-klein / qwen-edit / ernie).</p></div>
+    <div class="card"><h3>inemavox (opcional)</h3><p>Em <code>localhost:8010</code> — necessário pra <code>audio.tts</code> / <code>dubbing</code> / <code>transcribe</code> real.</p></div>
+  </div>
+</div></section>
+
+<section id="guia"><div class="wrap">
+  <span class="chip">Guia de uso · passo a passo</span>
+  <h2>Subir o gateway e mandar o primeiro job</h2>
+  <p class="sub">Comandos reais do repo, testados via <code>scripts/start-dev.sh</code>.</p>
+
+  <div class="step"><div class="b">1</div><div>
+    <h3>Instale as dependências</h3>
+    <p>Cria o venv e instala o pacote em modo editável.</p>
+<pre><span class="k">python -m venv .venv</span>
+<span class="k">.venv/bin/pip install -e ".[dev]" pyyaml fakeredis httpx</span></pre>
+  </div></div>
+
+  <div class="step"><div class="b">2</div><div>
+    <h3>Suba tudo</h3>
+    <p>Sobe o gateway (porta 8080) e os workers que conseguirem responder health-check (auto-reviewer sempre; research se houver <code>TAVILY_API_KEY</code>; inemaimg-adapter/inemavox-adapter se os upstreams estiverem no ar).</p>
+<pre><span class="k">./scripts/start-dev.sh</span>  <span class="c"># logs em logs/&lt;servico&gt;.log</span></pre>
+  </div></div>
+
+  <div class="step"><div class="b">3</div><div>
+    <h3>Abra a UI web</h3>
+    <p>Interface simples pra disparar jobs sem precisar de curl.</p>
+<pre><span class="k">open http://localhost:8080/ui</span></pre>
+  </div></div>
+
+  <div class="step"><div class="b">4</div><div>
+    <h3>Confira o que está disponível</h3>
+    <p>Lista os workers registrados (com status de health) e as capabilities que cada um oferece.</p>
+<pre><span class="k">curl -s http://localhost:8080/workers | python3 -m json.tool</span>
+<span class="k">curl -s http://localhost:8080/capabilities | python3 -m json.tool</span></pre>
+  </div></div>
+
+  <div class="step"><div class="b">5</div><div>
+    <h3>Dispare um job (quick dispatch)</h3>
+    <p>Pesquisa de mercado via Tavily — não depende de nenhum serviço local.</p>
+<pre><span class="k">curl -X POST http://localhost:8080/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"capability":"research.market","payload":{"queries":["café 2026"]}}'</span>  <span class="c"># -&gt; {"job_id": "..."}</span></pre>
+  </div></div>
+
+  <div class="step"><div class="b">6</div><div>
+    <h3>Acompanhe o resultado</h3>
+    <p>Quick dispatch é fire-and-forget — o resultado sai no log do worker, não na resposta do POST.</p>
+<pre><span class="k">tail -20 logs/research.log</span></pre>
+  </div></div>
+
+  <div class="step"><div class="b">7</div><div>
+    <h3>Pare tudo</h3>
+<pre><span class="k">./scripts/stop-dev.sh</span></pre>
+  </div></div>
+</div></section>
+
+<section id="exemplos"><div class="wrap">
+  <span class="chip">Exemplos</span>
+  <h2>Dois jobs reais, via curl</h2>
+  <p class="sub">O projeto ainda não tem front-end com galeria — estes são os payloads exatos usados no <code>doc/QUICKSTART.md</code> do repo.</p>
+  <div class="ex">
+    <div class="card">
+<pre><span class="c"># pesquisa de mercado (Tavily, real)</span>
+<span class="k">curl -s -X POST http://localhost:8080/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant_id": "demo",
+    "user_id": "u1",
+    "capability": "research.market",
+    "payload": {
+      "queries": ["tendências café gelado brasil 2026"],
+      "max_results_per_query": 3
+    }
+  }'</span></pre>
+      <figcaption>Worker <code>research</code> — validado live.</figcaption>
+    </div>
+    <div class="card">
+<pre><span class="c"># geração de imagem (inemaimg / flux2-klein, real)</span>
+<span class="k">curl -s -X POST http://localhost:8080/jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant_id": "demo",
+    "user_id": "u1",
+    "capability": "image.generation",
+    "payload": {
+      "model": "flux2-klein",
+      "prompt": "a happy capybara sipping iced coffee",
+      "steps": 15,
+      "width": 512,
+      "height": 512
+    }
+  }'</span></pre>
+      <figcaption>Worker <code>inemaimg-adapter</code> — requer inemaimg em <code>:8000</code>.</figcaption>
+    </div>
+  </div>
+</div></section>
+
+<section id="roadmap"><div class="wrap">
+  <span class="chip">Roadmap</span>
+  <h2>Onde o projeto está de verdade</h2>
+  <p class="sub">Direto do status do README — sem prometer o que ainda não existe no código.</p>
+  <div class="phase"><div class="tag">✅ Feito</div><div class="d"><strong>Fundação do gateway</strong><span>Contratos multi-tenant, recipe engine (YAML + 3 modos de aprovação), capability registry local-first, quick dispatch, HTTP dispatcher, UI web em <code>/ui</code>, config em 3 níveis, 35 testes passando.</span></div></div>
+  <div class="phase"><div class="tag">✅ Validado</div><div class="d"><strong>4 workers reais</strong><span><code>research</code> (Tavily), <code>auto-reviewer</code> (Ollama + OpenRouter), <code>inemaimg-adapter</code> (flux2-klein/qwen-edit/ernie) e <code>inemavox-adapter</code> (TTS/dubbing/transcribe, adapter pronto).</span></div></div>
+  <div class="phase"><div class="tag">⏸ Pendente</div><div class="d"><strong>Canais conversacionais</strong><span>Telegram e WhatsApp ainda não estão implementados — hoje só HTTP direto / UI web.</span></div></div>
+  <div class="phase"><div class="tag">⏸ Pendente</div><div class="d"><strong>Persistência</strong><span>Jobs e runs de receita ficam em memória hoje; Postgres é a próxima camada, pra sobreviver a restart.</span></div></div>
+  <div class="phase"><div class="tag">⏸ Pendente</div><div class="d"><strong>Mais workers</strong><span>12 workers do <code>timesmkt3</code> (copywriter, ad-designer, etc.) e os workers do <code>yt-pub-lives*</code> ainda precisam ser portados — vários já têm pasta em <code>workers/</code> mas não estão registrados/health-validados em <code>config/workers.yaml</code>.</span></div></div>
+</div></section>
+
+<footer>
+  <div class="wrap">
+    <div class="pill">Python</div><div class="pill">FastAPI</div><div class="pill">RQ + Redis</div><div class="pill">SQLite FTS5</div>
+    <p style="margin-top:18px">imkt5 · plataforma em desenvolvimento ·
+      <a href="https://github.com/inematds/imkt5">inematds/imkt5</a> ·
+      <a href="https://inema.club">INEMA.CLUB</a></p>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var KEY='imkt5-theme';
+    var b=document.body, t=document.getElementById('themeToggle');
+    if(localStorage.getItem(KEY)==='light'){ b.classList.add('light'); t.textContent='☀️'; }
+    t.addEventListener('click',function(){
+      var light=b.classList.toggle('light');
+      t.textContent=light?'☀️':'🌙';
+      localStorage.setItem(KEY, light?'light':'dark');
+    });
+  })();
+</script>
+</body>
+</html>
